@@ -1,0 +1,52 @@
+# --- Operating system files ---
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# --- Editor / IDE files ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-workspace
+
+# --- Secrets & environment files (never commit these) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.*
+credentials.*
+
+# --- Logs & temp files ---
+*.log
+logs/
+*.tmp
+*.temp
+tmp/
+temp/
+
+# --- Dependencies & build output (common languages) ---
+# Node / JavaScript
+node_modules/
+dist/
+build/
+.cache/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+
+# General
+coverage/
+.pytest_cache/
