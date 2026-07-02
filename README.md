@@ -3,6 +3,9 @@
 A Next.js (TypeScript) app deployed on Vercel. Every push to GitHub is automatically
 checked so that broken code never reaches production.
 
+> Tip: to see the checks run on a Pull Request, make a change on a branch, commit it,
+> push the branch, then open a PR against `main`.
+
 ---
 
 ## The short version
