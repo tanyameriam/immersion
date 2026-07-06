@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { DM_Sans } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { AuthProvider } from "@/hooks/use-auth";
+import { Toaster } from "@/components/ui/sonner";
 
 const dmSans = DM_Sans({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: "Immersion — Content Curation",
-  description: "A content curation app.",
+  title: "Layrrrd — Save anything. AI understands everything.",
+  description:
+    "Layrrrd is an AI knowledge layer for the web. Save any page in one click and get instant AI summaries, topics, and a weekly digest.",
 };
 
 export default function RootLayout({
@@ -17,7 +20,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={cn("font-sans", dmSans.variable)}>
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+        <Toaster />
+      </body>
     </html>
   );
 }

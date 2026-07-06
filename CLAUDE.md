@@ -1,4 +1,4 @@
-# Immersion — Design System
+# Layrrrd — Design System
 
 This project's design system is shadcn/ui, scaffolded via:
 

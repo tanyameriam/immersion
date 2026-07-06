@@ -24,7 +24,7 @@ $RECYCLE.BIN/
 secrets.*
 credentials.*
 
-# --- Logs & temp files ---
+# --- Logs & temp files ---------
 *.log
 logs/
 *.tmp

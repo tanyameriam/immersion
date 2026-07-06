@@ -1,7 +1,10 @@
-# Immersion — Content Curation App
+# Layrrrd — AI Knowledge Layer for the Web
 
-A Next.js (TypeScript) app deployed on Vercel. Every push to GitHub is automatically
-checked so that broken code never reaches production.
+Save anything. AI understands everything. Layrrrd turns every saved page into a
+concise AI summary, key topics, and a weekly digest.
+
+A Next.js (TypeScript) app deployed on Vercel at **app.layrrrd.com**. Every push to
+GitHub is automatically checked so that broken code never reaches production.
 
 ---
 
@@ -63,7 +66,7 @@ done from the command line.
 
 1. Go to [vercel.com](https://vercel.com) and sign in with GitHub.
 2. Click **Add New… → Project**.
-3. Import the **`immersion`** repository.
+3. Import the **`layrrrd`** repository.
 4. Leave all settings as-is (Vercel auto-detects Next.js) and click **Deploy**.
 
 Done. From now on every push to `main` deploys automatically, and every pull request
