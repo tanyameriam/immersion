@@ -38,9 +38,16 @@ function sortResources(list: Resource[], sort: string) {
 
 export function RecommendedTab({
   onBookmark,
+  items,
 }: {
   onBookmark: (resource: Resource) => void;
+  /**
+   * Real recommendations to show. Falls back to sample content until the
+   * community-based recommendation engine exists (needs multiple users).
+   */
+  items?: Resource[];
 }) {
+  const source = useMemo(() => items ?? recommendations, [items]);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("Most Relevant");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
@@ -55,7 +62,7 @@ export function RecommendedTab({
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return recommendations.filter((item) => {
+    return source.filter((item) => {
       if (
         query &&
         !item.title.toLowerCase().includes(query) &&
@@ -78,7 +85,7 @@ export function RecommendedTab({
       }
       return true;
     });
-  }, [search, filters]);
+  }, [source, search, filters]);
 
   const sorted = useMemo(() => sortResources(filtered, sort), [filtered, sort]);
 
@@ -93,7 +100,7 @@ export function RecommendedTab({
   }
 
   function handleBookmark(id: string) {
-    const resource = recommendations.find((item) => item.id === id);
+    const resource = source.find((item) => item.id === id);
     if (!resource) return;
     setBookmarkedIds((prev) => new Set(prev).add(id));
     onBookmark(resource);
