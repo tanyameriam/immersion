@@ -1,0 +1,2 @@
+# The Chrome extension is a separate artifact — keep it out of the web build.
+extension/

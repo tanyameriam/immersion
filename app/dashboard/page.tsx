@@ -1,22 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Navigation from "@/components/Navigation";
 import { RequireAuth } from "@/components/dashboard/RequireAuth";
 import { BookmarksTab } from "@/components/dashboard/BookmarksTab";
+import { SaveLinkBar } from "@/components/dashboard/SaveLinkBar";
 import { RecommendedTab } from "@/components/dashboard/RecommendedTab";
 import { WeeklyIssuesTab } from "@/components/dashboard/WeeklyIssuesTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/components/AuthContext";
-import {
-  bookmarks as initialBookmarks,
-  type Resource,
-} from "@/lib/dashboard-data";
+import { useKnowledgeItems } from "@/hooks/use-knowledge-items";
+import { type Resource } from "@/lib/dashboard-data";
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { resources, remove, save } = useKnowledgeItems();
   const [tab, setTab] = useState("bookmarks");
-  const [bookmarks, setBookmarks] = useState<Resource[]>(initialBookmarks);
+  const [bookmarks, setBookmarks] = useState<Resource[]>([]);
+
+  // Server (Firestore) is the source of truth; sync in real saved items as
+  // they load and finish AI processing.
+  useEffect(() => {
+    setBookmarks(resources);
+  }, [resources]);
 
   function handleBookmarkFromRecommendations(resource: Resource) {
     setBookmarks((prev) => {
@@ -48,11 +54,13 @@ export default function DashboardPage() {
             <TabsTrigger value="issues">Weekly Issues</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="bookmarks" className="mt-8">
+          <TabsContent value="bookmarks" className="mt-8 space-y-8">
+            <SaveLinkBar onSave={save} />
             <BookmarksTab
               items={bookmarks}
               setItems={setBookmarks}
               onExploreRecommendations={() => setTab("recommended")}
+              onRemovePersist={(ids) => ids.forEach((id) => remove(id))}
             />
           </TabsContent>
 

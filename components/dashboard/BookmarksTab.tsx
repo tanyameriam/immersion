@@ -68,10 +68,13 @@ export function BookmarksTab({
   items,
   setItems,
   onExploreRecommendations,
+  onRemovePersist,
 }: {
   items: Resource[];
   setItems: Dispatch<SetStateAction<Resource[]>>;
   onExploreRecommendations: () => void;
+  /** Persist a removal to the backend (Firestore). Optional for mock usage. */
+  onRemovePersist?: (ids: string[]) => void;
 }) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("Recently Saved");
@@ -161,6 +164,7 @@ export function BookmarksTab({
 
   function removeBookmarks(ids: string[]) {
     setItems((prev) => prev.filter((item) => !ids.includes(item.id)));
+    onRemovePersist?.(ids);
     setSelected((prev) => {
       const next = new Set(prev);
       ids.forEach((id) => next.delete(id));
