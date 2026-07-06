@@ -3,6 +3,8 @@ import "./globals.css";
 import { Inter_Tight } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { satoshi, sardin } from "@/design-system/fonts";
+import WaitlistProvider from "@/components/WaitlistContext";
+import AuthProvider from "@/components/AuthContext";
 
 const interTight = Inter_Tight({
   subsets: ["latin"],
@@ -12,8 +14,9 @@ const interTight = Inter_Tight({
 });
 
 export const metadata: Metadata = {
-  title: "Immersion — Content Curation",
-  description: "A content curation app.",
+  title: "Layrrrd. — Save once. Revisit intentionally.",
+  description:
+    "Layrrrd turns everything you save into a curated weekly reading list, so the best things you found actually get read.",
 };
 
 export default function RootLayout({
@@ -35,7 +38,9 @@ export default function RootLayout({
         className="bg-background text-foreground antialiased"
         suppressHydrationWarning
       >
-        {children}
+        <AuthProvider>
+          <WaitlistProvider>{children}</WaitlistProvider>
+        </AuthProvider>
       </body>
     </html>
   );
