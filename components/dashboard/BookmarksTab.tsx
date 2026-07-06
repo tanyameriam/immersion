@@ -1,0 +1,297 @@
+"use client";
+
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { Search, BookmarkX } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ResourceCard } from "@/components/dashboard/ResourceCard";
+import { FilterMenu, type FilterGroup } from "@/components/dashboard/FilterMenu";
+import { EmptyState } from "@/components/dashboard/EmptyState";
+import { ViewToggle, type ResourceView } from "@/components/dashboard/ViewToggle";
+import {
+  matchesDateSaved,
+  matchesReadingTime,
+  type Resource,
+} from "@/lib/dashboard-data";
+import {
+  CATEGORIES,
+  CONTENT_TYPES,
+  READING_TIME_BUCKETS,
+  DATE_SAVED_BUCKETS,
+} from "@/lib/constants";
+
+const SORT_OPTIONS = [
+  "Recently Saved",
+  "Oldest Saved",
+  "Recently Published",
+  "Alphabetical (A–Z)",
+  "Reading Time",
+];
+
+function sortResources(list: Resource[], sort: string) {
+  const sorted = [...list];
+  switch (sort) {
+    case "Oldest Saved":
+      return sorted.sort(
+        (a, b) =>
+          new Date(a.savedDate ?? 0).getTime() -
+          new Date(b.savedDate ?? 0).getTime()
+      );
+    case "Recently Published":
+      return sorted.sort(
+        (a, b) =>
+          new Date(b.publishedDate).getTime() -
+          new Date(a.publishedDate).getTime()
+      );
+    case "Alphabetical (A–Z)":
+      return sorted.sort((a, b) => a.title.localeCompare(b.title));
+    case "Reading Time":
+      return sorted.sort((a, b) => a.readingTime - b.readingTime);
+    case "Recently Saved":
+    default:
+      return sorted.sort(
+        (a, b) =>
+          new Date(b.savedDate ?? 0).getTime() -
+          new Date(a.savedDate ?? 0).getTime()
+      );
+  }
+}
+
+export function BookmarksTab({
+  items,
+  setItems,
+  onExploreRecommendations,
+}: {
+  items: Resource[];
+  setItems: Dispatch<SetStateAction<Resource[]>>;
+  onExploreRecommendations: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("Recently Saved");
+  const [filters, setFilters] = useState<Record<string, string[]>>({});
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [view, setView] = useState<ResourceView>("grid");
+
+  const sources = useMemo(
+    () => Array.from(new Set(items.map((item) => item.source))).sort(),
+    [items]
+  );
+
+  const filterGroups: FilterGroup[] = [
+    { key: "category", label: "Category", options: CATEGORIES },
+    { key: "contentType", label: "Content Type", options: CONTENT_TYPES },
+    { key: "readingTime", label: "Reading Time", options: READING_TIME_BUCKETS },
+    { key: "dateSaved", label: "Date Saved", options: DATE_SAVED_BUCKETS },
+    { key: "source", label: "Source", options: sources },
+  ];
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return items.filter((item) => {
+      if (
+        query &&
+        !item.title.toLowerCase().includes(query) &&
+        !item.description.toLowerCase().includes(query) &&
+        !item.source.toLowerCase().includes(query)
+      ) {
+        return false;
+      }
+      if (
+        filters.category?.length &&
+        !filters.category.some((cat) => item.category.includes(cat))
+      ) {
+        return false;
+      }
+      if (
+        filters.contentType?.length &&
+        !filters.contentType.includes(item.contentType)
+      ) {
+        return false;
+      }
+      if (
+        filters.readingTime?.length &&
+        !filters.readingTime.some((bucket) =>
+          matchesReadingTime(item.readingTime, bucket)
+        )
+      ) {
+        return false;
+      }
+      if (
+        filters.dateSaved?.length &&
+        !filters.dateSaved.some((bucket) =>
+          matchesDateSaved(item.savedDate, bucket)
+        )
+      ) {
+        return false;
+      }
+      if (filters.source?.length && !filters.source.includes(item.source)) {
+        return false;
+      }
+      return true;
+    });
+  }, [items, search, filters]);
+
+  const sorted = useMemo(() => sortResources(filtered, sort), [filtered, sort]);
+
+  function handleFilterChange(groupKey: string, option: string, checked: boolean) {
+    setFilters((prev) => {
+      const current = prev[groupKey] ?? [];
+      const next = checked
+        ? [...current, option]
+        : current.filter((v) => v !== option);
+      return { ...prev, [groupKey]: next };
+    });
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function removeBookmarks(ids: string[]) {
+    setItems((prev) => prev.filter((item) => !ids.includes(item.id)));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+  }
+
+  function markRead(ids: string[]) {
+    setItems((prev) =>
+      prev.map((item) =>
+        ids.includes(item.id) ? { ...item, read: true } : item
+      )
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <EmptyState
+        icon={BookmarkX}
+        title="No bookmarks yet"
+        description="Save useful resources from Layrrrd to build your personal design library."
+        actionLabel="Explore Recommendations"
+        onAction={onExploreRecommendations}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="relative w-full max-w-sm">
+          <Search className="pointer-events-none absolute left-0 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search title, description, source…"
+            className="pl-6"
+          />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <FilterMenu
+            groups={filterGroups}
+            selected={filters}
+            onChange={handleFilterChange}
+            onClear={() => setFilters({})}
+          />
+          <Select value={sort} onValueChange={(v) => v && setSort(v)}>
+            <SelectTrigger className="w-fit">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <ViewToggle view={view} onChange={setView} />
+        </div>
+      </div>
+
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border border-border bg-muted px-4 py-3">
+          <span className="text-sm font-bold text-foreground">
+            {selected.size} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => markRead(Array.from(selected))}
+            >
+              Mark as Read
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => removeBookmarks(Array.from(selected))}
+            >
+              Remove Bookmarks
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSelected(new Set())}
+            >
+              Clear Selection
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {sorted.length === 0 ? (
+        <p className="py-16 text-center text-sm text-muted-foreground">
+          No bookmarks match your search and filters.
+        </p>
+      ) : view === "list" ? (
+        <div className="divide-y divide-border border-t border-border">
+          {sorted.map((item) => (
+            <ResourceCard
+              key={item.id}
+              resource={item}
+              variant="bookmark"
+              view="list"
+              selected={selected.has(item.id)}
+              onToggleSelect={toggleSelect}
+              onRemove={(id) => removeBookmarks([id])}
+              onMarkRead={(id) => markRead([id])}
+              onReport={() => {}}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {sorted.map((item) => (
+            <ResourceCard
+              key={item.id}
+              resource={item}
+              variant="bookmark"
+              view="grid"
+              selected={selected.has(item.id)}
+              onToggleSelect={toggleSelect}
+              onRemove={(id) => removeBookmarks([id])}
+              onMarkRead={(id) => markRead([id])}
+              onReport={() => {}}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
