@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navigation from "@/components/Navigation";
 import { RequireAuth } from "@/components/dashboard/RequireAuth";
 import { useAuth } from "@/components/AuthContext";
+import { usePreferences } from "@/hooks/use-preferences";
 import {
   Card,
   CardHeader,
@@ -40,9 +41,19 @@ function useSavedFlash() {
 
 function PersonalInformationCard() {
   const { user } = useAuth();
+  const { prefs, loaded, save } = usePreferences();
   const [fullName, setFullName] = useState(user?.name ?? "");
   const [profession, setProfession] = useState("designer");
   const { saved, flash } = useSavedFlash();
+
+  useEffect(() => {
+    if (loaded && prefs.name) setFullName(prefs.name);
+  }, [loaded, prefs.name]);
+
+  async function handleSave() {
+    await save({ name: fullName });
+    flash();
+  }
 
   return (
     <Card>
@@ -71,7 +82,7 @@ function PersonalInformationCard() {
         </div>
       </CardContent>
       <CardFooter className="gap-3">
-        <Button size="sm" onClick={flash}>
+        <Button size="sm" onClick={handleSave}>
           Save Changes
         </Button>
         {saved && <span className="text-sm text-muted-foreground">Saved.</span>}
@@ -81,8 +92,18 @@ function PersonalInformationCard() {
 }
 
 function RecommendationPreferencesCard() {
+  const { prefs, loaded, save } = usePreferences();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const { saved, flash } = useSavedFlash();
+
+  useEffect(() => {
+    if (loaded) setSelected(new Set(prefs.preferredTopics));
+  }, [loaded, prefs.preferredTopics]);
+
+  async function handleSave() {
+    await save({ preferredTopics: [...selected] });
+    flash();
+  }
 
   function toggle(option: string, checked: boolean) {
     setSelected((prev) => {
@@ -117,7 +138,7 @@ function RecommendationPreferencesCard() {
         </div>
       </CardContent>
       <CardFooter className="gap-3">
-        <Button size="sm" onClick={flash}>
+        <Button size="sm" onClick={handleSave}>
           Save Changes
         </Button>
         {saved && <span className="text-sm text-muted-foreground">Saved.</span>}
@@ -128,9 +149,25 @@ function RecommendationPreferencesCard() {
 
 function NewsletterDeliveryCard() {
   const { user } = useAuth();
+  const { prefs, loaded, save } = usePreferences();
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("email");
   const [telegramUsername, setTelegramUsername] = useState("");
   const { saved, flash } = useSavedFlash();
+
+  useEffect(() => {
+    if (loaded) {
+      setDeliveryMethod(prefs.notificationPreference);
+      setTelegramUsername(prefs.telegramChatId);
+    }
+  }, [loaded, prefs.notificationPreference, prefs.telegramChatId]);
+
+  async function handleSave() {
+    await save({
+      notificationPreference: deliveryMethod,
+      telegramChatId: telegramUsername,
+    });
+    flash();
+  }
 
   return (
     <Card>
@@ -170,7 +207,7 @@ function NewsletterDeliveryCard() {
         )}
       </CardContent>
       <CardFooter className="gap-3">
-        <Button size="sm" onClick={flash}>
+        <Button size="sm" onClick={handleSave}>
           Save Changes
         </Button>
         {saved && <span className="text-sm text-muted-foreground">Saved.</span>}
