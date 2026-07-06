@@ -10,6 +10,12 @@ export type Resource = {
   savedDate?: string; // ISO date, bookmarks only
   url: string;
   read?: boolean;
+  // Full AI detail (present on real saved items; optional so mock data still fits).
+  summary?: string;
+  keywords?: string[];
+  difficulty?: string;
+  sentiment?: string;
+  status?: "pending" | "processing" | "completed" | "failed";
 };
 
 export type WeeklyIssue = {

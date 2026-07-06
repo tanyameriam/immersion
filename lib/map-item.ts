@@ -35,5 +35,10 @@ export function toResource(item: KnowledgeItem): Resource {
     savedDate: item.createdAt || undefined,
     url: item.url,
     read: false,
+    summary: item.ai?.summary,
+    keywords: item.ai?.keywords,
+    difficulty: item.ai?.difficulty,
+    sentiment: item.ai?.sentiment,
+    status: item.status,
   };
 }

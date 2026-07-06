@@ -100,13 +100,16 @@ export async function listItems(
   userId: string,
   opts: { includeArchived?: boolean; limit?: number } = {},
 ): Promise<KnowledgeItem[]> {
+  // No orderBy in the query (avoids requiring a composite index for first-run
+  // setup); sort newest-first in memory — fine at personal scale.
   const snap = await adminDb()
     .collection(COLLECTION)
     .where("userId", "==", userId)
-    .orderBy("createdAt", "desc")
-    .limit(opts.limit ?? 200)
+    .limit(opts.limit ?? 500)
     .get();
-  const items = snap.docs.map((d) => toKnowledgeItem(d.id, d.data()));
+  const items = snap.docs
+    .map((d) => toKnowledgeItem(d.id, d.data()))
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   return opts.includeArchived ? items : items.filter((i) => !i.isArchived);
 }
 
