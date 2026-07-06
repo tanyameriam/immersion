@@ -1,4 +1,3 @@
-import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { toKnowledgeItem } from "@/lib/firestore/items";
 import type { KnowledgeItem } from "@/lib/types/knowledge-item";
@@ -16,10 +15,11 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * Build a weekly digest for every user who has completed items in the window.
- * Uses the per-user (userId, status, createdAt) index.
+ * Query is index-free (single equality on userId); status/recency filtering and
+ * sorting happen in memory so no composite index setup is required.
  */
 export async function buildWeeklyDigests(sinceMs = WEEK_MS): Promise<UserDigest[]> {
-  const since = Timestamp.fromMillis(Date.now() - sinceMs);
+  const sinceIso = new Date(Date.now() - sinceMs).toISOString();
   const usersSnap = await adminDb().collection("users").get();
   const digests: UserDigest[] = [];
 
@@ -30,14 +30,15 @@ export async function buildWeeklyDigests(sinceMs = WEEK_MS): Promise<UserDigest[
     const itemsSnap = await adminDb()
       .collection("knowledgeItems")
       .where("userId", "==", uid)
-      .where("status", "==", "completed")
-      .where("createdAt", ">=", since)
-      .orderBy("createdAt", "desc")
       .get();
 
-    if (itemsSnap.empty) continue;
+    // ISO timestamps sort lexicographically = chronologically.
+    const items = itemsSnap.docs
+      .map((d) => toKnowledgeItem(d.id, d.data()))
+      .filter((i) => i.status === "completed" && i.createdAt >= sinceIso)
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 
-    const items = itemsSnap.docs.map((d) => toKnowledgeItem(d.id, d.data()));
+    if (items.length === 0) continue;
 
     // Rank topics by frequency across the week's items.
     const counts = new Map<string, number>();
