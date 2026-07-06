@@ -7,26 +7,36 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  signOut as fbSignOut,
+  type User,
+} from "firebase/auth";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { auth, db, googleProvider } from "@/lib/firebase/client";
 import { AuthModal } from "@/components/AuthModal";
 
 export type AuthMode = "sign-in" | "sign-up";
 
 export type AuthUser = {
+  uid: string;
   name: string;
   email: string;
+  photoURL: string | null;
 };
-
-const STORAGE_KEY = "layrrrd:user";
 
 type AuthContextValue = {
   isOpen: boolean;
   mode: AuthMode;
   user: AuthUser | null;
+  /** True once Firebase has resolved the initial auth state. */
   hydrated: boolean;
   openAuth: (mode?: AuthMode) => void;
   closeAuth: () => void;
   setMode: (mode: AuthMode) => void;
-  login: (user: AuthUser, options?: { remember?: boolean }) => void;
+  /** Real Google sign-in (replaces the former mock email/password login). */
+  signInWithGoogle: () => Promise<void>;
   logout: () => void;
 };
 
@@ -40,6 +50,31 @@ export function useAuth() {
   return ctx;
 }
 
+function toAuthUser(u: User): AuthUser {
+  return {
+    uid: u.uid,
+    name: u.displayName ?? u.email ?? "there",
+    email: u.email ?? "",
+    photoURL: u.photoURL,
+  };
+}
+
+/** Create/refresh the user's `users/{uid}` profile on sign-in. */
+async function upsertUserProfile(u: User): Promise<void> {
+  await setDoc(
+    doc(db, "users", u.uid),
+    {
+      name: u.displayName ?? "",
+      email: u.email ?? "",
+      profilePhoto: u.photoURL ?? "",
+      provider: "google",
+      lastLogin: serverTimestamp(),
+      createdAt: serverTimestamp(), // merge keeps the first-write value
+    },
+    { merge: true },
+  );
+}
+
 export default function AuthProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("sign-in");
@@ -47,16 +82,17 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const stored =
-      localStorage.getItem(STORAGE_KEY) ?? sessionStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored));
-      } catch {
-        // Ignore malformed session data.
+    return onAuthStateChanged(auth, async (u) => {
+      setUser(u ? toAuthUser(u) : null);
+      setHydrated(true);
+      if (u) {
+        try {
+          await upsertUserProfile(u);
+        } catch (err) {
+          console.error("Failed to upsert user profile", err);
+        }
       }
-    }
-    setHydrated(true);
+    });
   }, []);
 
   return (
@@ -72,19 +108,12 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
         },
         closeAuth: () => setIsOpen(false),
         setMode,
-        login: (nextUser, options) => {
-          setUser(nextUser);
-          const payload = JSON.stringify(nextUser);
-          if (options?.remember) {
-            localStorage.setItem(STORAGE_KEY, payload);
-          } else {
-            sessionStorage.setItem(STORAGE_KEY, payload);
-          }
+        signInWithGoogle: async () => {
+          await signInWithPopup(auth, googleProvider);
+          setIsOpen(false);
         },
         logout: () => {
-          setUser(null);
-          localStorage.removeItem(STORAGE_KEY);
-          sessionStorage.removeItem(STORAGE_KEY);
+          void fbSignOut(auth);
         },
       }}
     >

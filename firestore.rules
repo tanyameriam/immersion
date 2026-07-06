@@ -1,0 +1,62 @@
+rules_version = '2';
+
+// Layrrrd Firestore security rules.
+// Principle: users read/write ONLY their own data. AI-derived fields and
+// backend-only collections are never writable from the client — those writes
+// go through the Admin SDK, which bypasses these rules.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function owns(resourceData) {
+      return signedIn() && request.auth.uid == resourceData.userId;
+    }
+
+    // A user's own profile.
+    match /users/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
+    // Per-user preferences.
+    match /preferences/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
+    // Knowledge items. Clients may create/read/delete their own and toggle
+    // user-facing flags, but may NOT write AI/status/ownership fields —
+    // only the Admin SDK does.
+    match /knowledgeItems/{itemId} {
+      allow read, delete: if owns(resource.data);
+      allow create: if signedIn()
+        && request.auth.uid == request.resource.data.userId;
+      allow update: if owns(resource.data)
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['ai', 'status', 'userId', 'processingStartedAt',
+                     'retryCount', 'error', 'createdAt']);
+    }
+
+    // Backend-generated; clients may read their own but never write.
+    match /recommendations/{id} {
+      allow read: if owns(resource.data);
+      allow write: if false;
+    }
+    match /weeklyDigests/{id} {
+      allow read: if owns(resource.data);
+      allow write: if false;
+    }
+    match /notifications/{id} {
+      allow read: if owns(resource.data);
+      allow write: if false;
+    }
+
+    // Backend-only, no client access at all.
+    match /analytics/{id} {
+      allow read, write: if false;
+    }
+    match /systemJobs/{id} {
+      allow read, write: if false;
+    }
+  }
+}
