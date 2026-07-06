@@ -57,3 +57,7 @@ env/
 # General
 coverage/
 .pytest_cache/
+
+# --- Brand font source assets (raw purchase/demo files; the actual .otf's ---
+# --- used by the app already live in design-system/fonts/) ---
+design-system/brand-source/
