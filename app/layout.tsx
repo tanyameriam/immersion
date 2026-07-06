@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { DM_Sans } from "next/font/google";
+import { Inter_Tight } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { satoshi, sardin } from "@/design-system/fonts";
 
-const dmSans = DM_Sans({subsets:['latin'],variable:'--font-sans'});
+const interTight = Inter_Tight({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Immersion — Content Curation",
@@ -16,8 +22,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("font-sans", dmSans.variable)}>
-      <body>{children}</body>
+    <html
+      lang="en"
+      className={cn(
+        "font-sans",
+        interTight.variable,
+        satoshi.variable,
+        sardin.variable
+      )}
+    >
+      <body
+        className="bg-background text-foreground antialiased"
+        suppressHydrationWarning
+      >
+        {children}
+      </body>
     </html>
   );
 }
