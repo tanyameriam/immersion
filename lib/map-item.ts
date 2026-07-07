@@ -35,6 +35,7 @@ export function toResource(item: KnowledgeItem): Resource {
     savedDate: item.createdAt || undefined,
     url: item.url,
     read: false,
+    image: item.image || undefined,
     summary: item.ai?.summary,
     keywords: item.ai?.keywords,
     difficulty: item.ai?.difficulty,

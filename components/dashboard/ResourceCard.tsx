@@ -193,12 +193,27 @@ export function ResourceCard({
   }
 
   return (
-    <Card size="sm" className="h-full">
+    <Card size="sm" className="h-full overflow-hidden">
       <ResourceDetailDialog
         resource={resource}
         open={detailOpen}
         onOpenChange={setDetailOpen}
       />
+      {resource.image && (
+        <button
+          type="button"
+          onClick={() => setDetailOpen(true)}
+          className="-mx-6 -mt-6 mb-4 block border-b border-border"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={resource.image}
+            alt=""
+            loading="lazy"
+            className="aspect-video w-full object-cover"
+          />
+        </button>
+      )}
       <CardHeader>
         <div className="flex items-start gap-3">
           {isBookmark && onToggleSelect && (

@@ -10,6 +10,7 @@ export type Resource = {
   savedDate?: string; // ISO date, bookmarks only
   url: string;
   read?: boolean;
+  image?: string; // preview thumbnail (og:image / video thumbnail)
   // Full AI detail (present on real saved items; optional so mock data still fits).
   summary?: string;
   keywords?: string[];

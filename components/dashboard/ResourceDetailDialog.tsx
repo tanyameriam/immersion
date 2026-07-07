@@ -48,6 +48,16 @@ export function ResourceDetailDialog({
         </DialogHeader>
 
         <div className="space-y-6">
+          {resource.image && (
+            <a href={resource.url} target="_blank" rel="noreferrer" className="block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={resource.image}
+                alt=""
+                className="aspect-video w-full border border-border object-cover"
+              />
+            </a>
+          )}
           {processing ? (
             <p className="text-sm text-muted-foreground">
               Layrrrd is still reading this article. Check back in a few
