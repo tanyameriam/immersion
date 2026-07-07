@@ -61,6 +61,8 @@ export interface KnowledgeItem {
   status: ProcessingStatus;
   isFavorite: boolean;
   isArchived: boolean;
+  read: boolean;
+  readAt: string | null;
   createdAt: string;
   updatedAt: string;
   processingStartedAt: string | null;

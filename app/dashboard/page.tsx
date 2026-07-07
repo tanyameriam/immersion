@@ -16,7 +16,7 @@ import { type Resource } from "@/lib/dashboard-data";
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { resources, loading, remove, save } = useKnowledgeItems();
+  const { resources, loading, remove, save, markRead } = useKnowledgeItems();
   const { recommendations } = useRecommendations();
   const [tab, setTab] = useState("bookmarks");
   const [bookmarks, setBookmarks] = useState<Resource[]>([]);
@@ -62,6 +62,7 @@ export default function DashboardPage() {
                 setItems={setBookmarks}
                 onExploreRecommendations={() => setTab("recommended")}
                 onRemovePersist={(ids) => ids.forEach((id) => remove(id))}
+                onMarkReadPersist={(ids) => ids.forEach((id) => markRead(id))}
               />
             )}
           </TabsContent>

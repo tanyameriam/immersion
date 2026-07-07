@@ -148,24 +148,42 @@ function RecommendationPreferencesCard() {
   );
 }
 
+const DAYS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
+
 function NewsletterDeliveryCard() {
   const { user } = useAuth();
   const { prefs, loaded, save } = usePreferences();
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("email");
   const [telegramUsername, setTelegramUsername] = useState("");
+  const [day, setDay] = useState("Monday");
   const { saved, flash } = useSavedFlash();
 
   useEffect(() => {
     if (loaded) {
       setDeliveryMethod(prefs.notificationPreference);
       setTelegramUsername(prefs.telegramChatId);
+      setDay(prefs.notificationDay);
     }
-  }, [loaded, prefs.notificationPreference, prefs.telegramChatId]);
+  }, [
+    loaded,
+    prefs.notificationPreference,
+    prefs.telegramChatId,
+    prefs.notificationDay,
+  ]);
 
   async function handleSave() {
     await save({
       notificationPreference: deliveryMethod,
       telegramChatId: telegramUsername,
+      notificationDay: day,
     });
     flash();
   }
@@ -206,6 +224,25 @@ function NewsletterDeliveryCard() {
             />
           </div>
         )}
+
+        <div className="space-y-2">
+          <Label htmlFor="delivery-day">Delivery day</Label>
+          <Select value={day} onValueChange={(v) => v && setDay(v)}>
+            <SelectTrigger id="delivery-day" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DAYS.map((d) => (
+                <SelectItem key={d} value={d}>
+                  {d}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-sm text-muted-foreground">
+            Your weekly digest arrives every {day}.
+          </p>
+        </div>
 
         <div className="border-t border-border pt-4">
           <p className="text-[13px] uppercase tracking-[0.1em] text-muted-foreground">
