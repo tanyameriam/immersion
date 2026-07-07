@@ -5,16 +5,18 @@ import Navigation from "@/components/Navigation";
 import { RequireAuth } from "@/components/dashboard/RequireAuth";
 import { BookmarksTab } from "@/components/dashboard/BookmarksTab";
 import { SaveLinkBar } from "@/components/dashboard/SaveLinkBar";
+import { ExtensionCallout } from "@/components/dashboard/ExtensionCallout";
 import { RecommendedTab } from "@/components/dashboard/RecommendedTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/components/AuthContext";
 import { useKnowledgeItems } from "@/hooks/use-knowledge-items";
 import { useRecommendations } from "@/hooks/use-recommendations";
+import { LoadingDog } from "@/components/LoadingDog";
 import { type Resource } from "@/lib/dashboard-data";
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { resources, remove, save } = useKnowledgeItems();
+  const { resources, loading, remove, save } = useKnowledgeItems();
   const { recommendations } = useRecommendations();
   const [tab, setTab] = useState("bookmarks");
   const [bookmarks, setBookmarks] = useState<Resource[]>([]);
@@ -50,13 +52,18 @@ export default function DashboardPage() {
           </TabsList>
 
           <TabsContent value="bookmarks" className="mt-8 space-y-8">
+            <ExtensionCallout />
             <SaveLinkBar onSave={save} />
-            <BookmarksTab
-              items={bookmarks}
-              setItems={setBookmarks}
-              onExploreRecommendations={() => setTab("recommended")}
-              onRemovePersist={(ids) => ids.forEach((id) => remove(id))}
-            />
+            {loading && bookmarks.length === 0 ? (
+              <LoadingDog label="Loading your bookmarks…" />
+            ) : (
+              <BookmarksTab
+                items={bookmarks}
+                setItems={setBookmarks}
+                onExploreRecommendations={() => setTab("recommended")}
+                onRemovePersist={(ids) => ids.forEach((id) => remove(id))}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="recommended" className="mt-8">

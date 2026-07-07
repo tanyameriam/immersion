@@ -23,6 +23,17 @@
     "https://app.layrrrd.com/*",
     "http://localhost:3000/*"
   ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://immersion-one.vercel.app/*",
+        "https://app.layrrrd.com/*",
+        "http://localhost:3000/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
   "oauth2": {
     "client_id": "820564255223-n9klbkap9leliu5jt3e7qprb7n33rpci.apps.googleusercontent.com",
     "scopes": ["openid", "email", "profile"]
