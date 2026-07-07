@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
+  doc,
   onSnapshot,
   query,
+  serverTimestamp,
+  updateDoc,
   where,
   type Timestamp,
 } from "firebase/firestore";
@@ -37,6 +40,8 @@ function toItem(id: string, d: Record<string, unknown>): KnowledgeItem {
     status: ((d.status as ProcessingStatus) ?? "pending"),
     isFavorite: Boolean(d.isFavorite),
     isArchived: Boolean(d.isArchived),
+    read: Boolean(d.read),
+    readAt: iso(d.readAt) || null,
     createdAt: iso(d.createdAt) || new Date().toISOString(),
     updatedAt: iso(d.updatedAt),
     processingStartedAt: iso(d.processingStartedAt) || null,
@@ -138,7 +143,19 @@ export function useKnowledgeItems() {
     }
   }, []);
 
+  /** Persist read/unread (client write; rules allow the `read` field). */
+  const markRead = useCallback(async (id: string, read = true) => {
+    try {
+      await updateDoc(doc(db, "knowledgeItems", id), {
+        read,
+        readAt: read ? serverTimestamp() : null,
+      });
+    } catch (err) {
+      console.error("Failed to mark read", err);
+    }
+  }, []);
+
   const resources: Resource[] = useMemo(() => items.map(toResource), [items]);
 
-  return { resources, loading, save, remove };
+  return { resources, loading, save, remove, markRead };
 }

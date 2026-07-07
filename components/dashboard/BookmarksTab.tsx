@@ -69,12 +69,15 @@ export function BookmarksTab({
   setItems,
   onExploreRecommendations,
   onRemovePersist,
+  onMarkReadPersist,
 }: {
   items: Resource[];
   setItems: Dispatch<SetStateAction<Resource[]>>;
   onExploreRecommendations: () => void;
   /** Persist a removal to the backend (Firestore). Optional for mock usage. */
   onRemovePersist?: (ids: string[]) => void;
+  /** Persist read status to the backend. Optional for mock usage. */
+  onMarkReadPersist?: (ids: string[]) => void;
 }) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("Recently Saved");
@@ -178,6 +181,7 @@ export function BookmarksTab({
         ids.includes(item.id) ? { ...item, read: true } : item
       )
     );
+    onMarkReadPersist?.(ids);
   }
 
   if (items.length === 0) {

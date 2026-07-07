@@ -13,34 +13,48 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 /**
- * Weekly digest job. Guard with CRON_SECRET (Authorization: Bearer <secret>).
- * On the free Vercel Hobby plan, wire this to the once-daily cron and it sends
- * to each user (email via Resend and/or Telegram) on their chosen day. Trigger
- * manually to test: curl -H "Authorization: Bearer $CRON_SECRET" .../api/cron/weekly-digest
+ * Weekly digest job (Vercel Cron, daily). Sends each user their digest on the
+ * weekday they chose (Profile → Delivery day), via their channel (email or
+ * Telegram). Guard with CRON_SECRET. Add ?force=1 to ignore the day gate (for
+ * manual testing).
+ *   curl -H "Authorization: Bearer $CRON_SECRET" ".../api/cron/weekly-digest?force=1"
  */
-export async function POST(req: Request) {
+async function run(req: Request) {
   const secret = process.env.CRON_SECRET;
   const auth = req.headers.get("authorization");
   if (!secret || auth !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const force = new URL(req.url).searchParams.get("force") === "1";
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
+
   try {
     const digests = await buildWeeklyDigests();
     let emailed = 0;
     let messaged = 0;
+    let considered = 0;
 
     for (const digest of digests) {
-      const emailOk = digest.email
-        ? await sendEmail({
-            to: digest.email,
-            subject: "Your Layrrrd week",
-            html: digestHtml(digest),
-          })
-        : false;
-      const tgOk = digest.telegramChatId
-        ? await sendTelegramMessage(digest.telegramChatId, digestText(digest))
-        : false;
+      if (!force && digest.notificationDay !== today) continue;
+      considered++;
+
+      const wantTelegram =
+        digest.notificationPreference === "telegram" && !!digest.telegramChatId;
+
+      let emailOk = false;
+      let tgOk = false;
+      if (wantTelegram) {
+        tgOk = await sendTelegramMessage(digest.telegramChatId!, digestText(digest));
+      }
+      // Email if they chose it, or as a fallback when Telegram wasn't sent.
+      if ((!wantTelegram || !tgOk) && digest.email) {
+        emailOk = await sendEmail({
+          to: digest.email,
+          subject: "Your Layrrrd week",
+          html: digestHtml(digest),
+        });
+      }
 
       if (emailOk) emailed++;
       if (tgOk) messaged++;
@@ -48,23 +62,19 @@ export async function POST(req: Request) {
       await adminDb().collection("weeklyDigests").add({
         userId: digest.userId,
         generatedAt: FieldValue.serverTimestamp(),
-        itemCount: digest.items.length,
-        topTopics: digest.topTopics,
+        savedThisWeek: digest.savedThisWeek,
+        readThisWeek: digest.readThisWeek,
         emailSent: emailOk,
         telegramSent: tgOk,
       });
     }
 
-    return NextResponse.json({
-      users: digests.length,
-      emailed,
-      messaged,
-    });
+    return NextResponse.json({ day: today, considered, emailed, messaged });
   } catch (err) {
     console.error("weekly-digest failed", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
-// Vercel Cron issues GET requests; support both.
-export const GET = POST;
+export const POST = run;
+export const GET = run;
