@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthContext";
+import { LoadingDog } from "@/components/LoadingDog";
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, hydrated, openAuth } = useAuth();
@@ -16,7 +17,11 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   }, [hydrated, user, openAuth, router]);
 
   if (!hydrated || !user) {
-    return <div className="min-h-screen pt-[72px]" />;
+    return (
+      <div className="flex min-h-screen items-center justify-center pt-[72px]">
+        <LoadingDog label={hydrated ? "Redirecting…" : "Loading Layrrrd…"} />
+      </div>
+    );
   }
 
   return <>{children}</>;

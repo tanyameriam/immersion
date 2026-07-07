@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Blocks, MessageCircle, MessagesSquare, Bell } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import { RequireAuth } from "@/components/dashboard/RequireAuth";
 import { useAuth } from "@/components/AuthContext";
@@ -205,6 +206,30 @@ function NewsletterDeliveryCard() {
             />
           </div>
         )}
+
+        <div className="border-t border-border pt-4">
+          <p className="text-[13px] uppercase tracking-[0.1em] text-muted-foreground">
+            More delivery options
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[
+              { name: "Slack", Icon: Blocks },
+              { name: "WhatsApp", Icon: MessageCircle },
+              { name: "Discord", Icon: MessagesSquare },
+              { name: "Push", Icon: Bell },
+            ].map(({ name, Icon }) => (
+              <span
+                key={name}
+                title="Coming soon"
+                className="flex cursor-default items-center gap-1.5 border border-border px-3 py-1.5 text-sm text-muted-foreground opacity-60"
+              >
+                <Icon className="size-4" />
+                {name}
+                <span className="text-[10px] uppercase tracking-wide">soon</span>
+              </span>
+            ))}
+          </div>
+        </div>
       </CardContent>
       <CardFooter className="gap-3">
         <Button size="sm" onClick={handleSave}>
