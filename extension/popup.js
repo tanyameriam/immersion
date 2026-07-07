@@ -92,11 +92,14 @@ async function save() {
       }),
     });
 
-    if (!res.ok) throw new Error(`Save failed (${res.status})`);
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`Save API ${res.status}: ${body.slice(0, 120)}`);
+    }
     setStatus("Saved! Layrrrd is reading it now.", "ok");
   } catch (err) {
     console.error(err);
-    setStatus("Couldn't save. Please try again.", "err");
+    setStatus(String(err && err.message ? err.message : err), "err");
     saveBtn.disabled = false;
   }
 }

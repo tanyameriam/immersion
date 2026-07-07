@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Blocks, MessageCircle, MessagesSquare, Bell } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import { RequireAuth } from "@/components/dashboard/RequireAuth";
 import { useAuth } from "@/components/AuthContext";
@@ -147,24 +148,42 @@ function RecommendationPreferencesCard() {
   );
 }
 
+const DAYS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
+
 function NewsletterDeliveryCard() {
   const { user } = useAuth();
   const { prefs, loaded, save } = usePreferences();
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("email");
   const [telegramUsername, setTelegramUsername] = useState("");
+  const [day, setDay] = useState("Monday");
   const { saved, flash } = useSavedFlash();
 
   useEffect(() => {
     if (loaded) {
       setDeliveryMethod(prefs.notificationPreference);
       setTelegramUsername(prefs.telegramChatId);
+      setDay(prefs.notificationDay);
     }
-  }, [loaded, prefs.notificationPreference, prefs.telegramChatId]);
+  }, [
+    loaded,
+    prefs.notificationPreference,
+    prefs.telegramChatId,
+    prefs.notificationDay,
+  ]);
 
   async function handleSave() {
     await save({
       notificationPreference: deliveryMethod,
       telegramChatId: telegramUsername,
+      notificationDay: day,
     });
     flash();
   }
@@ -205,6 +224,49 @@ function NewsletterDeliveryCard() {
             />
           </div>
         )}
+
+        <div className="space-y-2">
+          <Label htmlFor="delivery-day">Delivery day</Label>
+          <Select value={day} onValueChange={(v) => v && setDay(v)}>
+            <SelectTrigger id="delivery-day" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DAYS.map((d) => (
+                <SelectItem key={d} value={d}>
+                  {d}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-sm text-muted-foreground">
+            Your weekly digest arrives every {day}.
+          </p>
+        </div>
+
+        <div className="border-t border-border pt-4">
+          <p className="text-[13px] uppercase tracking-[0.1em] text-muted-foreground">
+            More delivery options
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[
+              { name: "Slack", Icon: Blocks },
+              { name: "WhatsApp", Icon: MessageCircle },
+              { name: "Discord", Icon: MessagesSquare },
+              { name: "Push", Icon: Bell },
+            ].map(({ name, Icon }) => (
+              <span
+                key={name}
+                title="Coming soon"
+                className="flex cursor-default items-center gap-1.5 border border-border px-3 py-1.5 text-sm text-muted-foreground opacity-60"
+              >
+                <Icon className="size-4" />
+                {name}
+                <span className="text-[10px] uppercase tracking-wide">soon</span>
+              </span>
+            ))}
+          </div>
+        </div>
       </CardContent>
       <CardFooter className="gap-3">
         <Button size="sm" onClick={handleSave}>

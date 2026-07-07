@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { BookmarkPlus, ExternalLink, MoreVertical } from "lucide-react";
-import { ResourceDetailDialog } from "@/components/dashboard/ResourceDetailDialog";
+import { ResourceDetail } from "@/components/dashboard/ResourceDetail";
 import {
   Card,
   CardContent,
@@ -118,6 +118,7 @@ export function ResourceCard({
 }: ResourceCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
   const isBookmark = variant === "bookmark";
+  const toggleDetail = () => setDetailOpen((o) => !o);
   const metaLine = [
     resource.contentType,
     resource.source,
@@ -134,71 +135,88 @@ export function ResourceCard({
 
   if (view === "list") {
     return (
-      <div className="flex items-center gap-4 py-4">
-        <ResourceDetailDialog
-          resource={resource}
-          open={detailOpen}
-          onOpenChange={setDetailOpen}
-        />
-        {isBookmark && onToggleSelect && (
-          <Checkbox
-            checked={selected}
-            onCheckedChange={() => onToggleSelect(resource.id)}
-            aria-label={`Select ${resource.title}`}
-          />
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setDetailOpen(true)}
-              className="truncate text-left text-base font-bold text-foreground hover:underline"
-            >
-              {resource.title}
-            </button>
-            {resource.category.map((cat) => (
-              <Badge key={cat} variant="secondary">
-                {cat}
-              </Badge>
-            ))}
-            {isBookmark && resource.read && (
-              <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                Read
-              </span>
-            )}
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {metaLine} · {dateLine}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {variant === "recommendation" && (
-            <Button size="sm" variant="ghost" onClick={() => onBookmark?.(resource.id)}>
-              <BookmarkPlus data-icon="inline-start" />
-              Bookmark
-            </Button>
-          )}
-          <OpenLinkButton resource={resource} />
-          {isBookmark && (
-            <OverflowMenu
-              resource={resource}
-              onRemove={onRemove}
-              onMarkRead={onMarkRead}
-              onReport={onReport}
+      <div className="py-4">
+        <div className="flex items-center gap-4">
+          {isBookmark && onToggleSelect && (
+            <Checkbox
+              checked={selected}
+              onCheckedChange={() => onToggleSelect(resource.id)}
+              aria-label={`Select ${resource.title}`}
             />
           )}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleDetail}
+                className="truncate text-left text-base font-bold text-foreground hover:underline"
+              >
+                {resource.title}
+              </button>
+              {resource.category.map((cat) => (
+                <Badge key={cat} variant="secondary">
+                  {cat}
+                </Badge>
+              ))}
+              {isBookmark && resource.read && (
+                <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Read
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {metaLine} · {dateLine}
+            </p>
+            {!isBookmark && resource.reason && (
+              <p className="mt-1 text-sm font-bold text-foreground">
+                {resource.reason}
+              </p>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {isBookmark && (
+              <Button size="sm" variant="ghost" onClick={toggleDetail}>
+                {detailOpen ? "Hide" : "Summary"}
+              </Button>
+            )}
+            {variant === "recommendation" && (
+              <Button size="sm" variant="ghost" onClick={() => onBookmark?.(resource.id)}>
+                <BookmarkPlus data-icon="inline-start" />
+                Bookmark
+              </Button>
+            )}
+            <OpenLinkButton resource={resource} />
+            {isBookmark && (
+              <OverflowMenu
+                resource={resource}
+                onRemove={onRemove}
+                onMarkRead={onMarkRead}
+                onReport={onReport}
+              />
+            )}
+          </div>
         </div>
+        {detailOpen && (
+          <div className="mt-2 max-w-3xl">
+            <ResourceDetail resource={resource} />
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <Card size="sm" className="h-full">
-      <ResourceDetailDialog
-        resource={resource}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-      />
+    <Card size="sm">
+      {resource.image && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={resource.image}
+          alt=""
+          loading="lazy"
+          onClick={toggleDetail}
+          className="aspect-video w-full cursor-pointer border-b border-border object-cover"
+        />
+      )}
       <CardHeader>
         <div className="flex items-start gap-3">
           {isBookmark && onToggleSelect && (
@@ -214,7 +232,7 @@ export function ResourceCard({
               <CardTitle className="normal-case tracking-normal">
                 <button
                   type="button"
-                  onClick={() => setDetailOpen(true)}
+                  onClick={toggleDetail}
                   className="text-left hover:underline"
                 >
                   {resource.title}
@@ -245,6 +263,11 @@ export function ResourceCard({
       </CardHeader>
 
       <CardContent className="space-y-2">
+        {!isBookmark && resource.reason && (
+          <p className="text-sm font-bold text-foreground">
+            {resource.reason}
+          </p>
+        )}
         {resource.category.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             {resource.category.map((cat) => (
@@ -256,12 +279,13 @@ export function ResourceCard({
         )}
         <p className="text-sm text-muted-foreground">{metaLine}</p>
         <p className="text-sm text-muted-foreground">{dateLine}</p>
+        {detailOpen && <ResourceDetail resource={resource} />}
       </CardContent>
 
       <CardFooter className="gap-2">
         {isBookmark && (
-          <Button size="sm" variant="ghost" onClick={() => setDetailOpen(true)}>
-            View summary
+          <Button size="sm" variant="ghost" onClick={toggleDetail}>
+            {detailOpen ? "Hide summary" : "View summary"}
           </Button>
         )}
         <OpenLinkButton resource={resource} />

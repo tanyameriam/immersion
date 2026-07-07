@@ -12,6 +12,7 @@ export interface Preferences {
   preferredTopics: string[];
   notificationPreference: NotificationPreference;
   telegramChatId: string;
+  notificationDay: string; // "Monday" … "Sunday"
 }
 
 const DEFAULTS: Preferences = {
@@ -19,6 +20,7 @@ const DEFAULTS: Preferences = {
   preferredTopics: [],
   notificationPreference: "email",
   telegramChatId: "",
+  notificationDay: "Monday",
 };
 
 /**
@@ -44,6 +46,7 @@ export function usePreferences() {
         notificationPreference:
           (data.notificationPreference as NotificationPreference) ?? "email",
         telegramChatId: data.telegramChatId ?? "",
+        notificationDay: data.notificationDay ?? "Monday",
       });
       setLoaded(true);
     })();

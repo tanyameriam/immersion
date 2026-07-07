@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Compass } from "lucide-react";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -88,6 +89,16 @@ export function RecommendedTab({
   }, [source, search, filters]);
 
   const sorted = useMemo(() => sortResources(filtered, sort), [filtered, sort]);
+
+  if (source.length === 0) {
+    return (
+      <EmptyState
+        icon={Compass}
+        title="No recommendations yet"
+        description="Recommendations come from what people with similar interests save. Save a few articles — as the community grows, we'll surface links others like you are reading."
+      />
+    );
+  }
 
   function handleFilterChange(groupKey: string, option: string, checked: boolean) {
     setFilters((prev) => {

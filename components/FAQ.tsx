@@ -7,34 +7,39 @@ import { FadeUp } from "@/components/FadeUp";
 
 const faqs = [
   {
-    question: "Who is Layrrrd for?",
+    question: "What exactly is Layrrrd?",
     answer:
-      "Designers who save more design content than they ever get around to revisiting: Dribbble shots, case studies, articles, and more.",
+      "Layrrrd is your AI knowledge layer for the web. Save any page — articles, videos, threads, docs — in one click, and the AI reads it for you, turning it into a summary, key topics, and a reading time, all organized in your dashboard. A weekly digest then brings the best of what you saved back to you, so the things you found actually get read.",
   },
   {
-    question: "How do I save links?",
+    question: "How do I save things?",
     answer:
-      "Forward anything to Layrrrd (no dedicated app required). It lands in your queue for that week's digest.",
+      "Two ways: the one-click browser extension (click the Layrrrd button on any page), or paste a link straight into your dashboard. Sign in with Google or email — and support for more browsers and sources is on the way.",
   },
   {
-    question: "What happens if I haven't saved anything?",
+    question: "Does the AI actually summarize what I save?",
     answer:
-      "Your first digest is filled with curated resources from the Layrrrd team, so you never receive an empty issue.",
+      "Yes. Every save gets a concise AI summary, a one-line TL;DR, topics, keywords, and an estimated reading time — so in a few seconds you can tell what's worth your time and what isn't.",
   },
   {
-    question: "How often do I receive the digest?",
+    question: "How does the weekly digest work?",
     answer:
-      "Once a week, by default. You can adjust delivery from your account settings.",
+      "Once a week, on the day you choose, you get a digest by email and/or Telegram. It groups everything you saved by topic and highlights what you haven't read yet — so nothing slips through the cracks.",
   },
   {
-    question: "Does AI summarize my links?",
+    question: "Where do recommendations come from?",
     answer:
-      "Layrrrd prioritizes and organizes what you save; it doesn't rewrite or summarize the original content.",
+      "From the community — people who save about the same topics as you. When several readers with similar interests save something, it surfaces in your Recommended tab with social proof (\"saved by N people interested in …\"), so you discover the good stuff without the noise.",
   },
   {
-    question: "Can I cancel anytime?",
+    question: "Is my data private?",
     answer:
-      "Yes. Cancel anytime from your account; you'll keep access through the end of the period you've already paid for.",
+      "Your library is yours — only you can see what you've saved. Recommendations are aggregated: we surface links, not who saved them. You can delete any item, or your entire account, at any time.",
+  },
+  {
+    question: "What does it cost, and can I cancel?",
+    answer:
+      "Layrrrd is free to get started. Founding members can unlock more for ₹99/month. Cancel anytime from your account — you keep access through the end of the period you've already paid for.",
   },
 ];
 
@@ -82,7 +87,7 @@ function FAQItem({
 }
 
 export default function FAQ() {
-  const [openIndex, setOpenIndex] = useState<number | null>(2);
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
     <section
