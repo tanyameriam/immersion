@@ -14,7 +14,7 @@ const interTight = Inter_Tight({
 });
 
 export const metadata: Metadata = {
-  title: "Layrrrd. — Save once. Revisit intentionally.",
+  title: "Layrrrd. Save once. Revisit intentionally.",
   description:
     "Layrrrd turns everything you save into a curated weekly reading list, so the best things you found actually get read.",
 };

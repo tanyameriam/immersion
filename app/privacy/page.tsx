@@ -3,7 +3,7 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Layrrrd.",
+  title: "Privacy Policy - Layrrrd.",
   description: "How Layrrrd collects, uses, and protects your data.",
 };
 
