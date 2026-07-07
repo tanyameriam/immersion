@@ -8,28 +8,48 @@ export default function Hero() {
   const { openWaitlist } = useWaitlist();
 
   return (
-    <section className="pt-[72px]">
-      <div className="mx-auto w-full max-w-[1280px] px-6 pt-10 md:px-10 md:pt-14 xl:px-20">
-        <FadeUp>
-          <h1
-            className="font-bold tracking-[-0.04em] text-foreground"
-            style={{
-              fontSize: "clamp(3.75rem, 10.5vw, 9.5rem)",
-              lineHeight: 0.95,
-            }}
+    <section className="flex h-screen flex-col pt-[72px]">
+      <div className="mx-auto flex w-full max-w-[1280px] min-h-0 flex-1 items-stretch overflow-hidden">
+        <div className="flex flex-1 items-center px-6 md:px-10 xl:px-20">
+          <FadeUp>
+            <h1
+              className="font-bold tracking-[-0.04em] text-foreground"
+              style={{
+                fontSize: "clamp(3.75rem, 10.5vw, 9.5rem)",
+                lineHeight: 0.95,
+              }}
+            >
+              Layrrrd.
+              <br />
+              Save now.
+              <br />
+              Catch up
+              <br />
+              later.
+            </h1>
+          </FadeUp>
+        </div>
+
+        <FadeUp
+          delay={0.1}
+          className="hidden shrink-0 items-center justify-center pr-6 lg:flex xl:pr-20"
+        >
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            poster="/hero-dog-poster.jpg"
+            className="h-full w-auto max-w-[280px] object-contain xl:max-w-[340px]"
+            aria-label="Illustrated dog mascot"
           >
-            Layrrrd.
-            <br />
-            Save now.
-            <br />
-            Catch up
-            <br />
-            later.
-          </h1>
+            <source src="/hero-dog.webm" type="video/webm" />
+            <source src="/hero-dog.mp4" type="video/mp4" />
+          </video>
         </FadeUp>
       </div>
 
-      <div className="mt-8 border-t border-border md:mt-10">
+      <div className="border-t border-border">
         <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-6 py-6 md:flex-row md:items-center md:justify-between md:px-10 xl:px-20">
           <FadeUp delay={0.06}>
             <div className="max-w-xl">
