@@ -24,7 +24,7 @@
     "http://localhost:3000/*"
   ],
   "oauth2": {
-    "client_id": "REPLACE_WITH_YOUR_CHROME_EXTENSION_OAUTH_CLIENT_ID.apps.googleusercontent.com",
+    "client_id": "820564255223-n9klbkap9leliu5jt3e7qprb7n33rpci.apps.googleusercontent.com",
     "scopes": ["openid", "email", "profile"]
   }
 }
