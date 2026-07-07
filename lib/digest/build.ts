@@ -72,7 +72,7 @@ export function digestText(d: UserDigest): string {
   const name = d.name?.split(" ")[0] || "there";
   const lines = [
     `<b>Your Layrrrd week, ${name}</b>`,
-    `${d.items.length} saved · Topics: ${d.topTopics.join(", ") || "—"}`,
+    `${d.items.length} saved · Topics: ${d.topTopics.join(", ") || "None"}`,
     "",
   ];
   for (const item of d.items.slice(0, 8)) {
@@ -103,7 +103,7 @@ export function digestHtml(d: UserDigest): string {
     <div style="max-width:560px;margin:0 auto;background:#fff;padding:32px;">
       <p style="font-size:20px;font-weight:800;letter-spacing:-0.02em;margin:0;">Layrrrd.</p>
       <h1 style="font-size:24px;margin:16px 0 4px;">Your week, ${name}.</h1>
-      <p style="color:#6b6b6b;margin:0 0 8px;">${d.items.length} saved this week · ${d.topTopics.join(", ") || "—"}</p>
+      <p style="color:#6b6b6b;margin:0 0 8px;">${d.items.length} saved this week · ${d.topTopics.join(", ") || "None"}</p>
       <table style="width:100%;border-collapse:collapse;">${rows}</table>
       <a href="${appUrl}/dashboard" style="display:inline-block;margin-top:24px;background:#1a1a1a;color:#f4f1ea;padding:12px 20px;text-decoration:none;font-weight:600;">Open your dashboard</a>
     </div>

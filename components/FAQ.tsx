@@ -9,12 +9,12 @@ const faqs = [
   {
     question: "Who is Layrrrd for?",
     answer:
-      "Designers who save more design content than they ever get around to revisiting — Dribbble shots, case studies, articles, and more.",
+      "Designers who save more design content than they ever get around to revisiting: Dribbble shots, case studies, articles, and more.",
   },
   {
     question: "How do I save links?",
     answer:
-      "Forward anything to Layrrrd — no dedicated app required. It lands in your queue for that week's digest.",
+      "Forward anything to Layrrrd (no dedicated app required). It lands in your queue for that week's digest.",
   },
   {
     question: "What happens if I haven't saved anything?",
@@ -29,12 +29,12 @@ const faqs = [
   {
     question: "Does AI summarize my links?",
     answer:
-      "Layrrrd prioritizes and organizes what you save — it doesn't rewrite or summarize the original content.",
+      "Layrrrd prioritizes and organizes what you save; it doesn't rewrite or summarize the original content.",
   },
   {
     question: "Can I cancel anytime?",
     answer:
-      "Yes. Cancel anytime from your account — you'll keep access through the end of the period you've already paid for.",
+      "Yes. Cancel anytime from your account; you'll keep access through the end of the period you've already paid for.",
   },
 ];
 

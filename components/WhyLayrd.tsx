@@ -27,7 +27,7 @@ export default function WhyLayrd() {
             </p>
             <p className="mt-4">
               Layrrrd gives those forgotten saves a second life by turning
-              them into a curated weekly reading list — so the best things
+              them into a curated weekly reading list, so the best things
               you found actually get read.
             </p>
             <p className="mt-4 font-bold text-foreground">

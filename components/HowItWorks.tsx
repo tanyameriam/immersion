@@ -14,7 +14,7 @@ const steps = [
   {
     title: "Receive your digest.",
     description:
-      "Every week you'll get everything you've saved—organized, summarized, and prioritized.",
+      "Every week you'll get everything you've saved: organized, summarized, and prioritized.",
   },
   {
     title: "Gets smarter over time.",

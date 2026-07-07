@@ -3,7 +3,7 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "Refund Policy — Layrrrd.",
+  title: "Refund Policy - Layrrrd.",
   description: "Layrrrd's refund policy.",
 };
 
@@ -27,7 +27,7 @@ export default function RefundPage() {
             </p>
             <p>
               Subsequent billing periods are non-refundable, but you can
-              cancel at any time to prevent future charges — your access
+              cancel at any time to prevent future charges. Your access
               continues through the period you&apos;ve already paid for.
             </p>
             <p>

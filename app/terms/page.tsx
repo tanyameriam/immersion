@@ -3,7 +3,7 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — Layrrrd.",
+  title: "Terms of Service - Layrrrd.",
   description: "The terms that govern your use of Layrrrd.",
 };
 
