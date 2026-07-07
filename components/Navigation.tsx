@@ -22,7 +22,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useWaitlist } from "@/components/WaitlistContext";
 import { useAuth } from "@/components/AuthContext";
 
 const navLinks = [
@@ -38,7 +37,6 @@ function initials(name: string) {
 }
 
 export default function Navigation() {
-  const { openWaitlist } = useWaitlist();
   const { user, openAuth, logout } = useAuth();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
@@ -119,10 +117,10 @@ export default function Navigation() {
                 variant="outline"
                 onClick={() => openAuth("sign-in")}
               >
-                Sign In
+                Log In
               </Button>
-              <Button size="sm" onClick={openWaitlist}>
-                Join Waitlist
+              <Button size="sm" onClick={() => openAuth("sign-up")}>
+                Get Started
               </Button>
             </>
           )}
@@ -203,17 +201,17 @@ export default function Navigation() {
                       openAuth("sign-in");
                     }}
                   >
-                    Sign In
+                    Log In
                   </Button>
                   <Button
                     size="sm"
                     className="w-full"
                     onClick={() => {
                       setMenuOpen(false);
-                      openWaitlist();
+                      openAuth("sign-up");
                     }}
                   >
-                    Join Waitlist
+                    Get Started
                   </Button>
                 </>
               )}

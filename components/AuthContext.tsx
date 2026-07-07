@@ -8,9 +8,12 @@ import {
   type ReactNode,
 } from "react";
 import {
+  createUserWithEmailAndPassword,
   onAuthStateChanged,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signOut as fbSignOut,
+  updateProfile,
   type User,
 } from "firebase/auth";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
@@ -35,8 +38,13 @@ type AuthContextValue = {
   openAuth: (mode?: AuthMode) => void;
   closeAuth: () => void;
   setMode: (mode: AuthMode) => void;
-  /** Real Google sign-in (replaces the former mock email/password login). */
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (
+    name: string,
+    email: string,
+    password: string,
+  ) => Promise<void>;
   logout: () => void;
 };
 
@@ -67,7 +75,7 @@ async function upsertUserProfile(u: User): Promise<void> {
       name: u.displayName ?? "",
       email: u.email ?? "",
       profilePhoto: u.photoURL ?? "",
-      provider: "google",
+      provider: u.providerData[0]?.providerId ?? "password",
       lastLogin: serverTimestamp(),
       createdAt: serverTimestamp(), // merge keeps the first-write value
     },
@@ -110,6 +118,16 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
         setMode,
         signInWithGoogle: async () => {
           await signInWithPopup(auth, googleProvider);
+          setIsOpen(false);
+        },
+        signInWithEmail: async (email, password) => {
+          await signInWithEmailAndPassword(auth, email, password);
+          setIsOpen(false);
+        },
+        signUpWithEmail: async (name, email, password) => {
+          const cred = await createUserWithEmailAndPassword(auth, email, password);
+          if (name) await updateProfile(cred.user, { displayName: name });
+          await upsertUserProfile(cred.user);
           setIsOpen(false);
         },
         logout: () => {
