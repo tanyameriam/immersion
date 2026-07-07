@@ -61,3 +61,7 @@ coverage/
 # --- Brand font source assets (raw purchase/demo files; the actual .otf's ---
 # --- used by the app already live in design-system/fonts/) ---
 design-system/brand-source/
+
+# --- Raw visual source assets (the optimized derivatives used by the app ---
+# --- live in public/) ---
+visuals/
