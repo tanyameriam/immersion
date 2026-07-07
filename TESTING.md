@@ -163,6 +163,16 @@ node --env-file=.env.local scripts/reset-data.mjs
 node --env-file=.env.local scripts/reset-data.mjs --confirm
 ```
 
+**Remove one specific user** (and all their saved content + login) by email or UID:
+
+```bash
+# Preview:
+node --env-file=.env.local scripts/reset-data.mjs --user someone@example.com
+
+# Actually remove that user:
+node --env-file=.env.local scripts/reset-data.mjs --user someone@example.com --confirm
+```
+
 Your deployed app and configuration stay intact — only the data is cleared, so
 you start real onboarding from zero.
 
