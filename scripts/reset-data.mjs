@@ -1,14 +1,19 @@
 #!/usr/bin/env node
 /**
- * Wipe ALL Layrrrd data — every saved item, profile, digest, and sign-in
- * account — to get a clean slate before onboarding real users.
+ * Delete Layrrrd data — either ONE specific user (+ all their content) or
+ * EVERYTHING (clean slate before onboarding real users).
  *
  * Runs locally with your Firebase service-account credentials (never exposed on
  * the live site). Dry-run by default; pass --confirm to actually delete.
  *
  * Usage:
- *   node --env-file=.env.local scripts/reset-data.mjs            # dry run (counts only)
- *   node --env-file=.env.local scripts/reset-data.mjs --confirm  # actually wipe
+ *   # Wipe everything:
+ *   node --env-file=.env.local scripts/reset-data.mjs                       # dry run
+ *   node --env-file=.env.local scripts/reset-data.mjs --confirm             # wipe all
+ *
+ *   # Remove one user (by email or UID) and all their saved content:
+ *   node --env-file=.env.local scripts/reset-data.mjs --user someone@x.com  # dry run
+ *   node --env-file=.env.local scripts/reset-data.mjs --user someone@x.com --confirm
  */
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
@@ -16,6 +21,22 @@ import { getAuth } from "firebase-admin/auth";
 
 const CONFIRM = process.argv.includes("--confirm");
 
+function getFlag(name) {
+  const i = process.argv.indexOf(name);
+  return i !== -1 ? process.argv[i + 1] : null;
+}
+const TARGET_USER = getFlag("--user");
+
+// Collections keyed by the user's UID as the document id.
+const DOC_ID_COLLECTIONS = ["users", "preferences"];
+// Collections with a `userId` field.
+const USER_FIELD_COLLECTIONS = [
+  "knowledgeItems",
+  "recommendations",
+  "weeklyDigests",
+  "notifications",
+  "analytics",
+];
 const COLLECTIONS = [
   "knowledgeItems",
   "users",
@@ -76,10 +97,74 @@ async function deleteAllAuthUsers(auth) {
   return count;
 }
 
+async function resolveUid(auth, target) {
+  // Accept either an email or a raw UID.
+  if (target.includes("@")) {
+    try {
+      const rec = await auth.getUserByEmail(target);
+      return rec.uid;
+    } catch {
+      return null;
+    }
+  }
+  try {
+    const rec = await auth.getUser(target);
+    return rec.uid;
+  } catch {
+    return null;
+  }
+}
+
+async function deleteOneUser(db, auth, target) {
+  const label = CONFIRM ? "deleted" : "would delete";
+  const uid = await resolveUid(auth, target);
+  if (!uid) {
+    console.log(`No account found for "${target}".`);
+    process.exit(1);
+  }
+  console.log(`Target user: ${target}  (uid: ${uid})\n`);
+
+  const verb = CONFIRM ? "DELETING" : "DRY RUN — would delete";
+  console.log(`${verb} this user's data…\n`);
+
+  // Docs keyed by uid.
+  for (const name of DOC_ID_COLLECTIONS) {
+    const ref = db.collection(name).doc(uid);
+    const doc = await ref.get();
+    const n = doc.exists ? 1 : 0;
+    if (n && CONFIRM) await ref.delete();
+    console.log(`  ${label} ${n} doc in ${name}`);
+  }
+
+  // Docs with a userId field.
+  for (const name of USER_FIELD_COLLECTIONS) {
+    const snap = await db.collection(name).where("userId", "==", uid).get();
+    const n = snap.size;
+    if (n && CONFIRM) {
+      for (let i = 0; i < snap.docs.length; i += 400) {
+        const batch = db.batch();
+        for (const d of snap.docs.slice(i, i + 400)) batch.delete(d.ref);
+        await batch.commit();
+      }
+    }
+    console.log(`  ${label} ${n} docs in ${name}`);
+  }
+
+  if (CONFIRM) await auth.deleteUser(uid);
+  console.log(`  ${label} 1 sign-in account\n`);
+
+  console.log(CONFIRM ? "✅ User removed." : "Nothing deleted.");
+}
+
 async function main() {
   initAdmin();
   const db = getFirestore();
   const auth = getAuth();
+
+  if (TARGET_USER) {
+    await deleteOneUser(db, auth, TARGET_USER);
+    process.exit(0);
+  }
 
   console.log(
     CONFIRM
