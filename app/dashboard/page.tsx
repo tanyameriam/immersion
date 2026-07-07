@@ -6,15 +6,16 @@ import { RequireAuth } from "@/components/dashboard/RequireAuth";
 import { BookmarksTab } from "@/components/dashboard/BookmarksTab";
 import { SaveLinkBar } from "@/components/dashboard/SaveLinkBar";
 import { RecommendedTab } from "@/components/dashboard/RecommendedTab";
-import { WeeklyIssuesTab } from "@/components/dashboard/WeeklyIssuesTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/components/AuthContext";
 import { useKnowledgeItems } from "@/hooks/use-knowledge-items";
+import { useRecommendations } from "@/hooks/use-recommendations";
 import { type Resource } from "@/lib/dashboard-data";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { resources, remove, save } = useKnowledgeItems();
+  const { recommendations } = useRecommendations();
   const [tab, setTab] = useState("bookmarks");
   const [bookmarks, setBookmarks] = useState<Resource[]>([]);
 
@@ -24,14 +25,9 @@ export default function DashboardPage() {
     setBookmarks(resources);
   }, [resources]);
 
+  // Bookmark a recommendation = actually save its URL (real save pipeline).
   function handleBookmarkFromRecommendations(resource: Resource) {
-    setBookmarks((prev) => {
-      if (prev.some((item) => item.id === resource.id)) return prev;
-      return [
-        { ...resource, savedDate: new Date().toISOString() },
-        ...prev,
-      ];
-    });
+    void save(resource.url);
   }
 
   return (
@@ -51,7 +47,6 @@ export default function DashboardPage() {
           <TabsList variant="line">
             <TabsTrigger value="bookmarks">Bookmarks</TabsTrigger>
             <TabsTrigger value="recommended">Recommended</TabsTrigger>
-            <TabsTrigger value="issues">Weekly Issues</TabsTrigger>
           </TabsList>
 
           <TabsContent value="bookmarks" className="mt-8 space-y-8">
@@ -65,11 +60,10 @@ export default function DashboardPage() {
           </TabsContent>
 
           <TabsContent value="recommended" className="mt-8">
-            <RecommendedTab onBookmark={handleBookmarkFromRecommendations} />
-          </TabsContent>
-
-          <TabsContent value="issues" className="mt-8">
-            <WeeklyIssuesTab />
+            <RecommendedTab
+              items={recommendations}
+              onBookmark={handleBookmarkFromRecommendations}
+            />
           </TabsContent>
         </Tabs>
       </main>

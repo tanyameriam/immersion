@@ -17,6 +17,9 @@ export type Resource = {
   difficulty?: string;
   sentiment?: string;
   status?: "pending" | "processing" | "completed" | "failed";
+  // Recommendation-only: why it's suggested + how many people saved it.
+  reason?: string;
+  savers?: number;
 };
 
 export type WeeklyIssue = {

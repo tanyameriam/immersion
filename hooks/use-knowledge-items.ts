@@ -1,80 +1,114 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  collection,
+  onSnapshot,
+  query,
+  where,
+  type Timestamp,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/components/AuthContext";
 import { apiFetch } from "@/lib/api-client";
 import { toResource } from "@/lib/map-item";
-import type { KnowledgeItem } from "@/lib/types/knowledge-item";
+import type { KnowledgeItem, ProcessingStatus } from "@/lib/types/knowledge-item";
 import type { Resource } from "@/lib/dashboard-data";
 
-const POLL_MS = 3_000;
-const MAX_POLLS = 20; // ~1 min ceiling
+const SWEEP_MS = 6_000;
 
-function hasWork(items: KnowledgeItem[]): boolean {
-  return items.some(
-    (i) =>
-      i.status === "pending" || i.status === "processing" || i.status === "failed",
-  );
+function iso(v: unknown): string {
+  const t = v as Timestamp | undefined;
+  return t?.toDate ? t.toDate().toISOString() : "";
 }
-function stillProcessing(items: KnowledgeItem[]): boolean {
-  return items.some((i) => i.status === "pending" || i.status === "processing");
+
+/** Map a client Firestore doc into the shared KnowledgeItem shape. */
+function toItem(id: string, d: Record<string, unknown>): KnowledgeItem {
+  return {
+    id,
+    userId: d.userId as string,
+    url: (d.url as string) ?? "",
+    title: (d.title as string) ?? "",
+    description: (d.description as string) ?? "",
+    image: (d.image as string) ?? "",
+    favicon: (d.favicon as string) ?? "",
+    domain: (d.domain as string) ?? "",
+    type: (d.type as string) ?? "article",
+    status: ((d.status as ProcessingStatus) ?? "pending"),
+    isFavorite: Boolean(d.isFavorite),
+    isArchived: Boolean(d.isArchived),
+    createdAt: iso(d.createdAt) || new Date().toISOString(),
+    updatedAt: iso(d.updatedAt),
+    processingStartedAt: iso(d.processingStartedAt) || null,
+    retryCount: (d.retryCount as number) ?? 0,
+    ai: (d.ai as KnowledgeItem["ai"]) ?? null,
+    error: (d.error as string) ?? null,
+  };
 }
 
 /**
- * Loads the current user's real saved items, drives the free "process-on-open"
- * AI sweep, and keeps polling until everything has finished processing — so
- * newly-saved links fill in with their AI summary live on the dashboard.
+ * Live-loads the current user's saved items via Firestore onSnapshot (so saves
+ * from the web app OR the extension appear instantly, no manual refresh), and
+ * drives the free AI-processing sweep until everything is done.
  */
 export function useKnowledgeItems() {
   const { user, hydrated } = useAuth();
   const [items, setItems] = useState<KnowledgeItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const cancelled = useRef(false);
+  const sweeping = useRef(false);
 
-  const fetchItems = useCallback(async (): Promise<KnowledgeItem[]> => {
-    const res = await apiFetch("/api/items");
-    if (!res.ok) return [];
-    const data = (await res.json()) as { items: KnowledgeItem[] };
-    if (!cancelled.current) setItems(data.items ?? []);
-    return data.items ?? [];
-  }, []);
-
-  /** Sweep + poll until nothing is pending/processing (or we hit the ceiling). */
-  const syncUntilSettled = useCallback(
-    async (seed: KnowledgeItem[]) => {
-      let current = seed;
-      let polls = 0;
-      while (!cancelled.current && polls < MAX_POLLS && hasWork(current)) {
-        try {
-          await apiFetch("/api/items/process", { method: "POST" });
-        } catch {
-          // ignore; refetch anyway
-        }
-        if (cancelled.current) break;
-        current = await fetchItems();
-        if (!stillProcessing(current)) break;
-        await new Promise((r) => setTimeout(r, POLL_MS));
-        polls++;
-      }
-    },
-    [fetchItems],
-  );
-
+  // Live subscription.
   useEffect(() => {
     if (!hydrated || !user) return;
-    cancelled.current = false;
-    (async () => {
-      setLoading(true);
-      const current = await fetchItems();
-      setLoading(false);
-      await syncUntilSettled(current);
-    })();
-    return () => {
-      cancelled.current = true;
-    };
-  }, [hydrated, user, fetchItems, syncUntilSettled]);
+    setLoading(true);
+    const q = query(
+      collection(db, "knowledgeItems"),
+      where("userId", "==", user.uid),
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const next = snap.docs
+          .map((d) => toItem(d.id, d.data() as Record<string, unknown>))
+          .filter((i) => !i.isArchived)
+          .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+        setItems(next);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("knowledgeItems snapshot error", err);
+        setLoading(false);
+      },
+    );
+    return unsub;
+  }, [hydrated, user]);
 
-  /** Save a URL, then process it and refresh the list. */
+  // Kick the server-side AI sweep whenever something still needs processing.
+  const hasWork = items.some(
+    (i) => i.status === "pending" || i.status === "processing" || i.status === "failed",
+  );
+  useEffect(() => {
+    if (!hasWork) return;
+    let cancelled = false;
+    const sweep = async () => {
+      if (sweeping.current || cancelled) return;
+      sweeping.current = true;
+      try {
+        await apiFetch("/api/items/process", { method: "POST" });
+      } catch {
+        // ignore; onSnapshot reflects results
+      } finally {
+        sweeping.current = false;
+      }
+    };
+    sweep();
+    const interval = setInterval(sweep, SWEEP_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [hasWork]);
+
   const save = useCallback(
     async (url: string): Promise<{ ok: boolean; error?: string }> => {
       const res = await apiFetch("/api/items", {
@@ -82,18 +116,21 @@ export function useKnowledgeItems() {
         body: JSON.stringify({ url }),
       });
       if (!res.ok) {
-        return { ok: false, error: res.status === 400 ? "That doesn't look like a valid URL." : "Couldn't save the link." };
+        return {
+          ok: false,
+          error:
+            res.status === 400
+              ? "That doesn't look like a valid URL."
+              : "Couldn't save the link.",
+        };
       }
-      const current = await fetchItems();
-      void syncUntilSettled(current);
       return { ok: true };
     },
-    [fetchItems, syncUntilSettled],
+    [],
   );
 
-  /** Delete an item (persists to Firestore, then drops it locally). */
   const remove = useCallback(async (id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+    // onSnapshot will drop it; also delete on the server.
     try {
       await apiFetch(`/api/items/${id}`, { method: "DELETE" });
     } catch (err) {
@@ -101,8 +138,7 @@ export function useKnowledgeItems() {
     }
   }, []);
 
-  // Memoized so consumers can safely useEffect on it without a render loop.
   const resources: Resource[] = useMemo(() => items.map(toResource), [items]);
 
-  return { resources, loading, save, remove, refetch: fetchItems };
+  return { resources, loading, save, remove };
 }
