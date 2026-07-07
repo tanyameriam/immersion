@@ -121,6 +121,51 @@ is configured, a digest in your inbox.
 
 ---
 
+## Stress-testing checklist (before onboarding real users)
+
+Try to break it — these cover every feature and its edge cases:
+
+**Saving & AI**
+- [ ] Save 10–20 links quickly in a row → all appear as "Summarizing…" then complete; the page stays responsive.
+- [ ] Save a **paywalled / login-only** article (e.g. an NYT or Medium member post) → it should still complete "degraded" (title + short summary), never get stuck.
+- [ ] Save a **dead / 404 URL** → it should mark failed gracefully, not hang the app.
+- [ ] Save a **YouTube / Twitter / LinkedIn** link → completes with whatever it can read.
+- [ ] Save the **same URL twice** → no duplicate.
+- [ ] Save a non-URL / gibberish in the box → friendly "not a valid URL" message.
+
+**Accounts & isolation**
+- [ ] Sign in with **two different Google accounts** (e.g. two browsers) → each sees **only their own** saved items. Account A must never see Account B's data.
+- [ ] Sign out and back in → your items are still there.
+
+**Dashboard**
+- [ ] Search, every filter, every sort option, and grid/list toggle all work over real items.
+- [ ] Select several → bulk **Remove** → they're gone (and gone from Firestore).
+- [ ] **View summary** on a completed item shows full summary/keywords; on a still-processing item shows "still reading."
+
+**Profile**
+- [ ] Change your name / interests / delivery method → **Save** → reload the page → the changes persisted.
+
+**Digest & extension**
+- [ ] Trigger the weekly digest manually (see the optional section above) → returns a JSON count without error.
+- [ ] (After extension setup) Save a page from the toolbar → it appears on the dashboard.
+
+## Reset to a clean slate (wipe all test data)
+
+When testing is done, wipe every saved item, profile, digest, and sign-in
+account in one command (runs locally with your service key — not exposed on the
+live site):
+
+```bash
+# Preview what would be deleted (safe):
+node --env-file=.env.local scripts/reset-data.mjs
+
+# Actually wipe everything:
+node --env-file=.env.local scripts/reset-data.mjs --confirm
+```
+
+Your deployed app and configuration stay intact — only the data is cleared, so
+you start real onboarding from zero.
+
 ## Troubleshooting
 
 | Symptom | Fix |
