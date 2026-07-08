@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RECOMMENDATION_INTERESTS } from "@/lib/constants";
+import { INTEREST_GROUPS } from "@/lib/constants";
 
 type DeliveryMethod = "email" | "telegram";
 
@@ -122,20 +122,31 @@ function RecommendationPreferencesCard() {
         <CardDescription>What would you like to discover?</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {RECOMMENDATION_INTERESTS.map((option) => {
-            const id = `interest-${option}`;
-            return (
-              <div key={option} className="flex items-center gap-2">
-                <Checkbox
-                  id={id}
-                  checked={selected.has(option)}
-                  onCheckedChange={(checked) => toggle(option, checked === true)}
-                />
-                <Label htmlFor={id}>{option}</Label>
+        <div className="space-y-6">
+          {INTEREST_GROUPS.map((group) => (
+            <div key={group.label} className="space-y-3">
+              <p className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                {group.label}
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {group.topics.map((option) => {
+                  const id = `interest-${option}`;
+                  return (
+                    <div key={option} className="flex items-center gap-2">
+                      <Checkbox
+                        id={id}
+                        checked={selected.has(option)}
+                        onCheckedChange={(checked) =>
+                          toggle(option, checked === true)
+                        }
+                      />
+                      <Label htmlFor={id}>{option}</Label>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </CardContent>
       <CardFooter className="gap-3">
