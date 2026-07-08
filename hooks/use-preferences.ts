@@ -42,31 +42,31 @@ export function usePreferences() {
   const [loaded, setLoaded] = useState(false);
   const [onboarded, setOnboarded] = useState(false);
 
+  /** (Re-)read the profile from Firestore — also used to notice server-side
+   * writes like Telegram linking, which happen outside this hook. */
+  const reload = useCallback(async () => {
+    if (!user) return;
+    const snap = await getDoc(doc(db, "users", user.uid));
+    const data = snap.data() ?? {};
+    setPrefs({
+      name: data.name ?? user.name ?? "",
+      profilePhoto: data.profilePhoto ?? user.photoURL ?? "",
+      preferredTopics: data.preferredTopics ?? [],
+      dismissedUrls: data.dismissedUrls ?? [],
+      mutedTopics: data.mutedTopics ?? [],
+      notificationPreference:
+        (data.notificationPreference as NotificationPreference) ?? "email",
+      telegramChatId: data.telegramChatId ?? "",
+      notificationDay: data.notificationDay ?? "Monday",
+    });
+    setOnboarded(Boolean(data.onboardedAt));
+    setLoaded(true);
+  }, [user]);
+
   useEffect(() => {
     if (!hydrated || !user) return;
-    let cancelled = false;
-    (async () => {
-      const snap = await getDoc(doc(db, "users", user.uid));
-      const data = snap.data() ?? {};
-      if (cancelled) return;
-      setPrefs({
-        name: data.name ?? user.name ?? "",
-        profilePhoto: data.profilePhoto ?? user.photoURL ?? "",
-        preferredTopics: data.preferredTopics ?? [],
-        dismissedUrls: data.dismissedUrls ?? [],
-        mutedTopics: data.mutedTopics ?? [],
-        notificationPreference:
-          (data.notificationPreference as NotificationPreference) ?? "email",
-        telegramChatId: data.telegramChatId ?? "",
-        notificationDay: data.notificationDay ?? "Monday",
-      });
-      setOnboarded(Boolean(data.onboardedAt));
-      setLoaded(true);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [hydrated, user]);
+    void reload();
+  }, [hydrated, user, reload]);
 
   const save = useCallback(
     async (partial: Partial<Preferences>) => {
@@ -100,5 +100,5 @@ export function usePreferences() {
     }
   }, [user]);
 
-  return { prefs, loaded, onboarded, save, markOnboarded };
+  return { prefs, loaded, onboarded, save, markOnboarded, reload };
 }

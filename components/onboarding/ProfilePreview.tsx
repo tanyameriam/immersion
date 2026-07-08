@@ -8,7 +8,7 @@ export type PreviewState = {
   photo: string | null;
   topics: string[];
   channel: "email" | "telegram";
-  telegramHandle: string;
+  telegramLinked: boolean;
   day: string;
 };
 
@@ -23,11 +23,11 @@ function initials(name: string, email: string) {
 
 /** Live "this is what you're setting up" card shown beside the onboarding steps. */
 export function ProfilePreview({ state }: { state: PreviewState }) {
-  const { name, email, photo, topics, channel, telegramHandle, day } = state;
+  const { name, email, photo, topics, channel, telegramLinked, day } = state;
 
   const delivery =
     channel === "telegram"
-      ? `Telegram${telegramHandle ? ` ${telegramHandle}` : ""}`
+      ? `Telegram${telegramLinked ? " (connected)" : " (not connected yet)"}`
       : "Email";
 
   return (

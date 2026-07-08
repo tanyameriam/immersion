@@ -1,0 +1,103 @@
+import { randomBytes } from "crypto";
+import { FieldValue } from "firebase-admin/firestore";
+import { adminDb } from "@/lib/firebase/admin";
+import { sendTelegramMessage } from "@/lib/telegram/send";
+
+/**
+ * Telegram account linking. Telegram bots can only message a user AFTER that
+ * user has messaged the bot first, and only by numeric chat id — a username
+ * is not enough. So linking works via a deep link: we mint a one-time code,
+ * the user opens t.me/<bot>?start=<code>, Telegram sends us "/start <code>",
+ * and we store the sender's chat id on the matching profile.
+ */
+
+const CODES_COLLECTION = "telegramLinkCodes";
+const CODE_TTL_MS = 15 * 60 * 1000;
+
+/** Minimal shape of a Telegram update we care about. */
+type TelegramUpdate = {
+  update_id?: number;
+  message?: {
+    text?: string;
+    chat?: { id?: number };
+  };
+};
+
+let cachedBotUsername: string | null = null;
+
+/** The bot's @username, discovered from the bot token via getMe (cached). */
+export async function getBotUsername(): Promise<string | null> {
+  if (cachedBotUsername) return cachedBotUsername;
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return null;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+    const data = await res.json();
+    cachedBotUsername = data?.result?.username ?? null;
+  } catch (err) {
+    console.error("Telegram getMe failed", err);
+  }
+  return cachedBotUsername;
+}
+
+/** Mint a short-lived one-time code tying a deep-link tap to this user. */
+export async function createLinkCode(userId: string): Promise<string> {
+  const code = randomBytes(8).toString("hex");
+  await adminDb()
+    .collection(CODES_COLLECTION)
+    .doc(code)
+    .set({ userId, createdAt: Date.now(), expiresAt: Date.now() + CODE_TTL_MS });
+  return code;
+}
+
+/** Redeem a "/start <code>" tap: store the chat id, confirm in the chat. */
+async function redeemLinkCode(code: string, chatId: number): Promise<boolean> {
+  const ref = adminDb().collection(CODES_COLLECTION).doc(code);
+  const snap = await ref.get();
+  const data = snap.data();
+  if (!data || data.expiresAt < Date.now()) {
+    await sendTelegramMessage(
+      String(chatId),
+      "That link has expired. Open Layrrrd and tap “Connect Telegram” again.",
+    );
+    return false;
+  }
+
+  await adminDb().collection("users").doc(data.userId).set(
+    {
+      telegramChatId: String(chatId),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+  await ref.delete();
+  await sendTelegramMessage(
+    String(chatId),
+    "✅ Connected! Your Layrrrd weekly digest will arrive in this chat.",
+  );
+  return true;
+}
+
+/**
+ * Process one Telegram update (from the webhook or the dev poll route).
+ * Returns true if it completed an account link.
+ */
+export async function processTelegramUpdate(
+  update: TelegramUpdate,
+): Promise<boolean> {
+  const text = update.message?.text;
+  const chatId = update.message?.chat?.id;
+  if (!text || !chatId) return false;
+
+  const match = text.match(/^\/start[ =](\S+)/);
+  if (match) return redeemLinkCode(match[1], chatId);
+
+  if (text.startsWith("/start")) {
+    // Bare /start — someone found the bot without a link code.
+    await sendTelegramMessage(
+      String(chatId),
+      "Hi! To connect this chat to your Layrrrd account, open Layrrrd and tap “Connect Telegram” in your delivery settings.",
+    );
+  }
+  return false;
+}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Blocks, MessageCircle, MessagesSquare, Bell } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import { RequireAuth } from "@/components/dashboard/RequireAuth";
+import { TelegramConnect } from "@/components/TelegramConnect";
 import { useAuth } from "@/components/AuthContext";
 import { usePreferences } from "@/hooks/use-preferences";
 import {
@@ -171,29 +172,21 @@ const DAYS = [
 
 function NewsletterDeliveryCard() {
   const { user } = useAuth();
-  const { prefs, loaded, save } = usePreferences();
+  const { prefs, loaded, save, reload } = usePreferences();
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("email");
-  const [telegramUsername, setTelegramUsername] = useState("");
   const [day, setDay] = useState("Monday");
   const { saved, flash } = useSavedFlash();
 
   useEffect(() => {
     if (loaded) {
       setDeliveryMethod(prefs.notificationPreference);
-      setTelegramUsername(prefs.telegramChatId);
       setDay(prefs.notificationDay);
     }
-  }, [
-    loaded,
-    prefs.notificationPreference,
-    prefs.telegramChatId,
-    prefs.notificationDay,
-  ]);
+  }, [loaded, prefs.notificationPreference, prefs.notificationDay]);
 
   async function handleSave() {
     await save({
       notificationPreference: deliveryMethod,
-      telegramChatId: telegramUsername,
       notificationDay: day,
     });
     flash();
@@ -223,17 +216,11 @@ function NewsletterDeliveryCard() {
         {deliveryMethod === "email" ? (
           <p className="text-sm text-muted-foreground">{user?.email}</p>
         ) : (
-          <div className="space-y-2">
-            <Label htmlFor="profile-telegram-username">
-              Telegram Username
-            </Label>
-            <Input
-              id="profile-telegram-username"
-              value={telegramUsername}
-              onChange={(e) => setTelegramUsername(e.target.value)}
-              placeholder="@username"
-            />
-          </div>
+          <TelegramConnect
+            chatId={prefs.telegramChatId}
+            refresh={reload}
+            onDisconnect={() => void save({ telegramChatId: "" })}
+          />
         )}
 
         <div className="space-y-2">
