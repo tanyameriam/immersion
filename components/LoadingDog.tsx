@@ -4,9 +4,10 @@
  * Full-area loading state: a running dog sprite animation in the Layrrrd
  * editorial style. The sprite sheet is a static asset (12 frames, 350×170 each,
  * 4200×170 total) served from /running-dog-sprite.png so the large image stays
- * out of the JS bundle. Rendered at native 1:1 resolution so the hand-drawn
- * outline stays crisp (downscaling averaged the thin strokes into fuzzy gray).
- * Used while auth resolves and pages load.
+ * out of the JS bundle. The sprite is recolored to a bold black outline with a
+ * transparent fill (see scripts/build-dog-sprite.mjs) and rendered at native
+ * 1:1 resolution so the strokes stay crisp (downscaling averaged the thin
+ * strokes into fuzzy gray). Used while auth resolves and pages load.
  */
 export function LoadingDog({ label = "Fetching your knowledge…" }: { label?: string }) {
   return (
@@ -26,8 +27,6 @@ export function LoadingDog({ label = "Fetching your knowledge…" }: { label?: s
           background-size: 4200px 170px;
           background-position: 0 0;
           animation: run-cycle 1s steps(12) infinite;
-          /* Darken the light charcoal sketch strokes toward black. */
-          filter: brightness(0.8) contrast(1.05);
         }
         @keyframes run-cycle {
           from {
