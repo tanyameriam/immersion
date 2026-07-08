@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Upload } from "lucide-react";
 import { useAuth } from "@/components/AuthContext";
 import { usePreferences } from "@/hooks/use-preferences";
 import { ProfilePreview } from "@/components/onboarding/ProfilePreview";
@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LoadingDog } from "@/components/LoadingDog";
-import { RECOMMENDATION_INTERESTS } from "@/lib/constants";
+import { INTEREST_GROUPS } from "@/lib/constants";
 
 const DAYS = [
   "Monday",
@@ -33,6 +33,23 @@ const DAYS = [
 
 const STEPS = ["Name", "Email", "Photo", "Interests", "Delivery"] as const;
 
+/** Center-crop an uploaded image to a small square JPEG data URL, so the
+ * avatar can live directly on the profile document (no file storage needed). */
+async function fileToAvatarDataUrl(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const SIZE = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas unavailable");
+  const side = Math.min(bitmap.width, bitmap.height);
+  const sx = (bitmap.width - side) / 2;
+  const sy = (bitmap.height - side) / 2;
+  ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, SIZE, SIZE);
+  return canvas.toDataURL("image/jpeg", 0.85);
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
   const { user, hydrated } = useAuth();
@@ -40,7 +57,10 @@ export default function OnboardingPage() {
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
-  const [keepPhoto, setKeepPhoto] = useState(true);
+  // The avatar to save: the Google account photo by default, an uploaded
+  // image (as a data URL), or null to fall back to the name's initials.
+  const [photo, setPhoto] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [topics, setTopics] = useState<Set<string>>(new Set());
   const [channel, setChannel] = useState<"email" | "telegram">("telegram");
   const [telegramHandle, setTelegramHandle] = useState("");
@@ -62,14 +82,13 @@ export default function OnboardingPage() {
     if (prefilled.current || !loaded || !user) return;
     prefilled.current = true;
     setName(prefs.name || user.name || "");
-    setKeepPhoto(Boolean(user.photoURL));
+    setPhoto(prefs.profilePhoto || user.photoURL || null);
     if (prefs.preferredTopics.length) setTopics(new Set(prefs.preferredTopics));
     setChannel(prefs.notificationPreference);
     setTelegramHandle(prefs.telegramChatId);
     setDay(prefs.notificationDay);
   }, [loaded, user, prefs]);
 
-  const photo = keepPhoto ? user?.photoURL ?? null : null;
   const previewState = useMemo(
     () => ({
       name,
@@ -100,13 +119,24 @@ export default function OnboardingPage() {
     });
   }
 
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file
+    if (!file || !file.type.startsWith("image/")) return;
+    try {
+      setPhoto(await fileToAvatarDataUrl(file));
+    } catch (err) {
+      console.error("Failed to read uploaded photo", err);
+    }
+  }
+
   async function handleFinish() {
     if (!user) return;
     setSubmitting(true);
     try {
       await save({
         name: name.trim() || user.name,
-        profilePhoto: keepPhoto ? user.photoURL ?? "" : "",
+        profilePhoto: photo ?? "",
         preferredTopics: [...topics],
         notificationPreference: channel,
         telegramChatId: telegramHandle.trim(),
@@ -164,39 +194,64 @@ export default function OnboardingPage() {
 
             {step === 2 && (
               <StepShell
-                title="Add a profile photo"
-                subtitle="Optional — you can always change this later in settings."
+                title="Your profile photo"
+                subtitle={
+                  user.photoURL
+                    ? "We start with your Google photo — keep it, upload your own, or remove it to use your initials."
+                    : "Optional — upload a photo, or we'll use your initials."
+                }
               >
                 <div className="flex items-center gap-6">
-                  <Avatar size="lg" className="size-16">
+                  <Avatar size="lg" className="size-20">
                     {photo ? <AvatarImage src={photo} alt={name} /> : null}
-                    <AvatarFallback>
+                    <AvatarFallback className="text-lg">
                       {(name || user.email).slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  {user.photoURL ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      {photo === null
+                        ? "No photo — we'll show your initials."
+                        : photo === user.photoURL
+                          ? "From your Google account."
+                          : "Your uploaded photo."}
+                    </p>
                     <div className="flex flex-wrap gap-3">
                       <Button
                         size="sm"
-                        variant={keepPhoto ? "default" : "outline"}
-                        onClick={() => setKeepPhoto(true)}
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
                       >
-                        Use this photo
+                        <Upload data-icon="inline-start" />
+                        Upload photo
                       </Button>
-                      <Button
-                        size="sm"
-                        variant={keepPhoto ? "outline" : "default"}
-                        onClick={() => setKeepPhoto(false)}
-                      >
-                        Skip for now
-                      </Button>
+                      {user.photoURL && photo !== user.photoURL && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPhoto(user.photoURL)}
+                        >
+                          Use Google photo
+                        </Button>
+                      )}
+                      {photo && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setPhoto(null)}
+                        >
+                          Remove
+                        </Button>
+                      )}
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No photo from your account — you can add one later in
-                      settings.
-                    </p>
-                  )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handlePhotoUpload}
+                  />
                 </div>
               </StepShell>
             )}
@@ -206,27 +261,36 @@ export default function OnboardingPage() {
                 title="What are you into?"
                 subtitle="Pick a few topics — we'll use these to recommend things worth your time."
               >
-                <div className="flex flex-wrap gap-2">
-                  {RECOMMENDATION_INTERESTS.map((topic) => {
-                    const active = topics.has(topic);
-                    return (
-                      <button
-                        key={topic}
-                        type="button"
-                        onClick={() => toggleTopic(topic)}
-                        aria-pressed={active}
-                        className={
-                          "inline-flex items-center gap-1.5 border px-3 py-1.5 text-sm transition-colors " +
-                          (active
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border text-foreground hover:bg-muted")
-                        }
-                      >
-                        {active && <Check className="size-3.5" />}
-                        {topic}
-                      </button>
-                    );
-                  })}
+                <div className="space-y-6">
+                  {INTEREST_GROUPS.map((group) => (
+                    <div key={group.label} className="space-y-2.5">
+                      <p className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                        {group.label}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {group.topics.map((topic) => {
+                          const active = topics.has(topic);
+                          return (
+                            <button
+                              key={topic}
+                              type="button"
+                              onClick={() => toggleTopic(topic)}
+                              aria-pressed={active}
+                              className={
+                                "inline-flex items-center gap-1.5 border px-3 py-1.5 text-sm transition-colors " +
+                                (active
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-border text-foreground hover:bg-muted")
+                              }
+                            >
+                              {active && <Check className="size-3.5" />}
+                              {topic}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </StepShell>
             )}
