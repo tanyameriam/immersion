@@ -5,20 +5,27 @@ import { useAuth } from "@/components/AuthContext";
 import { apiFetch } from "@/lib/api-client";
 import type { Resource } from "@/lib/dashboard-data";
 
-/** Loads community recommendations (topic overlap with other users). */
+/** Loads community recommendations (topic overlap with other users) plus a
+ * small "discover" set nudging the user toward new topics. */
 export function useRecommendations() {
   const { user, hydrated } = useAuth();
   const [recommendations, setRecommendations] = useState<Resource[]>([]);
+  const [discover, setDiscover] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refetch = useCallback(async () => {
     const res = await apiFetch("/api/recommendations");
     if (!res.ok) {
       setRecommendations([]);
+      setDiscover([]);
       return;
     }
-    const data = (await res.json()) as { recommendations: Resource[] };
+    const data = (await res.json()) as {
+      recommendations: Resource[];
+      discover?: Resource[];
+    };
     setRecommendations(data.recommendations ?? []);
+    setDiscover(data.discover ?? []);
   }, []);
 
   useEffect(() => {
@@ -34,5 +41,5 @@ export function useRecommendations() {
     };
   }, [hydrated, user, refetch]);
 
-  return { recommendations, loading, refetch };
+  return { recommendations, discover, loading, refetch };
 }

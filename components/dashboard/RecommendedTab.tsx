@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Compass } from "lucide-react";
+import { Search, Compass, Sparkles } from "lucide-react";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { Input } from "@/components/ui/input";
 import {
@@ -37,9 +37,50 @@ function sortResources(list: Resource[], sort: string) {
   }
 }
 
+/**
+ * A subtle secondary section nudging the user toward topics they haven't picked.
+ * Uses the same recommendation card so a click flows through the real save path.
+ */
+function DiscoverSection({
+  items,
+  onBookmark,
+}: {
+  items: Resource[];
+  onBookmark: (id: string) => void;
+}) {
+  return (
+    <section className="space-y-4 border-t border-border pt-8">
+      <div className="flex items-start gap-2">
+        <Sparkles className="mt-0.5 size-4 text-muted-foreground" />
+        <div>
+          <h2 className="text-sm font-medium text-foreground">
+            Explore something new
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Popular in topics outside your usual — save one to add it to your
+            interests.
+          </p>
+        </div>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {items.map((item) => (
+          <ResourceCard
+            key={item.id}
+            resource={item}
+            variant="recommendation"
+            view="grid"
+            onBookmark={onBookmark}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function RecommendedTab({
   onBookmark,
   items,
+  discover,
 }: {
   onBookmark: (resource: Resource) => void;
   /**
@@ -47,8 +88,11 @@ export function RecommendedTab({
    * community-based recommendation engine exists (needs multiple users).
    */
   items?: Resource[];
+  /** Popular items in topics the user hasn't picked yet — a gentle nudge. */
+  discover?: Resource[];
 }) {
   const source = useMemo(() => items ?? recommendations, [items]);
+  const discoverList = useMemo(() => discover ?? [], [discover]);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("Most Relevant");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
@@ -90,15 +134,8 @@ export function RecommendedTab({
 
   const sorted = useMemo(() => sortResources(filtered, sort), [filtered, sort]);
 
-  if (source.length === 0) {
-    return (
-      <EmptyState
-        icon={Compass}
-        title="No recommendations yet"
-        description="Recommendations come from what people with similar interests save. Save a few articles — as the community grows, we'll surface links others like you are reading."
-      />
-    );
-  }
+  const hasMatched = source.length > 0;
+  const hasDiscover = discoverList.length > 0;
 
   function handleFilterChange(groupKey: string, option: string, checked: boolean) {
     setFilters((prev) => {
@@ -111,76 +148,100 @@ export function RecommendedTab({
   }
 
   function handleBookmark(id: string) {
-    const resource = source.find((item) => item.id === id);
+    const resource =
+      source.find((item) => item.id === id) ??
+      discoverList.find((item) => item.id === id);
     if (!resource) return;
     setBookmarkedIds((prev) => new Set(prev).add(id));
     onBookmark(resource);
   }
 
+  if (!hasMatched && !hasDiscover) {
+    return (
+      <EmptyState
+        icon={Compass}
+        title="No recommendations yet"
+        description="Recommendations come from what people with similar interests save. Save a few articles, and as the community grows we'll surface links others like you are reading."
+      />
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="relative w-full max-w-sm">
-          <Search className="pointer-events-none absolute left-0 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search title, description, source…"
-            className="pl-6"
-          />
-        </div>
+    <div className="space-y-10">
+      {hasMatched ? (
+        <div className="space-y-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="relative w-full max-w-sm">
+              <Search className="pointer-events-none absolute left-0 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search title, description, source…"
+                className="pl-6"
+              />
+            </div>
 
-        <div className="flex items-center gap-3">
-          <FilterMenu
-            groups={filterGroups}
-            selected={filters}
-            onChange={handleFilterChange}
-            onClear={() => setFilters({})}
-          />
-          <Select value={sort} onValueChange={(v) => v && setSort(v)}>
-            <SelectTrigger className="w-fit">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SORT_OPTIONS.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option}
-                </SelectItem>
+            <div className="flex items-center gap-3">
+              <FilterMenu
+                groups={filterGroups}
+                selected={filters}
+                onChange={handleFilterChange}
+                onClear={() => setFilters({})}
+              />
+              <Select value={sort} onValueChange={(v) => v && setSort(v)}>
+                <SelectTrigger className="w-fit">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SORT_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <ViewToggle view={view} onChange={setView} />
+            </div>
+          </div>
+
+          {sorted.length === 0 ? (
+            <p className="py-16 text-center text-sm text-muted-foreground">
+              No recommendations match your search and filters.
+            </p>
+          ) : view === "list" ? (
+            <div className="divide-y divide-border border-t border-border">
+              {sorted.map((item) => (
+                <ResourceCard
+                  key={item.id}
+                  resource={item}
+                  variant="recommendation"
+                  view="list"
+                  onBookmark={handleBookmark}
+                />
               ))}
-            </SelectContent>
-          </Select>
-          <ViewToggle view={view} onChange={setView} />
-        </div>
-      </div>
-
-      {sorted.length === 0 ? (
-        <p className="py-16 text-center text-sm text-muted-foreground">
-          No recommendations match your search and filters.
-        </p>
-      ) : view === "list" ? (
-        <div className="divide-y divide-border border-t border-border">
-          {sorted.map((item) => (
-            <ResourceCard
-              key={item.id}
-              resource={item}
-              variant="recommendation"
-              view="list"
-              onBookmark={handleBookmark}
-            />
-          ))}
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {sorted.map((item) => (
+                <ResourceCard
+                  key={item.id}
+                  resource={item}
+                  variant="recommendation"
+                  view="grid"
+                  onBookmark={handleBookmark}
+                />
+              ))}
+            </div>
+          )}
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {sorted.map((item) => (
-            <ResourceCard
-              key={item.id}
-              resource={item}
-              variant="recommendation"
-              view="grid"
-              onBookmark={handleBookmark}
-            />
-          ))}
-        </div>
+        <p className="text-sm text-muted-foreground">
+          No topic matches yet — here are a few fresh things worth a look.
+        </p>
+      )}
+
+      {hasDiscover && (
+        <DiscoverSection items={discoverList} onBookmark={handleBookmark} />
       )}
 
       {bookmarkedIds.size > 0 && (

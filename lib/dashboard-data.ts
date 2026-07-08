@@ -20,6 +20,10 @@ export type Resource = {
   // Recommendation-only: why it's suggested + how many people saved it.
   reason?: string;
   savers?: number;
+  // "match" = shares a topic the user already cares about; "discover" = a nudge
+  // toward a topic they haven't picked yet. `discoveryTopic` is that new topic.
+  kind?: "match" | "discover";
+  discoveryTopic?: string;
 };
 
 export type WeeklyIssue = {

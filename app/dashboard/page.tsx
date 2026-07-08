@@ -11,13 +11,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/components/AuthContext";
 import { useKnowledgeItems } from "@/hooks/use-knowledge-items";
 import { useRecommendations } from "@/hooks/use-recommendations";
+import { usePreferences } from "@/hooks/use-preferences";
 import { LoadingDog } from "@/components/LoadingDog";
 import { type Resource } from "@/lib/dashboard-data";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { resources, loading, remove, save, markRead } = useKnowledgeItems();
-  const { recommendations } = useRecommendations();
+  const { recommendations, discover } = useRecommendations();
+  const { prefs, save: savePrefs } = usePreferences();
   const [tab, setTab] = useState("bookmarks");
   const [bookmarks, setBookmarks] = useState<Resource[]>([]);
 
@@ -28,8 +30,16 @@ export default function DashboardPage() {
   }, [resources]);
 
   // Bookmark a recommendation = actually save its URL (real save pipeline).
+  // Engaging with a "discover" item also adopts its new topic into the user's
+  // interests, so that topic starts feeding their matched recommendations.
   function handleBookmarkFromRecommendations(resource: Resource) {
     void save(resource.url);
+    if (resource.kind === "discover" && resource.discoveryTopic) {
+      const topic = resource.discoveryTopic;
+      if (!prefs.preferredTopics.includes(topic)) {
+        void savePrefs({ preferredTopics: [...prefs.preferredTopics, topic] });
+      }
+    }
   }
 
   return (
@@ -70,6 +80,7 @@ export default function DashboardPage() {
           <TabsContent value="recommended" className="mt-8">
             <RecommendedTab
               items={recommendations}
+              discover={discover}
               onBookmark={handleBookmarkFromRecommendations}
             />
           </TabsContent>
