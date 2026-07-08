@@ -1,44 +1,33 @@
 "use client";
 
 /**
- * Full-area loading state: a running dog sprite animation in the Layrrrd
- * editorial style. The sprite sheet is a static asset (12 frames, 350×170 each,
- * 4200×170 total) served from /running-dog-sprite.png so the large image stays
- * out of the JS bundle. The sprite is recolored to a bold black outline with a
- * transparent fill (see scripts/build-dog-sprite.mjs) and rendered at native
- * 1:1 resolution so the strokes stay crisp (downscaling averaged the thin
- * strokes into fuzzy gray). Used while auth resolves and pages load.
+ * Full-area loading state: a running dog illustration animation in the Layrrrd
+ * look and feel. The animation is a looping WebP (converted from the source GIF
+ * by scripts/build-loading-dog.mjs) served as a static asset from
+ * /loading-dog.webp — far smaller than the source GIF and it self-animates as a
+ * CSS background. A static poster frame is used under reduced-motion. Used while
+ * auth resolves and pages load.
  */
 export function LoadingDog({ label = "Fetching your knowledge…" }: { label?: string }) {
   return (
     <div className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-5 bg-background">
-      <div className="running-dog" aria-hidden />
+      <div className="running-dog" aria-hidden="true" />
       <p className="text-sm tracking-[0.08em] text-muted-foreground uppercase">
         {label}
       </p>
 
       <style jsx>{`
         .running-dog {
-          width: 350px;
-          height: 170px;
-          background-image: url("/running-dog-sprite.png");
+          width: min(350px, 82vw);
+          aspect-ratio: 350 / 197;
+          background-image: url("/loading-dog.webp");
+          background-size: contain;
           background-repeat: no-repeat;
-          /* Native size => 1:1 pixel mapping, no downscale blur. */
-          background-size: 4200px 170px;
-          background-position: 0 0;
-          animation: run-cycle 1s steps(12) infinite;
-        }
-        @keyframes run-cycle {
-          from {
-            background-position-x: 0;
-          }
-          to {
-            background-position-x: -4200px;
-          }
+          background-position: center;
         }
         @media (prefers-reduced-motion: reduce) {
           .running-dog {
-            animation: none;
+            background-image: url("/loading-dog-static.webp");
           }
         }
       `}</style>
