@@ -1,4 +1,4 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { toKnowledgeItem } from "@/lib/firestore/items";
 import type { KnowledgeItem } from "@/lib/types/knowledge-item";
 
@@ -48,6 +48,17 @@ export async function buildWeeklyDigests(sinceMs = WEEK_MS): Promise<UserDigest[
     byUser.set(item.userId, list);
   }
 
+  // Email addresses live in Firebase Auth (sign-in), not on the profile doc —
+  // look them up so the digest always has somewhere to deliver.
+  const authEmails = new Map<string, string>();
+  const uids = [...byUser.keys()];
+  for (let i = 0; i < uids.length; i += 100) {
+    const res = await adminAuth().getUsers(
+      uids.slice(i, i + 100).map((uid) => ({ uid })),
+    );
+    for (const u of res.users) if (u.email) authEmails.set(u.uid, u.email);
+  }
+
   // Community average of articles read this week.
   let totalReads = 0;
   let activeUsers = 0;
@@ -87,7 +98,7 @@ export async function buildWeeklyDigests(sinceMs = WEEK_MS): Promise<UserDigest[
 
     digests.push({
       userId: uid,
-      email: profile.email ?? "",
+      email: profile.email || authEmails.get(uid) || "",
       name: profile.name ?? "",
       telegramChatId: profile.telegramChatId ?? null,
       notificationDay: profile.notificationDay ?? "Monday",

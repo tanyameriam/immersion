@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Check, Upload } from "lucide-react";
 import { useAuth } from "@/components/AuthContext";
 import { usePreferences } from "@/hooks/use-preferences";
 import { ProfilePreview } from "@/components/onboarding/ProfilePreview";
+import { TelegramConnect } from "@/components/TelegramConnect";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,7 +54,8 @@ async function fileToAvatarDataUrl(file: File): Promise<string> {
 export default function OnboardingPage() {
   const router = useRouter();
   const { user, hydrated } = useAuth();
-  const { prefs, loaded, onboarded, save, markOnboarded } = usePreferences();
+  const { prefs, loaded, onboarded, save, markOnboarded, reload } =
+    usePreferences();
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
@@ -63,7 +65,6 @@ export default function OnboardingPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [topics, setTopics] = useState<Set<string>>(new Set());
   const [channel, setChannel] = useState<"email" | "telegram">("telegram");
-  const [telegramHandle, setTelegramHandle] = useState("");
   const [day, setDay] = useState("Monday");
   const [submitting, setSubmitting] = useState(false);
   const prefilled = useRef(false);
@@ -85,7 +86,6 @@ export default function OnboardingPage() {
     setPhoto(prefs.profilePhoto || user.photoURL || null);
     if (prefs.preferredTopics.length) setTopics(new Set(prefs.preferredTopics));
     setChannel(prefs.notificationPreference);
-    setTelegramHandle(prefs.telegramChatId);
     setDay(prefs.notificationDay);
   }, [loaded, user, prefs]);
 
@@ -96,10 +96,10 @@ export default function OnboardingPage() {
       photo,
       topics: [...topics],
       channel,
-      telegramHandle,
+      telegramLinked: Boolean(prefs.telegramChatId),
       day,
     }),
-    [name, user?.email, photo, topics, channel, telegramHandle, day],
+    [name, user?.email, photo, topics, channel, prefs.telegramChatId, day],
   );
 
   if (!hydrated || !user || !loaded) {
@@ -139,7 +139,6 @@ export default function OnboardingPage() {
         profilePhoto: photo ?? "",
         preferredTopics: [...topics],
         notificationPreference: channel,
-        telegramChatId: telegramHandle.trim(),
         notificationDay: day,
       });
       await markOnboarded();
@@ -319,15 +318,11 @@ export default function OnboardingPage() {
                   </div>
 
                   {channel === "telegram" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="onb-telegram-handle">Telegram username</Label>
-                      <Input
-                        id="onb-telegram-handle"
-                        value={telegramHandle}
-                        onChange={(e) => setTelegramHandle(e.target.value)}
-                        placeholder="@username"
-                      />
-                    </div>
+                    <TelegramConnect
+                      chatId={prefs.telegramChatId}
+                      refresh={reload}
+                      onDisconnect={() => void save({ telegramChatId: "" })}
+                    />
                   )}
 
                   <div className="space-y-2">
