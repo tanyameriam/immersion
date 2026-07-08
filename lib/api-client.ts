@@ -2,7 +2,7 @@ import { auth } from "@/lib/firebase/client";
 
 /**
  * fetch() wrapper that attaches the current user's Firebase ID token as a
- * Bearer header — the same auth scheme the server verifies via getAuthedUser().
+ * Bearer header - the same auth scheme the server verifies via getAuthedUser().
  */
 export async function apiFetch(
   input: string,

@@ -12,7 +12,7 @@ const COLLECTION = "knowledgeItems";
  * (pending/failed/stale-processing → processing), fetch + extract the page,
  * run Claude, then write the AI fields and mark it completed. On any failure
  * the item is marked `failed` (with an incremented retryCount) so a later
- * sweep can retry it. Safe to call concurrently — the transactional claim
+ * sweep can retry it. Safe to call concurrently - the transactional claim
  * prevents two workers from processing the same item.
  */
 export async function processItem(id: string): Promise<void> {
@@ -44,7 +44,7 @@ export async function processItem(id: string): Promise<void> {
 
   if (!claimed) return; // not ours to process
 
-  // 2. Extract + analyze (outside the transaction — these are slow/networked).
+  // 2. Extract + analyze (outside the transaction - these are slow/networked).
   try {
     const content = await extractContent(claimed.url);
     const analysis = await analyzeContent({

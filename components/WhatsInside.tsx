@@ -2,27 +2,28 @@ import { FadeUp } from "@/components/FadeUp";
 
 const features = [
   {
-    title: "Your Saved Links",
-    subtitle: "No digging through bookmarks.",
+    title: "Save From Anywhere",
+    subtitle: "One click, any page.",
     description:
-      "Everything you've sent to Layrrrd during the week, all in one place.",
+      "Articles, threads, videos, and shots go into Layrrrd the moment you find them, with the source and context kept intact.",
   },
   {
-    title: "AI Prioritization",
-    subtitle: "Not everything deserves your time.",
-    description: "Layrrrd surfaces what matters most first.",
+    title: "Read by AI",
+    subtitle: "Skim in seconds, not minutes.",
+    description:
+      "Every save comes back with a summary, a one-line TL;DR, topics, and a reading time, so you know what's worth opening.",
   },
   {
-    title: "Curated Picks",
-    subtitle: "Never an empty digest.",
+    title: "Your Weekly Digest",
+    subtitle: "The good stuff, resurfaced.",
     description:
-      "Even if you haven't saved anything yet, you'll receive carefully selected design resources from our team.",
+      "Once a week, everything you saved returns grouped by topic and flagged by what you haven't read yet, so nothing slips away.",
   },
   {
-    title: "Personalized Digest",
-    subtitle: "Adapts to how you read.",
+    title: "Recommended For You",
+    subtitle: "Discover beyond your own saves.",
     description:
-      "The more you save, the more your weekly digest reflects your interests.",
+      "Links that readers with your interests are saving surface alongside yours, curated picks with none of the noise.",
   },
 ];
 

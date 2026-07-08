@@ -1,4 +1,4 @@
-# Running & testing Layrrrd — the full journey
+# Running & testing Layrrrd - the full journey
 
 This walks you from zero to a working app you can click through. Everything
 here is free. Budget ~30–40 minutes the first time (most of it is creating a
@@ -6,9 +6,9 @@ Firebase project).
 
 ---
 
-## Part 1 — Create the accounts & keys (one-time)
+## Part 1 - Create the accounts & keys (one-time)
 
-### A. Firebase (auth + database) — free "Spark" plan
+### A. Firebase (auth + database) - free "Spark" plan
 
 1. Go to <https://console.firebase.google.com> → **Add project** → name it
    `layrrrd` → accept defaults → **Create project**.
@@ -24,7 +24,7 @@ Firebase project).
    **Generate new private key** → a `.json` file downloads. You'll need three
    values from inside it: `project_id`, `client_email`, `private_key`.
 
-### B. Anthropic (the AI) — pay-as-you-go, pennies
+### B. Anthropic (the AI) - pay-as-you-go, pennies
 
 1. Go to <https://console.anthropic.com> → **API keys** → **Create key** →
    copy it.
@@ -38,7 +38,7 @@ Firebase project).
 
 ---
 
-## Part 2 — Configure the app
+## Part 2 - Configure the app
 
 1. In the project folder, copy the template:
    ```bash
@@ -63,12 +63,12 @@ Firebase project).
    firebase deploy --only firestore:rules,firestore:indexes
    ```
    (If you skip this, the app still runs, but you may see "permission denied"
-   or "index needed" errors — the error message includes a one-click link to
+   or "index needed" errors - the error message includes a one-click link to
    create the index.)
 
 ---
 
-## Part 3 — Run it
+## Part 3 - Run it
 
 ```bash
 npm install      # first time only
@@ -79,7 +79,7 @@ Open <http://localhost:3000>.
 
 ---
 
-## Part 4 — The test journey (what to click, what to expect)
+## Part 4 - The test journey (what to click, what to expect)
 
 | # | You do | You should see | It proves |
 |---|--------|----------------|-----------|
@@ -113,7 +113,7 @@ is configured, a digest in your inbox.
 ---
 
 ## Known limitations (working as intended for now)
-- **Recommended** and **Weekly Issues** tabs show sample/demo content — real
+- **Recommended** and **Weekly Issues** tabs show sample/demo content - real
   cross-user recommendations need a community of users.
 - **Telegram DM delivery** needs a numeric chat id (not an @username); the
   profile field stores what you enter but Telegram DMs require the user to
@@ -123,7 +123,7 @@ is configured, a digest in your inbox.
 
 ## Stress-testing checklist (before onboarding real users)
 
-Try to break it — these cover every feature and its edge cases:
+Try to break it - these cover every feature and its edge cases:
 
 **Saving & AI**
 - [ ] Save 10–20 links quickly in a row → all appear as "Summarizing…" then complete; the page stays responsive.
@@ -152,7 +152,7 @@ Try to break it — these cover every feature and its edge cases:
 ## Reset to a clean slate (wipe all test data)
 
 When testing is done, wipe every saved item, profile, digest, and sign-in
-account in one command (runs locally with your service key — not exposed on the
+account in one command (runs locally with your service key - not exposed on the
 live site):
 
 ```bash
@@ -173,7 +173,7 @@ node --env-file=.env.local scripts/reset-data.mjs --user someone@example.com
 node --env-file=.env.local scripts/reset-data.mjs --user someone@example.com --confirm
 ```
 
-Your deployed app and configuration stay intact — only the data is cleared, so
+Your deployed app and configuration stay intact - only the data is cleared, so
 you start real onboarding from zero.
 
 ## Troubleshooting

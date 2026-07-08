@@ -36,7 +36,7 @@
   --sidebar-border: #E5E5E5;
   --sidebar-ring: #999999;
 
-  /* Brand palette — opt-in only, not used by default. Apply the
+  /* Brand palette - opt-in only, not used by default. Apply the
      bg-brand-/text-brand-/border-brand- utilities explicitly when a
      specific piece of UI is called out to use it. */
   --brand-ink: #212121;

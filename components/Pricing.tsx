@@ -5,10 +5,11 @@ import { FadeUp } from "@/components/FadeUp";
 import { useWaitlist } from "@/components/WaitlistContext";
 
 const included = [
-  "Unlimited saves from any app",
-  "Weekly curated reading list",
+  "Unlimited saves from any page or app",
+  "AI summary, TL;DR, and reading time on everything",
+  "Weekly digest, grouped by topic, on the day you choose",
+  "Recommendations picked for your interests",
   "Source and context kept with every save",
-  "Email delivery, on your schedule",
 ];
 
 export default function Pricing() {

@@ -3,10 +3,10 @@ import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
 /**
- * Browser-side Firebase. These NEXT_PUBLIC_* values are public by design —
+ * Browser-side Firebase. These NEXT_PUBLIC_* values are public by design -
  * access is enforced by Firestore security rules, not by hiding this config.
  */
-// Fallbacks let `next build` (the CI gate) run without secrets — `getAuth`
+// Fallbacks let `next build` (the CI gate) run without secrets - `getAuth`
 // throws on an empty apiKey during prerender. Vercel injects the real
 // NEXT_PUBLIC_* values at build time, so production always uses real config.
 const firebaseConfig = {

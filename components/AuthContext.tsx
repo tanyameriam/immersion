@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -50,6 +51,22 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/**
+ * Built-in demo login used for testing the gated experience. Firebase rejects
+ * passwords under 6 characters, so this account can't exist in Firebase; it's a
+ * client-only bypass that lets you into the (empty) dashboard without a real
+ * paid account. Remove once real accounts / payments gate access.
+ */
+const TEST_EMAIL = "tanyameriamsunny@gmail.com";
+const TEST_PASSWORD = "test";
+const TEST_SESSION_KEY = "layrrrd-test-session";
+const TEST_USER: AuthUser = {
+  uid: "test-user",
+  name: "Tanya",
+  email: TEST_EMAIL,
+  photoURL: null,
+};
+
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) {
@@ -88,18 +105,38 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<AuthMode>("sign-in");
   const [user, setUser] = useState<AuthUser | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  // True while the client-only test session is active, so the Firebase auth
+  // listener doesn't null it out (the test user has no Firebase session).
+  const testSession = useRef(false);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (u) => {
-      setUser(u ? toAuthUser(u) : null);
+    if (
+      typeof window !== "undefined" &&
+      window.sessionStorage.getItem(TEST_SESSION_KEY) === "1"
+    ) {
+      testSession.current = true;
+      setUser(TEST_USER);
       setHydrated(true);
+    }
+
+    return onAuthStateChanged(auth, async (u) => {
       if (u) {
+        testSession.current = false;
+        if (typeof window !== "undefined") {
+          window.sessionStorage.removeItem(TEST_SESSION_KEY);
+        }
+        setUser(toAuthUser(u));
+        setHydrated(true);
         try {
           await upsertUserProfile(u);
         } catch (err) {
           console.error("Failed to upsert user profile", err);
         }
+        return;
       }
+      // No Firebase user: keep the test session if one is active.
+      if (!testSession.current) setUser(null);
+      setHydrated(true);
     });
   }, []);
 
@@ -121,6 +158,19 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
           setIsOpen(false);
         },
         signInWithEmail: async (email, password) => {
+          if (
+            email.trim().toLowerCase() === TEST_EMAIL &&
+            password === TEST_PASSWORD
+          ) {
+            testSession.current = true;
+            if (typeof window !== "undefined") {
+              window.sessionStorage.setItem(TEST_SESSION_KEY, "1");
+            }
+            setUser(TEST_USER);
+            setHydrated(true);
+            setIsOpen(false);
+            return;
+          }
           await signInWithEmailAndPassword(auth, email, password);
           setIsOpen(false);
         },
@@ -131,6 +181,11 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
           setIsOpen(false);
         },
         logout: () => {
+          testSession.current = false;
+          if (typeof window !== "undefined") {
+            window.sessionStorage.removeItem(TEST_SESSION_KEY);
+          }
+          setUser(null);
           void fbSignOut(auth);
         },
       }}

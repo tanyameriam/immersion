@@ -14,6 +14,13 @@ import { useWaitlist } from "@/components/WaitlistContext";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
+const perks = [
+  "Unlimited saves from any page or app",
+  "AI summary, TL;DR & reading time on everything",
+  "Weekly digest, grouped by topic, on your schedule",
+  "Recommendations picked for your interests",
+];
+
 export function WaitlistModal() {
   const { isOpen, closeWaitlist } = useWaitlist();
   const [email, setEmail] = useState("");
@@ -76,13 +83,36 @@ export function WaitlistModal() {
           <>
             <DialogHeader>
               <DialogTitle className="font-sans text-2xl normal-case tracking-[-0.03em] font-bold text-foreground">
-                Get early access.
+                Become a Founding Member.
               </DialogTitle>
               <DialogDescription>
                 Join the waitlist and we&apos;ll reach out when Layrrrd opens
                 up.
               </DialogDescription>
             </DialogHeader>
+
+            <div className="border-y border-border py-4">
+              <p className="text-3xl font-bold tracking-[-0.03em] text-foreground">
+                ₹99
+                <span className="text-base font-medium text-muted-foreground">
+                  /month
+                </span>
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                One plan. Everything included. Cancel any time.
+              </p>
+              <ul className="mt-4 space-y-2">
+                {perks.map((perk) => (
+                  <li
+                    key={perk}
+                    className="flex items-start gap-2 text-sm text-foreground"
+                  >
+                    <span aria-hidden className="mt-[7px] size-1 shrink-0 bg-foreground" />
+                    {perk}
+                  </li>
+                ))}
+              </ul>
+            </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <Input

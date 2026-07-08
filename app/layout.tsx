@@ -38,9 +38,9 @@ export default function RootLayout({
         className="bg-background text-foreground antialiased"
         suppressHydrationWarning
       >
-        <AuthProvider>
-          <WaitlistProvider>{children}</WaitlistProvider>
-        </AuthProvider>
+        <WaitlistProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </WaitlistProvider>
       </body>
     </html>
   );

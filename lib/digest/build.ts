@@ -107,12 +107,12 @@ function peerLine(d: UserDigest): string {
   const avg = Math.round(d.communityAvgRead * 10) / 10;
   const diff = Math.round((d.readThisWeek - d.communityAvgRead) * 10) / 10;
   if (d.readThisWeek > d.communityAvgRead && diff >= 1) {
-    return `You read ${d.readThisWeek} articles this week — ${diff} more than the average reader (${avg}). Keep upskilling! 🎉`;
+    return `You read ${d.readThisWeek} articles this week, ${diff} more than the average reader (${avg}). Keep upskilling! 🎉`;
   }
   if (d.readThisWeek > 0) {
     return `You read ${d.readThisWeek} article${d.readThisWeek === 1 ? "" : "s"} this week. The community averages ${avg}.`;
   }
-  return `You haven't marked anything read yet — your unread list is waiting below.`;
+  return `You haven't marked anything read yet. Your unread list is waiting below.`;
 }
 
 /** Plain-text digest (Telegram). */

@@ -51,7 +51,7 @@ export function LoadingDog({ label = "Fetching your knowledge…" }: { label?: s
             {/* snout */}
             <circle cx="147" cy="45" r="2.6" fill="#e8623b" />
 
-            {/* legs — gallop cycle, two phases */}
+            {/* legs - gallop cycle, two phases */}
             <line className="leg leg-a" x1="52" y1="60" x2="52" y2="84" stroke="#1a1a1a" strokeWidth="5" strokeLinecap="round" />
             <line className="leg leg-b" x1="66" y1="60" x2="66" y2="84" stroke="#1a1a1a" strokeWidth="5" strokeLinecap="round" />
             <line className="leg leg-b" x1="98" y1="60" x2="98" y2="84" stroke="#1a1a1a" strokeWidth="5" strokeLinecap="round" />

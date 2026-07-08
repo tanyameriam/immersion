@@ -18,7 +18,7 @@ export class UnauthorizedError extends Error {
 /**
  * Verify the `Authorization: Bearer <idToken>` header on an incoming request.
  * Both the web app and the Chrome extension authenticate this exact way.
- * Throws {@link UnauthorizedError} on any failure — route handlers catch it and
+ * Throws {@link UnauthorizedError} on any failure - route handlers catch it and
  * return 401.
  */
 export async function getAuthedUser(req: Request): Promise<AuthedUser> {
