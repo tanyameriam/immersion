@@ -2,9 +2,11 @@
 
 /**
  * Full-area loading state: a running dog sprite animation in the Layrrrd
- * editorial style. The sprite sheet is a static asset (12 frames, 220×107 each,
- * 2640×107 total) served from /running-dog-sprite.png so the large image stays
- * out of the JS bundle. Used while auth resolves and pages load.
+ * editorial style. The sprite sheet is a static asset (12 frames, 350×170 each,
+ * 4200×170 total) served from /running-dog-sprite.png so the large image stays
+ * out of the JS bundle. Rendered at native 1:1 resolution so the hand-drawn
+ * outline stays crisp (downscaling averaged the thin strokes into fuzzy gray).
+ * Used while auth resolves and pages load.
  */
 export function LoadingDog({ label = "Fetching your knowledge…" }: { label?: string }) {
   return (
@@ -16,21 +18,23 @@ export function LoadingDog({ label = "Fetching your knowledge…" }: { label?: s
 
       <style jsx>{`
         .running-dog {
-          width: 220px;
-          height: 107px;
+          width: 350px;
+          height: 170px;
           background-image: url("/running-dog-sprite.png");
           background-repeat: no-repeat;
-          background-size: 2640px 107px;
+          /* Native size => 1:1 pixel mapping, no downscale blur. */
+          background-size: 4200px 170px;
           background-position: 0 0;
           animation: run-cycle 1s steps(12) infinite;
-          image-rendering: -webkit-optimize-contrast;
+          /* Darken the light charcoal sketch strokes toward black. */
+          filter: brightness(0.8) contrast(1.05);
         }
         @keyframes run-cycle {
           from {
             background-position-x: 0;
           }
           to {
-            background-position-x: -2640px;
+            background-position-x: -4200px;
           }
         }
         @media (prefers-reduced-motion: reduce) {
