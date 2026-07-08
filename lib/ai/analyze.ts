@@ -8,7 +8,69 @@ const INPUT_SCHEMA = {
   properties: {
     summary: {
       type: "string",
-      description: "A concise 2-4 sentence summary of the content.",
+      description:
+        "A 1-3 sentence lead: what the content is, and its core argument " +
+        "or purpose. Plain prose, no markdown, no 'this article...' framing.",
+    },
+    sections: {
+      type: "array",
+      description:
+        "2-5 titled sections mirroring the content's own structure, in its " +
+        "order. Together with the takeaways they must replace reading the " +
+        "original: capture the important arguments, findings, steps, " +
+        "numbers, and conclusions — not just what the content is about. " +
+        "Plain prose throughout, no markdown.",
+      items: {
+        type: "object",
+        properties: {
+          heading: {
+            type: "string",
+            description:
+              "Short, specific section heading (2-6 words), e.g. 'The core " +
+              "reframe' or '5 challenges nobody warns you about'.",
+          },
+          body: {
+            type: "string",
+            description:
+              "Optional 1-3 sentence paragraph carrying this section's " +
+              "substance. Omit when the points say it all.",
+          },
+          points: {
+            type: "array",
+            description:
+              "Optional 2-6 points for this section. Use for lists, steps, " +
+              "criteria, or parallel ideas.",
+            items: {
+              type: "object",
+              properties: {
+                title: {
+                  type: "string",
+                  description:
+                    "Optional short lead-in naming the point (3-8 words), " +
+                    "shown bold before the body.",
+                },
+                body: {
+                  type: "string",
+                  description:
+                    "1-2 complete, self-contained sentences of substance — " +
+                    "specific enough to stand in for the original passage.",
+                },
+              },
+              required: ["body"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["heading"],
+        additionalProperties: false,
+      },
+    },
+    takeaways: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "3-5 one-line takeaways: the actionable or memorable conclusions " +
+        "a reader should leave with.",
     },
     tldr: {
       type: "string",
@@ -33,7 +95,16 @@ const INPUT_SCHEMA = {
       enum: ["Positive", "Neutral", "Negative"],
     },
   },
-  required: ["summary", "tldr", "topics", "keywords", "difficulty", "sentiment"],
+  required: [
+    "summary",
+    "sections",
+    "takeaways",
+    "tldr",
+    "topics",
+    "keywords",
+    "difficulty",
+    "sentiment",
+  ],
   additionalProperties: false,
 };
 
@@ -48,7 +119,7 @@ export async function analyzeContent(input: {
 }): Promise<AiAnalysis> {
   const message = await claude().messages.create({
     model: AI_MODEL,
-    max_tokens: 1024,
+    max_tokens: 3072,
     tools: [
       {
         name: TOOL_NAME,
@@ -61,7 +132,10 @@ export async function analyzeContent(input: {
       {
         role: "user",
         content:
-          `Analyze this saved web content and record structured metadata.\n\n` +
+          `Analyze this saved web content and record structured metadata. ` +
+          `The summary, sections, and takeaways together must stand in for ` +
+          `the original: someone who reads only them should come away with ` +
+          `the substance of the content, not just what it is about.\n\n` +
           `Title: ${input.title}\n\n` +
           `Content:\n${input.text}`,
       },

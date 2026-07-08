@@ -23,8 +23,25 @@ export type Sentiment = (typeof SENTIMENTS)[number];
  * The structured JSON we require Claude to return. Validated with zod so a
  * malformed response marks the item `failed` and gets retried.
  */
+/** One titled section of the structured summary: an optional short paragraph
+ * plus optional points, each with a bold lead-in and its substance. */
+export const SummarySectionSchema = z.object({
+  heading: z.string(),
+  body: z.string().optional(),
+  points: z
+    .array(z.object({ title: z.string().optional(), body: z.string() }))
+    .optional(),
+});
+export type SummarySection = z.infer<typeof SummarySectionSchema>;
+
 export const AiAnalysisSchema = z.object({
   summary: z.string(),
+  // Structured quick-read of the content. Optional because items analyzed
+  // before these fields existed don't have them (keyPoints was a short-lived
+  // flat-list predecessor of sections).
+  sections: z.array(SummarySectionSchema).optional(),
+  takeaways: z.array(z.string()).optional(),
+  keyPoints: z.array(z.string()).optional(),
   tldr: z.string(),
   topics: z.array(z.string()),
   keywords: z.array(z.string()),

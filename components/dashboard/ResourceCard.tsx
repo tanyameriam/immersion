@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { BookmarkPlus, ExternalLink, MoreVertical } from "lucide-react";
+import {
+  BookmarkPlus,
+  ExternalLink,
+  MoreVertical,
+  ThumbsDown,
+  ThumbsUp,
+} from "lucide-react";
 import { ResourceDetail } from "@/components/dashboard/ResourceDetail";
 import {
   Card,
@@ -22,6 +28,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Resource } from "@/lib/dashboard-data";
 import type { ResourceView } from "@/components/dashboard/ViewToggle";
 
@@ -43,6 +57,9 @@ type ResourceCardProps = {
   onMarkRead?: (id: string) => void;
   onReport?: (id: string) => void;
   onBookmark?: (id: string) => void;
+  onLike?: (id: string) => void;
+  onDismiss?: (id: string) => void;
+  onMuteTopic?: (id: string) => void;
 };
 
 function OverflowMenu({
@@ -91,6 +108,59 @@ function OverflowMenu({
   );
 }
 
+/** One-click feedback on recommendation cards: 👍 interested (more like
+ * this), 👎 not interested (hide this link), plus a menu to mute the topic
+ * it was recommended for. All three teach the engine what to show. */
+function RecommendationActions({
+  resource,
+  onLike,
+  onDismiss,
+  onMuteTopic,
+}: Pick<ResourceCardProps, "resource" | "onLike" | "onDismiss" | "onMuteTopic">) {
+  const [liked, setLiked] = useState(false);
+  return (
+    <div className="flex items-center">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Interested — show more like this"
+        title="Interested — show more like this"
+        aria-pressed={liked}
+        onClick={() => {
+          setLiked(true);
+          onLike?.(resource.id);
+        }}
+      >
+        <ThumbsUp className={liked ? "fill-current" : undefined} />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Not interested"
+        title="Not interested"
+        onClick={() => onDismiss?.(resource.id)}
+      >
+        <ThumbsDown />
+      </Button>
+      {resource.reasonTopic && (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label="More feedback options"
+            render={<Button variant="ghost" size="icon-sm" />}
+          >
+            <MoreVertical />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onMuteTopic?.(resource.id)}>
+              Hide topic: {resource.reasonTopic}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </div>
+  );
+}
+
 function OpenLinkButton({ resource, size = "sm" as const }: { resource: Resource; size?: "sm" }) {
   return (
     <Button
@@ -115,6 +185,9 @@ export function ResourceCard({
   onMarkRead,
   onReport,
   onBookmark,
+  onLike,
+  onDismiss,
+  onMuteTopic,
 }: ResourceCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
   const isBookmark = variant === "bookmark";
@@ -133,75 +206,117 @@ export function ResourceCard({
         .join(" · ")
     : `Published ${formatDate(resource.publishedDate)}`;
 
+  // The AI summary opens in a modal (portal) so it reads the same from either
+  // view; clicking the title, the image, or the Summary button opens it.
+  const detailDialog = (
+    <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="normal-case tracking-normal">
+            {resource.title}
+          </DialogTitle>
+          <DialogDescription>{metaLine}</DialogDescription>
+        </DialogHeader>
+        <ResourceDetail resource={resource} />
+        <DialogFooter>
+          <OpenLinkButton resource={resource} />
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  // List view: a full-width horizontal card — thumbnail left, content and
+  // actions right — stacked vertically by the parent with gaps.
   if (view === "list") {
     return (
-      <div className="py-4">
-        <div className="flex items-center gap-4">
-          {isBookmark && onToggleSelect && (
-            <Checkbox
-              checked={selected}
-              onCheckedChange={() => onToggleSelect(resource.id)}
-              aria-label={`Select ${resource.title}`}
-            />
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={toggleDetail}
-                className="truncate text-left text-base font-bold text-foreground hover:underline"
-              >
-                {resource.title}
-              </button>
-              {resource.category.map((cat) => (
-                <Badge key={cat} variant="secondary">
-                  {cat}
-                </Badge>
-              ))}
-              {isBookmark && resource.read && (
-                <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Read
-                </span>
+      <Card size="sm" className="flex-row gap-0 py-0">
+        {resource.image && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={resource.image}
+            alt=""
+            loading="lazy"
+            onClick={toggleDetail}
+            className="hidden w-44 shrink-0 cursor-pointer border-r border-border object-cover sm:block md:w-56"
+          />
+        )}
+        <div className="flex min-w-0 flex-1 flex-col gap-2 p-5">
+          <div className="flex items-start gap-3">
+            {isBookmark && onToggleSelect && (
+              <Checkbox
+                className="mt-1"
+                checked={selected}
+                onCheckedChange={() => onToggleSelect(resource.id)}
+                aria-label={`Select ${resource.title}`}
+              />
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleDetail}
+                  className="text-left text-base font-bold text-foreground hover:underline"
+                >
+                  {resource.title}
+                </button>
+                {resource.category.map((cat) => (
+                  <Badge key={cat} variant="secondary">
+                    {cat}
+                  </Badge>
+                ))}
+                {isBookmark && resource.read && (
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Read
+                  </span>
+                )}
+              </div>
+              {!isBookmark && resource.reason && (
+                <p className="mt-1 text-sm font-bold text-foreground">
+                  {resource.reason}
+                </p>
+              )}
+              {resource.description && (
+                <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                  {resource.description}
+                </p>
+              )}
+              <p className="mt-1 text-sm text-muted-foreground">
+                {metaLine} · {dateLine}
+              </p>
+            </div>
+            <div className="shrink-0">
+              {variant === "recommendation" ? (
+                <RecommendationActions
+                  resource={resource}
+                  onLike={onLike}
+                  onDismiss={onDismiss}
+                  onMuteTopic={onMuteTopic}
+                />
+              ) : (
+                <OverflowMenu
+                  resource={resource}
+                  onRemove={onRemove}
+                  onMarkRead={onMarkRead}
+                  onReport={onReport}
+                />
               )}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {metaLine} · {dateLine}
-            </p>
-            {!isBookmark && resource.reason && (
-              <p className="mt-1 text-sm font-bold text-foreground">
-                {resource.reason}
-              </p>
-            )}
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {isBookmark && (
-              <Button size="sm" variant="ghost" onClick={toggleDetail}>
-                {detailOpen ? "Hide" : "Summary"}
-              </Button>
-            )}
+          <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
+            <Button size="sm" variant="ghost" onClick={toggleDetail}>
+              Summary
+            </Button>
+            <OpenLinkButton resource={resource} />
             {variant === "recommendation" && (
-              <Button size="sm" variant="ghost" onClick={() => onBookmark?.(resource.id)}>
+              <Button size="sm" onClick={() => onBookmark?.(resource.id)}>
                 <BookmarkPlus data-icon="inline-start" />
                 Bookmark
               </Button>
             )}
-            <OpenLinkButton resource={resource} />
-            {isBookmark && (
-              <OverflowMenu
-                resource={resource}
-                onRemove={onRemove}
-                onMarkRead={onMarkRead}
-                onReport={onReport}
-              />
-            )}
           </div>
         </div>
-        {detailOpen && (
-          <div className="mt-2 max-w-3xl">
-            <ResourceDetail resource={resource} />
-          </div>
-        )}
-      </div>
+        {detailDialog}
+      </Card>
     );
   }
 
@@ -250,13 +365,22 @@ export function ResourceCard({
           </div>
         </div>
 
-        {isBookmark && (
+        {isBookmark ? (
           <CardAction>
             <OverflowMenu
               resource={resource}
               onRemove={onRemove}
               onMarkRead={onMarkRead}
               onReport={onReport}
+            />
+          </CardAction>
+        ) : (
+          <CardAction>
+            <RecommendationActions
+              resource={resource}
+              onLike={onLike}
+              onDismiss={onDismiss}
+              onMuteTopic={onMuteTopic}
             />
           </CardAction>
         )}
@@ -279,15 +403,12 @@ export function ResourceCard({
         )}
         <p className="text-sm text-muted-foreground">{metaLine}</p>
         <p className="text-sm text-muted-foreground">{dateLine}</p>
-        {detailOpen && <ResourceDetail resource={resource} />}
       </CardContent>
 
       <CardFooter className="gap-2">
-        {isBookmark && (
-          <Button size="sm" variant="ghost" onClick={toggleDetail}>
-            {detailOpen ? "Hide summary" : "View summary"}
-          </Button>
-        )}
+        <Button size="sm" variant="ghost" onClick={toggleDetail}>
+          Summary
+        </Button>
         <OpenLinkButton resource={resource} />
         {variant === "recommendation" && (
           <Button size="sm" onClick={() => onBookmark?.(resource.id)}>
@@ -296,6 +417,7 @@ export function ResourceCard({
           </Button>
         )}
       </CardFooter>
+      {detailDialog}
     </Card>
   );
 }

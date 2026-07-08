@@ -83,7 +83,7 @@ export function BookmarksTab({
   const [sort, setSort] = useState("Recently Saved");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [view, setView] = useState<ResourceView>("grid");
+  const [view, setView] = useState<ResourceView>("list");
 
   const sources = useMemo(
     () => Array.from(new Set(items.map((item) => item.source))).sort(),
@@ -268,7 +268,7 @@ export function BookmarksTab({
           No bookmarks match your search and filters.
         </p>
       ) : view === "list" ? (
-        <div className="divide-y divide-border border-t border-border">
+        <div className="flex flex-col gap-4">
           {sorted.map((item) => (
             <ResourceCard
               key={item.id}

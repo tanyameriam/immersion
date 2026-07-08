@@ -1,3 +1,5 @@
+import type { SummarySection } from "@/lib/types/knowledge-item";
+
 export type Resource = {
   id: string;
   title: string;
@@ -13,6 +15,9 @@ export type Resource = {
   image?: string; // preview thumbnail (og:image / video thumbnail)
   // Full AI detail (present on real saved items; optional so mock data still fits).
   summary?: string;
+  sections?: SummarySection[];
+  takeaways?: string[];
+  keyPoints?: string[];
   keywords?: string[];
   difficulty?: string;
   sentiment?: string;
@@ -20,6 +25,8 @@ export type Resource = {
   // Recommendation-only: why it's suggested + how many people saved it.
   reason?: string;
   savers?: number;
+  // The topic the reason cites — what "Hide this topic" mutes.
+  reasonTopic?: string;
   // "match" = shares a topic the user already cares about; "discover" = a nudge
   // toward a topic they haven't picked yet. `discoveryTopic` is that new topic.
   kind?: "match" | "discover";
