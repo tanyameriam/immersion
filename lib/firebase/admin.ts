@@ -9,7 +9,7 @@ import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 /**
- * Server-only Firebase Admin. Bypasses security rules — used for verifying ID
+ * Server-only Firebase Admin. Bypasses security rules - used for verifying ID
  * tokens and for all AI / privileged writes. NEVER import this into a file that
  * runs in the browser ("use client").
  */

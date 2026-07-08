@@ -38,7 +38,7 @@ function getGoogleAccessToken(interactive) {
 
 /**
  * Exchange the Google access token for a Firebase ID token (same identity the
- * web app + backend use) via the Firebase Auth REST API — no bundled SDK.
+ * web app + backend use) via the Firebase Auth REST API - no bundled SDK.
  */
 async function getFirebaseIdToken(accessToken) {
   const res = await fetch(
@@ -70,7 +70,7 @@ async function save() {
     try {
       idToken = await getFirebaseIdToken(accessToken);
     } catch (err) {
-      // Cached Google token may be stale — clear and retry once.
+      // Cached Google token may be stale - clear and retry once.
       await new Promise((r) =>
         chrome.identity.removeCachedAuthToken({ token: accessToken }, r),
       );

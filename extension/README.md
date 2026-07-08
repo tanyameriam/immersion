@@ -3,7 +3,7 @@
 One-click save: click the toolbar button on any page and it's saved to your
 Layrrrd account, where the AI reads and summarizes it.
 
-It uses the **same Firebase account** as the web app — sign in with the same
+It uses the **same Firebase account** as the web app - sign in with the same
 Google account and your saves show up on your dashboard.
 
 ## One-time setup
@@ -12,9 +12,9 @@ Google account and your saves show up on your dashboard.
 
 Open `extension/config.js` and set:
 
-- `FIREBASE_API_KEY` — the same `NEXT_PUBLIC_FIREBASE_API_KEY` the web app uses
+- `FIREBASE_API_KEY` - the same `NEXT_PUBLIC_FIREBASE_API_KEY` the web app uses
   (Firebase Console → Project settings → your Web app). It's a public value.
-- `APP_URL` — `https://app.layrrrd.com` (or `http://localhost:3000` while
+- `APP_URL` - `https://app.layrrrd.com` (or `http://localhost:3000` while
   developing locally).
 
 ### 2. Load the extension in Chrome
@@ -42,7 +42,7 @@ client. To keep it stable:
    ask a developer to generate a key.
 2. Add the resulting `"key": "..."` value as a top-level field in
    `manifest.json`.
-3. Reload — the ID is now fixed.
+3. Reload - the ID is now fixed.
 
 (For a quick local test you can skip this and just re-paste the current ID into
 the OAuth client whenever it changes.)
@@ -58,4 +58,4 @@ web app uses.
 1. Click the Layrrrd button in the Chrome toolbar on any page.
 2. The first time, approve the Google sign-in popup.
 3. Click **Save this page** → "Saved! Layrrrd is reading it now."
-4. Open your dashboard — the item appears and fills in with its AI summary.
+4. Open your dashboard - the item appears and fills in with its AI summary.

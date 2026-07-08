@@ -24,7 +24,7 @@ export default function Footer() {
                 Layrrrd.
               </Link>
               <p className="mt-2 text-sm text-muted-foreground">
-                Save now. Catch up later.
+                Never lose a good read again.
               </p>
             </div>
 

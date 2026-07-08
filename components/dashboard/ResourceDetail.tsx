@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import type { Resource } from "@/lib/dashboard-data";
 
 /**
- * Inline expanded detail shown within a card (no modal) — the full AI summary,
+ * Inline expanded detail shown within a card (no modal): the full AI summary,
  * keywords, difficulty, and sentiment. Keeps the user in the page flow.
  */
 export function ResourceDetail({ resource }: { resource: Resource }) {
@@ -14,7 +14,7 @@ export function ResourceDetail({ resource }: { resource: Resource }) {
   if (processing) {
     return (
       <div className="mt-4 border-t border-border pt-4 text-sm text-muted-foreground">
-        Layrrrd is still reading this — the summary will appear here in a moment.
+        Layrrrd is still reading this. The summary will appear here in a moment.
       </div>
     );
   }

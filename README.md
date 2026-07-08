@@ -1,4 +1,4 @@
-# Immersion — Content Curation App
+# Immersion - Content Curation App
 
 A Next.js (TypeScript) app deployed on Vercel. Every push to GitHub is automatically
 checked so that broken code never reaches production.
@@ -15,7 +15,7 @@ checked so that broken code never reaches production.
 3. **GitHub runs automated checks** (lint, type-check, build). ✅ or ❌
 4. If green, **Vercel deploys it automatically** and gives you a live URL.
 
-If the checks pass on GitHub, the Vercel deploy will succeed — because GitHub runs the
+If the checks pass on GitHub, the Vercel deploy will succeed - because GitHub runs the
 exact same build Vercel does.
 
 ---
@@ -59,7 +59,7 @@ npm run check      # lint + type-check + build, all in one
 
 ## First-time setup (one-time, done in web dashboards)
 
-These two steps are done by clicking in the GitHub and Vercel websites — they can't be
+These two steps are done by clicking in the GitHub and Vercel websites - they can't be
 done from the command line.
 
 ### 1. Connect Vercel (enables auto-deploy)

@@ -9,37 +9,37 @@ const faqs = [
   {
     question: "What exactly is Layrrrd?",
     answer:
-      "Layrrrd is your AI knowledge layer for the web. Save any page — articles, videos, threads, docs — in one click, and the AI reads it for you, turning it into a summary, key topics, and a reading time, all organized in your dashboard. A weekly digest then brings the best of what you saved back to you, so the things you found actually get read.",
+      "Layrrrd is your AI knowledge layer for the web. Save any page (articles, videos, threads, docs) in one click, and the AI reads it for you, turning it into a summary, key topics, and a reading time, all organized in your dashboard. A weekly digest then brings the best of what you saved back to you, so the things you found actually get read.",
   },
   {
     question: "How do I save things?",
     answer:
-      "Two ways: the one-click browser extension (click the Layrrrd button on any page), or paste a link straight into your dashboard. Sign in with Google or email — and support for more browsers and sources is on the way.",
+      "Two ways: the one-click browser extension (click the Layrrrd button on any page), or paste a link straight into your dashboard. Sign in with Google or email, and support for more browsers and sources is on the way.",
   },
   {
     question: "Does the AI actually summarize what I save?",
     answer:
-      "Yes. Every save gets a concise AI summary, a one-line TL;DR, topics, keywords, and an estimated reading time — so in a few seconds you can tell what's worth your time and what isn't.",
+      "Yes. Every save gets a concise AI summary, a one-line TL;DR, topics, keywords, and an estimated reading time, so in a few seconds you can tell what's worth your time and what isn't.",
   },
   {
     question: "How does the weekly digest work?",
     answer:
-      "Once a week, on the day you choose, you get a digest by email and/or Telegram. It groups everything you saved by topic and highlights what you haven't read yet — so nothing slips through the cracks.",
+      "Once a week, on the day you choose, you get a digest by email and/or Telegram. It groups everything you saved by topic and highlights what you haven't read yet, so nothing slips through the cracks.",
   },
   {
     question: "Where do recommendations come from?",
     answer:
-      "From the community — people who save about the same topics as you. When several readers with similar interests save something, it surfaces in your Recommended tab with social proof (\"saved by N people interested in …\"), so you discover the good stuff without the noise.",
+      "From the community: people who save about the same topics as you. When several readers with similar interests save something, it surfaces in your Recommended tab with social proof (\"saved by N people interested in this\"), so you discover the good stuff without the noise.",
   },
   {
     question: "Is my data private?",
     answer:
-      "Your library is yours — only you can see what you've saved. Recommendations are aggregated: we surface links, not who saved them. You can delete any item, or your entire account, at any time.",
+      "Your library is yours. Only you can see what you've saved. Recommendations are aggregated: we surface links, not who saved them. You can delete any item, or your entire account, at any time.",
   },
   {
-    question: "What does it cost, and can I cancel?",
+    question: "How do I get in, and what does it cost?",
     answer:
-      "Layrrrd is free to get started. Founding members can unlock more for ₹99/month. Cancel anytime from your account — you keep access through the end of the period you've already paid for.",
+      "Layrrrd is invite-only right now while we onboard founding members at ₹99/month. Join the waitlist and we'll reach out with access. Once you're in you can cancel anytime from your account, and you keep access through the end of the period you've already paid for.",
   },
 ];
 

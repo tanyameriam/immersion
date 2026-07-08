@@ -17,7 +17,7 @@ function detectExtension(): boolean {
 
 /**
  * Tells the user Layrrrd works via the web app AND a 1-click browser extension.
- * Shows an install prompt, or — once the extension announces itself — an
+ * Shows an install prompt, or (once the extension announces itself) an
  * "installed ✓" confirmation with a reminder to click it when they find
  * something interesting.
  */
@@ -58,7 +58,7 @@ export function ExtensionCallout() {
           <p className="text-muted-foreground">
             Layrrrd works as a web app and a browser extension. Add the
             extension, then click it whenever you spot something worth reading
-            later — it lands right here.
+            later, it lands right here.
           </p>
         </div>
       </div>

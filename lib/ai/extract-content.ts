@@ -4,7 +4,7 @@ import { parseHTML } from "linkedom";
 const MAX_CHARS = 14_000; // token/cost guard before sending to Claude
 const WORDS_PER_MIN = 225;
 const FETCH_TIMEOUT_MS = 8_000;
-// A realistic browser UA — many sites serve a bot/empty shell to non-browser
+// A realistic browser UA - many sites serve a bot/empty shell to non-browser
 // agents, which wrecks extraction.
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -44,7 +44,7 @@ function isYouTube(url: string): boolean {
 }
 
 /**
- * Fetch YouTube's oEmbed data — gives the real video title, author, and
+ * Fetch YouTube's oEmbed data - gives the real video title, author, and
  * thumbnail without needing to render JavaScript.
  */
 async function youTubeOEmbed(
@@ -92,7 +92,7 @@ function readingTimeOf(text: string): { wordCount: number; readingTime: number }
 }
 
 /**
- * Fetch a URL and extract readable content. Never throws for content reasons —
+ * Fetch a URL and extract readable content. Never throws for content reasons -
  * degrades to meta tags on JS-heavy / paywalled pages. Handles YouTube videos
  * specially via oEmbed so they get their real title, thumbnail, and a
  * description-based summary instead of a generic "YouTube" blurb.

@@ -105,7 +105,7 @@ export async function listItems(
   opts: { includeArchived?: boolean; limit?: number } = {},
 ): Promise<KnowledgeItem[]> {
   // No orderBy in the query (avoids requiring a composite index for first-run
-  // setup); sort newest-first in memory — fine at personal scale.
+  // setup); sort newest-first in memory - fine at personal scale.
   const snap = await adminDb()
     .collection(COLLECTION)
     .where("userId", "==", userId)
@@ -137,7 +137,7 @@ export async function deleteItem(userId: string, id: string): Promise<boolean> {
 }
 
 /**
- * IDs of the current user's items that still need processing — used by the
+ * IDs of the current user's items that still need processing - used by the
  * "process-on-open" safety net. Includes items stuck in `processing` past the
  * staleness window (crash recovery).
  */

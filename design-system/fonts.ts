@@ -1,6 +1,6 @@
 import localFont from "next/font/local";
 
-// Brand typography — opt-in only. Not applied anywhere by default; apply the
+// Brand typography - opt-in only. Not applied anywhere by default; apply the
 // `font-satoshi` / `font-sardin` utility explicitly on a component when asked.
 export const satoshi = localFont({
   variable: "--font-satoshi",
@@ -19,7 +19,7 @@ export const satoshi = localFont({
   ],
 });
 
-// NOTE: bundled font file is a DEMO cut — personal-use only per its license
+// NOTE: bundled font file is a DEMO cut - personal-use only per its license
 // (see `design-system/brand-source/Sardin/Readme (DEMO).txt`). Needs a
 // commercial license from PandekaStudio before this ships on the live, paid
 // Layrrrd site.

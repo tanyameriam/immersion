@@ -9,7 +9,7 @@ export const maxDuration = 60;
 /**
  * Process-on-open safety net: finishes any of the current user's items that are
  * still pending/failed/stale. Called by the dashboard on load (and while items
- * show as processing). Free — no cron required. Bounds work per request so a
+ * show as processing). Free - no cron required. Bounds work per request so a
  * large backlog can't blow the serverless time limit; the client polls again.
  */
 export async function POST(req: Request) {

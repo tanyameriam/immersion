@@ -14,7 +14,7 @@ function Sheet({ ...props }: SheetPrimitive.Root.Props) {
 function SheetTrigger({ ...props }: SheetPrimitive.Trigger.Props) {
   // suppressHydrationWarning: base-ui's internal id counter drifts under
   // React Strict Mode's dev-only double-render. The id only wires up
-  // aria-controls/aria-haspopup, so the mismatch is cosmetic and dev-only —
+  // aria-controls/aria-haspopup, so the mismatch is cosmetic and dev-only -
   // it cannot occur in production (Strict Mode's extra render pass is
   // stripped from prod builds).
   return (

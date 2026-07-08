@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Layrrrd — Save to your knowledge layer",
+  "name": "Layrrrd: Save to your knowledge layer",
   "version": "1.0.0",
   "description": "Save any page to Layrrrd in one click. AI reads and summarizes it for you.",
   "action": {
