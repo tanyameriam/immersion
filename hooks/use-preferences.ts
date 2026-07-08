@@ -11,6 +11,10 @@ export interface Preferences {
   name: string;
   profilePhoto: string;
   preferredTopics: string[];
+  /** Recommendation feedback: links marked "Not interested" (never suggested
+   * again) and topics the user hid from recommendations entirely. */
+  dismissedUrls: string[];
+  mutedTopics: string[];
   notificationPreference: NotificationPreference;
   telegramChatId: string;
   notificationDay: string; // "Monday" … "Sunday"
@@ -20,6 +24,8 @@ const DEFAULTS: Preferences = {
   name: "",
   profilePhoto: "",
   preferredTopics: [],
+  dismissedUrls: [],
+  mutedTopics: [],
   notificationPreference: "email",
   telegramChatId: "",
   notificationDay: "Monday",
@@ -47,6 +53,8 @@ export function usePreferences() {
         name: data.name ?? user.name ?? "",
         profilePhoto: data.profilePhoto ?? user.photoURL ?? "",
         preferredTopics: data.preferredTopics ?? [],
+        dismissedUrls: data.dismissedUrls ?? [],
+        mutedTopics: data.mutedTopics ?? [],
         notificationPreference:
           (data.notificationPreference as NotificationPreference) ?? "email",
         telegramChatId: data.telegramChatId ?? "",

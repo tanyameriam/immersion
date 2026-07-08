@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Navigation from "@/components/Navigation";
 import { RequireAuth } from "@/components/dashboard/RequireAuth";
 import { BookmarksTab } from "@/components/dashboard/BookmarksTab";
@@ -28,6 +28,59 @@ export default function DashboardPage() {
   useEffect(() => {
     setBookmarks(resources);
   }, [resources]);
+
+  // Negative feedback ("Not interested" / "Hide topic") lives on the user's
+  // profile; the engine excludes it server-side on the next load, and this
+  // filter hides it instantly without waiting for a refetch.
+  const visible = useMemo(() => {
+    const dismissed = new Set(prefs.dismissedUrls);
+    const muted = new Set(prefs.mutedTopics.map((t) => t.toLowerCase()));
+    const keep = (r: Resource) =>
+      !dismissed.has(r.url) &&
+      !(r.reasonTopic && muted.has(r.reasonTopic.toLowerCase()));
+    return {
+      recommendations: recommendations.filter(keep),
+      discover: discover.filter(keep),
+    };
+  }, [recommendations, discover, prefs.dismissedUrls, prefs.mutedTopics]);
+
+  // 👍 on a card = adopt its topic into stated interests (and un-mute it if
+  // it was hidden before), so more of that topic feeds future matches.
+  function handleLikeRecommendation(resource: Resource) {
+    const topic = resource.reasonTopic;
+    if (!topic) return;
+    const same = (t: string) => t.toLowerCase() === topic.toLowerCase();
+    const updates: {
+      preferredTopics?: string[];
+      mutedTopics?: string[];
+    } = {};
+    if (!prefs.preferredTopics.some(same)) {
+      updates.preferredTopics = [...prefs.preferredTopics, topic];
+    }
+    if (prefs.mutedTopics.some(same)) {
+      updates.mutedTopics = prefs.mutedTopics.filter((t) => !same(t));
+    }
+    if (Object.keys(updates).length > 0) void savePrefs(updates);
+  }
+
+  function handleDismissRecommendation(resource: Resource) {
+    if (!prefs.dismissedUrls.includes(resource.url)) {
+      void savePrefs({ dismissedUrls: [...prefs.dismissedUrls, resource.url] });
+    }
+  }
+
+  // Muting a topic also drops it from stated interests, so the profile page
+  // doesn't keep listing a topic the user explicitly hid.
+  function handleMuteTopic(resource: Resource) {
+    const topic = resource.reasonTopic;
+    if (!topic) return;
+    const same = (t: string) => t.toLowerCase() === topic.toLowerCase();
+    if (prefs.mutedTopics.some(same)) return;
+    void savePrefs({
+      mutedTopics: [...prefs.mutedTopics, topic],
+      preferredTopics: prefs.preferredTopics.filter((t) => !same(t)),
+    });
+  }
 
   // Bookmark a recommendation = actually save its URL (real save pipeline).
   // Engaging with a "discover" item also adopts its new topic into the user's
@@ -79,9 +132,12 @@ export default function DashboardPage() {
 
           <TabsContent value="recommended" className="mt-8">
             <RecommendedTab
-              items={recommendations}
-              discover={discover}
+              items={visible.recommendations}
+              discover={visible.discover}
               onBookmark={handleBookmarkFromRecommendations}
+              onLike={handleLikeRecommendation}
+              onDismiss={handleDismissRecommendation}
+              onMuteTopic={handleMuteTopic}
             />
           </TabsContent>
         </Tabs>

@@ -44,9 +44,15 @@ function sortResources(list: Resource[], sort: string) {
 function DiscoverSection({
   items,
   onBookmark,
+  onLike,
+  onDismiss,
+  onMuteTopic,
 }: {
   items: Resource[];
   onBookmark: (id: string) => void;
+  onLike: (id: string) => void;
+  onDismiss: (id: string) => void;
+  onMuteTopic: (id: string) => void;
 }) {
   return (
     <section className="space-y-4 border-t border-border pt-8">
@@ -62,14 +68,17 @@ function DiscoverSection({
           </p>
         </div>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="flex flex-col gap-4">
         {items.map((item) => (
           <ResourceCard
             key={item.id}
             resource={item}
             variant="recommendation"
-            view="grid"
+            view="list"
             onBookmark={onBookmark}
+            onLike={onLike}
+            onDismiss={onDismiss}
+            onMuteTopic={onMuteTopic}
           />
         ))}
       </div>
@@ -79,10 +88,19 @@ function DiscoverSection({
 
 export function RecommendedTab({
   onBookmark,
+  onLike,
+  onDismiss,
+  onMuteTopic,
   items,
   discover,
 }: {
   onBookmark: (resource: Resource) => void;
+  /** 👍 "Interested" — adopt this card's topic into the user's interests. */
+  onLike?: (resource: Resource) => void;
+  /** 👎 "Not interested" — never suggest this link again. */
+  onDismiss?: (resource: Resource) => void;
+  /** Hide the topic this card was recommended for. */
+  onMuteTopic?: (resource: Resource) => void;
   /**
    * Real recommendations to show. Falls back to sample content until the
    * community-based recommendation engine exists (needs multiple users).
@@ -97,7 +115,7 @@ export function RecommendedTab({
   const [sort, setSort] = useState("Most Relevant");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
-  const [view, setView] = useState<ResourceView>("grid");
+  const [view, setView] = useState<ResourceView>("list");
 
   const filterGroups: FilterGroup[] = [
     { key: "category", label: "Category", options: CATEGORIES },
@@ -147,13 +165,33 @@ export function RecommendedTab({
     });
   }
 
-  function handleBookmark(id: string) {
-    const resource =
+  function findResource(id: string) {
+    return (
       source.find((item) => item.id === id) ??
-      discoverList.find((item) => item.id === id);
+      discoverList.find((item) => item.id === id)
+    );
+  }
+
+  function handleBookmark(id: string) {
+    const resource = findResource(id);
     if (!resource) return;
     setBookmarkedIds((prev) => new Set(prev).add(id));
     onBookmark(resource);
+  }
+
+  function handleLike(id: string) {
+    const resource = findResource(id);
+    if (resource) onLike?.(resource);
+  }
+
+  function handleDismiss(id: string) {
+    const resource = findResource(id);
+    if (resource) onDismiss?.(resource);
+  }
+
+  function handleMuteTopic(id: string) {
+    const resource = findResource(id);
+    if (resource) onMuteTopic?.(resource);
   }
 
   if (!hasMatched && !hasDiscover) {
@@ -209,7 +247,7 @@ export function RecommendedTab({
               No recommendations match your search and filters.
             </p>
           ) : view === "list" ? (
-            <div className="divide-y divide-border border-t border-border">
+            <div className="flex flex-col gap-4">
               {sorted.map((item) => (
                 <ResourceCard
                   key={item.id}
@@ -217,6 +255,9 @@ export function RecommendedTab({
                   variant="recommendation"
                   view="list"
                   onBookmark={handleBookmark}
+                  onLike={handleLike}
+                  onDismiss={handleDismiss}
+                  onMuteTopic={handleMuteTopic}
                 />
               ))}
             </div>
@@ -229,6 +270,9 @@ export function RecommendedTab({
                   variant="recommendation"
                   view="grid"
                   onBookmark={handleBookmark}
+                  onLike={handleLike}
+                  onDismiss={handleDismiss}
+                  onMuteTopic={handleMuteTopic}
                 />
               ))}
             </div>
@@ -241,7 +285,13 @@ export function RecommendedTab({
       )}
 
       {hasDiscover && (
-        <DiscoverSection items={discoverList} onBookmark={handleBookmark} />
+        <DiscoverSection
+          items={discoverList}
+          onBookmark={handleBookmark}
+          onLike={handleLike}
+          onDismiss={handleDismiss}
+          onMuteTopic={handleMuteTopic}
+        />
       )}
 
       {bookmarkedIds.size > 0 && (
