@@ -9,16 +9,22 @@ export const runtime = "nodejs";
  * for local development, where Telegram can't reach the webhook — the connect
  * UI calls it while waiting for the user to tap Start. In production (webhook
  * registered) getUpdates returns 409 and this becomes a harmless no-op.
- * Requires a signed-in user; processing only ever redeems valid link codes.
+ * Requires a signed-in user (or the CRON_SECRET, for ops/testing);
+ * processing only ever redeems valid link codes.
  */
 export async function POST(req: Request) {
-  try {
-    await getAuthedUser(req);
-  } catch (err) {
-    if (err instanceof UnauthorizedError) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const cronSecret = process.env.CRON_SECRET;
+  const auth = req.headers.get("authorization");
+  const isCron = Boolean(cronSecret) && auth === `Bearer ${cronSecret}`;
+  if (!isCron) {
+    try {
+      await getAuthedUser(req);
+    } catch (err) {
+      if (err instanceof UnauthorizedError) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      throw err;
     }
-    throw err;
   }
 
   const token = process.env.TELEGRAM_BOT_TOKEN;
