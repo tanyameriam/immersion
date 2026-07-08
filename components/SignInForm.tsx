@@ -9,19 +9,27 @@ import { useAuth } from "@/components/AuthContext";
 import { authErrorMessage } from "@/lib/auth-errors";
 
 export function SignInForm() {
-  const { setMode, signInWithEmail, signInWithGoogle } = useAuth();
+  const { mode, setMode, signInWithEmail, signUpWithEmail, signInWithGoogle } =
+    useAuth();
   const router = useRouter();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "submitting" | "google">("idle");
+
+  const signingUp = mode === "sign-up";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("submitting");
     setError(null);
     try {
-      await signInWithEmail(email.trim(), password);
+      if (signingUp) {
+        await signUpWithEmail(name.trim(), email.trim(), password);
+      } else {
+        await signInWithEmail(email.trim(), password);
+      }
       router.push("/dashboard");
     } catch (err) {
       setError(authErrorMessage(err));
@@ -43,6 +51,20 @@ export function SignInForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {signingUp && (
+        <div className="space-y-2">
+          <Label htmlFor="signin-name">Name</Label>
+          <Input
+            id="signin-name"
+            type="text"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Your name"
+          />
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="signin-email">Email Address</Label>
         <Input
@@ -65,12 +87,23 @@ export function SignInForm() {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
         />
+        {signingUp && (
+          <p className="text-xs text-muted-foreground">
+            At least 6 characters.
+          </p>
+        )}
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <Button type="submit" disabled={status !== "idle"} className="w-full">
-        {status === "submitting" ? "Signing in…" : "Sign In"}
+        {status === "submitting"
+          ? signingUp
+            ? "Creating account…"
+            : "Signing in…"
+          : signingUp
+            ? "Create Account"
+            : "Sign In"}
       </Button>
 
       <div className="flex items-center gap-4">
@@ -90,13 +123,16 @@ export function SignInForm() {
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">
-        Don&apos;t have an account?{" "}
+        {signingUp ? "Already have an account?" : "Don't have an account yet?"}{" "}
         <button
           type="button"
-          onClick={() => setMode("sign-up")}
+          onClick={() => {
+            setError(null);
+            setMode(signingUp ? "sign-in" : "sign-up");
+          }}
           className="text-foreground underline underline-offset-4"
         >
-          Sign Up
+          {signingUp ? "Sign in" : "Create one"}
         </button>
       </p>
     </form>
