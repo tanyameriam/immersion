@@ -1,7 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { processTelegramUpdate } from "@/lib/telegram/linking";
 
 export const runtime = "nodejs";
+// Chat replies and link ingestion can involve fetching pages + Claude calls.
+export const maxDuration = 60;
 
 /**
  * Telegram webhook (production). Register it once with:
@@ -17,12 +19,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const update = await req.json();
-    await processTelegramUpdate(update);
-  } catch (err) {
-    // Always 200 so Telegram doesn't retry a poison update forever.
-    console.error("Telegram webhook processing failed", err);
+  const update = await req.json().catch(() => null);
+  if (update) {
+    // Acknowledge immediately and do the work after the response — otherwise
+    // Telegram retries slow webhooks and the user gets duplicate replies.
+    after(async () => {
+      try {
+        await processTelegramUpdate(update);
+      } catch (err) {
+        console.error("Telegram webhook processing failed", err);
+      }
+    });
   }
   return NextResponse.json({ ok: true });
 }

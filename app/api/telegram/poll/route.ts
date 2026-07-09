@@ -3,6 +3,8 @@ import { getAuthedUser, UnauthorizedError } from "@/lib/firebase/verify-auth";
 import { processTelegramUpdate } from "@/lib/telegram/linking";
 
 export const runtime = "nodejs";
+// Chat replies and link ingestion can involve fetching pages + Claude calls.
+export const maxDuration = 60;
 
 /**
  * Fetch pending Telegram updates via getUpdates and process them. This exists

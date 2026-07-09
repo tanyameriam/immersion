@@ -69,31 +69,56 @@ export async function buildWeeklyDigests(sinceMs = WEEK_MS): Promise<UserDigest[
   const communityAvgRead = activeUsers ? totalReads / activeUsers : 0;
 
   const digests: UserDigest[] = [];
+  const norm = (t: string) => t.toLowerCase().trim();
   for (const [uid, items] of byUser.entries()) {
     const profile = profiles.get(uid);
     if (!profile) continue;
+
+    // The user's preference set shapes what the digest features: stated
+    // interests float to the top, hidden topics stay out entirely.
+    const preferred = new Set<string>(
+      (profile.preferredTopics ?? []).map(norm),
+    );
+    const muted = new Set<string>((profile.mutedTopics ?? []).map(norm));
+    const matchesPreference = (i: KnowledgeItem) =>
+      (i.ai?.topics ?? []).some((t) => preferred.has(norm(t)));
+    const allMuted = (i: KnowledgeItem) => {
+      const topics = i.ai?.topics ?? [];
+      return topics.length > 0 && topics.every((t) => muted.has(norm(t)));
+    };
 
     const weekItems = items
       .filter((i) => i.createdAt >= sinceIso)
       .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     const unread = items
-      .filter((i) => !i.read)
-      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+      .filter((i) => !i.read && !allMuted(i))
+      .sort((a, b) => {
+        const ap = matchesPreference(a) ? 1 : 0;
+        const bp = matchesPreference(b) ? 1 : 0;
+        if (ap !== bp) return bp - ap;
+        return a.createdAt < b.createdAt ? 1 : -1;
+      })
       .slice(0, 8);
 
     if (weekItems.length === 0 && unread.length === 0) continue;
 
-    // Group this week's saves by topic.
+    // Group this week's saves by topic (hidden topics excluded).
     const topicMap = new Map<string, KnowledgeItem[]>();
     for (const item of weekItems) {
       for (const topic of item.ai?.topics ?? []) {
+        if (muted.has(norm(topic))) continue;
         const list = topicMap.get(topic) ?? [];
         if (list.length < 5) list.push(item);
         topicMap.set(topic, list);
       }
     }
     const byTopic = [...topicMap.entries()]
-      .sort((a, b) => b[1].length - a[1].length)
+      .sort((a, b) => {
+        const ap = preferred.has(norm(a[0])) ? 1 : 0;
+        const bp = preferred.has(norm(b[0])) ? 1 : 0;
+        if (ap !== bp) return bp - ap;
+        return b[1].length - a[1].length;
+      })
       .slice(0, 6);
 
     digests.push({
@@ -126,6 +151,15 @@ function peerLine(d: UserDigest): string {
   return `You haven't marked anything read yet. Your unread list is waiting below.`;
 }
 
+function minutesLabel(it: KnowledgeItem): string {
+  const mins = it.ai?.readingTime ?? 0;
+  return mins > 0 ? ` · ${mins} min` : "";
+}
+
+function totalUnreadMinutes(d: UserDigest): number {
+  return d.unread.reduce((sum, it) => sum + (it.ai?.readingTime ?? 0), 0);
+}
+
 /** Plain-text digest (Telegram). */
 export function digestText(d: UserDigest): string {
   const name = d.name?.split(" ")[0] || "there";
@@ -133,13 +167,18 @@ export function digestText(d: UserDigest): string {
 
   for (const [topic, items] of d.byTopic) {
     lines.push(`<b>${topic}</b>`);
-    for (const it of items) lines.push(`• <a href="${it.url}">${it.title}</a>`);
+    for (const it of items)
+      lines.push(`• <a href="${it.url}">${it.title}</a>${minutesLabel(it)}`);
     lines.push("");
   }
 
   if (d.unread.length) {
-    lines.push("<b>Still to read</b>");
-    for (const it of d.unread) lines.push(`• <a href="${it.url}">${it.title}</a>`);
+    const total = totalUnreadMinutes(d);
+    lines.push(
+      `<b>Still to read</b>${total > 0 ? ` · about ${total} min in total, pick what fits` : ""}`,
+    );
+    for (const it of d.unread)
+      lines.push(`• <a href="${it.url}">${it.title}</a>${minutesLabel(it)}`);
     lines.push("");
   }
 
@@ -160,6 +199,7 @@ export function digestHtml(d: UserDigest): string {
           .map(
             (it) => `<div style="padding:10px 0;border-bottom:1px solid #eee;">
               <a href="${it.url}" style="color:#1a1a1a;font-weight:600;text-decoration:none;">${it.title}</a>
+              <span style="color:#9a9a9a;font-size:12px;">${minutesLabel(it)}</span>
               <div style="color:#6b6b6b;font-size:13px;">${it.ai?.tldr ?? ""}</div>
             </div>`,
           )
@@ -170,7 +210,7 @@ export function digestHtml(d: UserDigest): string {
 
   const unreadBlock = d.unread.length
     ? `<div style="margin-top:28px;">
-        <p style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#9a9a9a;margin:0 0 8px;">Still to read</p>
+        <p style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#9a9a9a;margin:0 0 8px;">Still to read · pick what fits your time</p>
         ${d.unread
           .map(
             (it) => `<div style="padding:8px 0;border-bottom:1px solid #eee;">
