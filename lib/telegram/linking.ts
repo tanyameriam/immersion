@@ -1,6 +1,11 @@
 import { randomBytes } from "crypto";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
+import {
+  handleChatMessage,
+  HELP_TEXT,
+  userIdForChat,
+} from "@/lib/telegram/chat";
 import { sendTelegramMessage } from "@/lib/telegram/send";
 
 /**
@@ -78,9 +83,14 @@ async function redeemLinkCode(code: string, chatId: number): Promise<boolean> {
   return true;
 }
 
+const CONNECT_PROMPT =
+  "Hi! To connect this chat to your Layrrrd account, open Layrrrd and tap “Connect Telegram” in your delivery settings.";
+
 /**
- * Process one Telegram update (from the webhook or the dev poll route).
- * Returns true if it completed an account link.
+ * Process one Telegram update (from the webhook or the dev poll route):
+ * link-code redemptions, /help, and — for linked users — two-way chat
+ * (paste links to save them, ask about saved bookmarks, request combined
+ * summaries). Returns true if it completed an account link.
  */
 export async function processTelegramUpdate(
   update: TelegramUpdate,
@@ -92,11 +102,28 @@ export async function processTelegramUpdate(
   const match = text.match(/^\/start[ =](\S+)/);
   if (match) return redeemLinkCode(match[1], chatId);
 
-  if (text.startsWith("/start")) {
-    // Bare /start — someone found the bot without a link code.
+  const userId = await userIdForChat(chatId);
+
+  if (text.startsWith("/start") || text.startsWith("/help")) {
     await sendTelegramMessage(
       String(chatId),
-      "Hi! To connect this chat to your Layrrrd account, open Layrrrd and tap “Connect Telegram” in your delivery settings.",
+      userId ? HELP_TEXT : CONNECT_PROMPT,
+    );
+    return false;
+  }
+
+  if (!userId) {
+    await sendTelegramMessage(String(chatId), CONNECT_PROMPT);
+    return false;
+  }
+
+  try {
+    await handleChatMessage(userId, chatId, text);
+  } catch (err) {
+    console.error("Telegram chat handling failed", err);
+    await sendTelegramMessage(
+      String(chatId),
+      "Something went wrong on my side — try that again in a moment.",
     );
   }
   return false;
