@@ -185,6 +185,13 @@ async function answerQuestion(
     return;
   }
 
+  // Their preference set shapes every suggestion: lean into stated
+  // interests, keep hidden topics out unless they ask by name.
+  const profile =
+    (await adminDb().collection("users").doc(userId).get()).data() ?? {};
+  const preferredTopics: string[] = profile.preferredTopics ?? [];
+  const mutedTopics: string[] = profile.mutedTopics ?? [];
+
   const readCount = items.filter((i) => i.read).length;
   const context = items
     .map((item, i) => contextLine(item, i < FULL_SUMMARY_ITEMS))
@@ -214,6 +221,11 @@ async function answerQuestion(
       `like "what did I save about design last month?"\n\n` +
       `Today is ${new Date().toISOString().slice(0, 10)}. ` +
       `They have read ${readCount} of their ${items.length} processed saves.\n\n` +
+      `THEIR PREFERENCES:\n` +
+      `- Interests they picked: ${preferredTopics.join(", ") || "none picked yet"}\n` +
+      `- Topics they chose to hide: ${mutedTopics.join(", ") || "none"}\n` +
+      `Lean toward their interests when suggesting what to read or building a briefing. ` +
+      `Never surface a hidden topic unless they ask for it by name.\n\n` +
       `THEIR LIBRARY (newest first):\n${context}`,
     messages: [{ role: "user", content: question }],
   });
