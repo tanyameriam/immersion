@@ -33,3 +33,18 @@ export async function sendTelegramMessage(
   }
   return false;
 }
+
+/** Show "typing…" in the chat — makes multi-message replies feel human. */
+export async function sendTelegramTyping(chatId: string): Promise<void> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token || !chatId) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendChatAction`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, action: "typing" }),
+    });
+  } catch {
+    // cosmetic only — never fail the reply over it
+  }
+}

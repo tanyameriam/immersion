@@ -3,7 +3,8 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import {
   handleChatMessage,
-  HELP_TEXT,
+  HELP_MESSAGES,
+  sendMessages,
   userIdForChat,
 } from "@/lib/telegram/chat";
 import { sendTelegramMessage } from "@/lib/telegram/send";
@@ -61,10 +62,10 @@ async function redeemLinkCode(code: string, chatId: number): Promise<boolean> {
   const snap = await ref.get();
   const data = snap.data();
   if (!data || data.expiresAt < Date.now()) {
-    await sendTelegramMessage(
-      String(chatId),
-      "That link has expired. Open Layrrrd and tap “Connect Telegram” again.",
-    );
+    await sendMessages(chatId, [
+      "Hmm, that connect link has expired.",
+      "No worries though. Open Layrrrd, tap Connect Telegram again, and you'll get a fresh one.",
+    ]);
     return false;
   }
 
@@ -76,15 +77,18 @@ async function redeemLinkCode(code: string, chatId: number): Promise<boolean> {
     { merge: true },
   );
   await ref.delete();
-  await sendTelegramMessage(
-    String(chatId),
-    "✅ Connected! Your Layrrrd weekly digest will arrive in this chat.",
-  );
+  await sendMessages(chatId, [
+    "You're in! 🎉",
+    "This chat is now linked to your Layrrrd account, so your weekly digest lands right here.",
+    "And you can just talk to me. Paste any link to save it, or ask me about your saves. Send /help anytime for ideas.",
+  ]);
   return true;
 }
 
-const CONNECT_PROMPT =
-  "Hi! To connect this chat to your Layrrrd account, open Layrrrd and tap “Connect Telegram” in your delivery settings.";
+const CONNECT_MESSAGES = [
+  "Hey! I'm Rudolf, the Layrrrd reading buddy 🐕",
+  "To get started, open Layrrrd and tap Connect Telegram in your delivery settings. Then we can chat right here.",
+];
 
 /**
  * Process one Telegram update (from the webhook or the dev poll route):
@@ -105,15 +109,12 @@ export async function processTelegramUpdate(
   const userId = await userIdForChat(chatId);
 
   if (text.startsWith("/start") || text.startsWith("/help")) {
-    await sendTelegramMessage(
-      String(chatId),
-      userId ? HELP_TEXT : CONNECT_PROMPT,
-    );
+    await sendMessages(chatId, userId ? HELP_MESSAGES : CONNECT_MESSAGES);
     return false;
   }
 
   if (!userId) {
-    await sendTelegramMessage(String(chatId), CONNECT_PROMPT);
+    await sendMessages(chatId, CONNECT_MESSAGES);
     return false;
   }
 
@@ -123,7 +124,7 @@ export async function processTelegramUpdate(
     console.error("Telegram chat handling failed", err);
     await sendTelegramMessage(
       String(chatId),
-      "Something went wrong on my side — try that again in a moment.",
+      "Oops, something hiccuped on my side. Give it another go in a moment?",
     );
   }
   return false;
