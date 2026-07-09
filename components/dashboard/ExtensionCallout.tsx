@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, MousePointerClick, Puzzle } from "lucide-react";
+import { Check, MousePointerClick, Puzzle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+// Once dismissed, the "installed ✓" note stays gone on this browser.
+const DISMISS_KEY = "layrrrd-extension-callout-dismissed";
 
 // Chrome Web Store listing (works once the extension is approved & published).
 const STORE_URL =
@@ -23,26 +26,42 @@ function detectExtension(): boolean {
  */
 export function ExtensionCallout() {
   const [installed, setInstalled] = useState<boolean | null>(null);
+  const [dismissed, setDismissed] = useState(true); // avoid a flash before mount
 
   useEffect(() => {
+    setDismissed(localStorage.getItem(DISMISS_KEY) === "1");
     setInstalled(detectExtension());
     // Content script runs at document_start, but re-check once in case of races.
     const t = setTimeout(() => setInstalled(detectExtension()), 800);
     return () => clearTimeout(t);
   }, []);
 
+  function dismiss() {
+    localStorage.setItem(DISMISS_KEY, "1");
+    setDismissed(true);
+  }
+
   if (installed === null) return null;
 
   if (installed) {
+    if (dismissed) return null;
     return (
       <div className="flex items-center gap-3 border border-border bg-muted px-4 py-3 text-sm">
         <Check className="size-4 shrink-0 text-green-700" />
-        <span>
+        <span className="flex-1">
           <span className="font-bold text-foreground">Extension installed.</span>{" "}
           When you find something interesting on any page, click the{" "}
           <span className="font-bold text-foreground">Layrrrd</span> button in
           your toolbar to save it here.
         </span>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-label="Dismiss"
+          onClick={dismiss}
+        >
+          <X />
+        </Button>
       </div>
     );
   }

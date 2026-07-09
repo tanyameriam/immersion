@@ -44,8 +44,12 @@ client. To keep it stable:
    `manifest.json`.
 3. Reload - the ID is now fixed.
 
-(For a quick local test you can skip this and just re-paste the current ID into
-the OAuth client whenever it changes.)
+**Already done in this repo:** `manifest.json` carries a `key` that pins the
+unpacked extension ID to `peacaioiggfgajhebadkpnfldjlcclfo`. The OAuth client
+in Google Cloud Console (APIs & Services → Credentials → the Chrome Extension
+client) must carry this value in its **Item ID** field, or sign-in fails with
+"bad client id". Note: remove the `"key"` field from the manifest before
+zipping for a Chrome Web Store upload — the store assigns its own identity.
 
 ### 5. Make sure the domain is allowed
 
