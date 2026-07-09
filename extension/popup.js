@@ -1,7 +1,9 @@
 /* global chrome */
 const cfg = window.LAYRRRD_CONFIG;
 
-const pageEl = document.getElementById("page");
+const pageTitleEl = document.getElementById("page-title");
+const pageDomainEl = document.getElementById("page-domain");
+const pageFaviconEl = document.getElementById("page-favicon");
 const saveBtn = document.getElementById("save");
 const statusEl = document.getElementById("status");
 const searchEl = document.getElementById("search");
@@ -25,13 +27,25 @@ function setStatus(message, kind) {
   statusEl.className = "status" + (kind ? " " + kind : "");
 }
 
-// Show the active tab's title/url.
+// Show the active tab's favicon, title, and domain.
 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
   currentTab = tabs[0];
   if (currentTab) {
-    pageEl.textContent = currentTab.title || currentTab.url || "This page";
+    pageTitleEl.textContent = currentTab.title || currentTab.url || "This page";
+    try {
+      pageDomainEl.textContent = new URL(currentTab.url).hostname.replace(
+        /^www\./,
+        "",
+      );
+    } catch {
+      pageDomainEl.textContent = "";
+    }
+    if (currentTab.favIconUrl) {
+      pageFaviconEl.src = currentTab.favIconUrl;
+      pageFaviconEl.hidden = false;
+    }
   } else {
-    pageEl.textContent = "Couldn't read the current tab.";
+    pageTitleEl.textContent = "Couldn't read the current tab.";
     saveBtn.disabled = true;
   }
 });
@@ -211,14 +225,22 @@ function render(query) {
     const row = document.createElement("button");
     row.type = "button";
     row.className = "item";
+    row.title = item.read ? "" : "Unread";
+
+    const dot = document.createElement("span");
+    dot.className = "dot" + (item.read ? " read" : "");
+    const text = document.createElement("div");
+    text.className = "text";
     const title = document.createElement("div");
     title.className = "title";
     title.textContent = item.title || item.url;
     const meta = document.createElement("div");
     meta.className = "meta";
     meta.textContent = itemMeta(item);
-    row.appendChild(title);
-    row.appendChild(meta);
+    text.appendChild(title);
+    text.appendChild(meta);
+    row.appendChild(dot);
+    row.appendChild(text);
     row.addEventListener("click", () => chrome.tabs.create({ url: item.url }));
     listEl.appendChild(row);
   }
