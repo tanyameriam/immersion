@@ -137,6 +137,17 @@
         margin-top: 12px;
         font-size: 12px;
       }
+      .account {
+        margin: 8px 0 0;
+        font-size: 11.5px;
+        color: #9a9a9a;
+      }
+      .account a {
+        color: #6b6b6b;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
@@ -157,6 +168,10 @@
       />
       <div id="list"><div class="empty">Loading your library…</div></div>
       <p class="footer"><a id="dashboard">Open your dashboard →</a></p>
+      <p class="account" id="account-line" hidden>
+        Saving as <span id="account-email"></span> ·
+        <a id="switch-account">Switch</a>
+      </p>
     </div>
 
     <script src="config.js"></script>

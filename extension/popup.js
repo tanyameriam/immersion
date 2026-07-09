@@ -8,12 +8,16 @@ const searchEl = document.getElementById("search");
 const listEl = document.getElementById("list");
 const labelEl = document.getElementById("library-label");
 const dashboardEl = document.getElementById("dashboard");
+const accountLineEl = document.getElementById("account-line");
+const accountEmailEl = document.getElementById("account-email");
+const switchAccountEl = document.getElementById("switch-account");
 
 const RECENT_COUNT = 3;
 const SEARCH_COUNT = 6;
 
 let currentTab = null;
 let cachedIdToken = null;
+let cachedEmail = null;
 let allItems = [];
 
 function setStatus(message, kind) {
@@ -65,7 +69,18 @@ async function getFirebaseIdToken(accessToken) {
   );
   if (!res.ok) throw new Error("Firebase sign-in failed");
   const data = await res.json();
-  return data.idToken;
+  return { idToken: data.idToken, email: data.email || null };
+}
+
+/** Show which Google account saves are going to, so a wrong-account or
+ * empty-looking library is explainable at a glance. */
+function updateAccountLine() {
+  if (cachedEmail) {
+    accountEmailEl.textContent = cachedEmail;
+    accountLineEl.hidden = false;
+  } else {
+    accountLineEl.hidden = true;
+  }
 }
 
 /**
@@ -75,16 +90,35 @@ async function getFirebaseIdToken(accessToken) {
 async function getIdToken(interactive) {
   if (cachedIdToken) return cachedIdToken;
   let accessToken = await getGoogleAccessToken(interactive);
+  let result;
   try {
-    cachedIdToken = await getFirebaseIdToken(accessToken);
+    result = await getFirebaseIdToken(accessToken);
   } catch (err) {
     await new Promise((r) =>
       chrome.identity.removeCachedAuthToken({ token: accessToken }, r),
     );
     accessToken = await getGoogleAccessToken(interactive);
-    cachedIdToken = await getFirebaseIdToken(accessToken);
+    result = await getFirebaseIdToken(accessToken);
   }
+  cachedIdToken = result.idToken;
+  cachedEmail = result.email;
+  updateAccountLine();
   return cachedIdToken;
+}
+
+/** Forget the current Google grant and sign in again (account picker). */
+async function switchAccount() {
+  cachedIdToken = null;
+  cachedEmail = null;
+  updateAccountLine();
+  await new Promise((r) => chrome.identity.clearAllCachedAuthTokens(r));
+  allItems = [];
+  listEl.textContent = "";
+  const loading = document.createElement("div");
+  loading.className = "empty";
+  loading.textContent = "Switching account…";
+  listEl.appendChild(loading);
+  await loadLibrary(true);
 }
 
 /* ---------- Save (input) ---------- */
@@ -194,7 +228,9 @@ function showSignedOut() {
   listEl.textContent = "";
   const empty = document.createElement("div");
   empty.className = "empty";
-  empty.append("Sign in to see your saves. ");
+  empty.append(
+    "Sign in with the same Google account you use for Layrrrd to see your saves. ",
+  );
   const link = document.createElement("a");
   link.textContent = "Sign in";
   link.addEventListener("click", () => loadLibrary(true));
@@ -236,6 +272,13 @@ searchEl.addEventListener("input", () => {
 dashboardEl.addEventListener("click", () =>
   chrome.tabs.create({ url: `${cfg.APP_URL}/dashboard` }),
 );
+
+switchAccountEl.addEventListener("click", () => {
+  switchAccount().catch((err) => {
+    console.error(err);
+    setStatus("Couldn't switch accounts. Try again?", "err");
+  });
+});
 
 saveBtn.addEventListener("click", save);
 
