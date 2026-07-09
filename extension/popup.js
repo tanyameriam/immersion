@@ -4,8 +4,17 @@ const cfg = window.LAYRRRD_CONFIG;
 const pageEl = document.getElementById("page");
 const saveBtn = document.getElementById("save");
 const statusEl = document.getElementById("status");
+const searchEl = document.getElementById("search");
+const listEl = document.getElementById("list");
+const labelEl = document.getElementById("library-label");
+const dashboardEl = document.getElementById("dashboard");
+
+const RECENT_COUNT = 3;
+const SEARCH_COUNT = 6;
 
 let currentTab = null;
+let cachedIdToken = null;
+let allItems = [];
 
 function setStatus(message, kind) {
   statusEl.textContent = message;
@@ -59,24 +68,34 @@ async function getFirebaseIdToken(accessToken) {
   return data.idToken;
 }
 
+/**
+ * Full sign-in: Google token → Firebase ID token, with a one-shot retry for a
+ * stale cached Google token. Cached for the lifetime of this popup.
+ */
+async function getIdToken(interactive) {
+  if (cachedIdToken) return cachedIdToken;
+  let accessToken = await getGoogleAccessToken(interactive);
+  try {
+    cachedIdToken = await getFirebaseIdToken(accessToken);
+  } catch (err) {
+    await new Promise((r) =>
+      chrome.identity.removeCachedAuthToken({ token: accessToken }, r),
+    );
+    accessToken = await getGoogleAccessToken(interactive);
+    cachedIdToken = await getFirebaseIdToken(accessToken);
+  }
+  return cachedIdToken;
+}
+
+/* ---------- Save (input) ---------- */
+
 async function save() {
   if (!currentTab?.url) return;
   saveBtn.disabled = true;
   setStatus("Signing you in…");
 
   try {
-    let accessToken = await getGoogleAccessToken(true);
-    let idToken;
-    try {
-      idToken = await getFirebaseIdToken(accessToken);
-    } catch (err) {
-      // Cached Google token may be stale - clear and retry once.
-      await new Promise((r) =>
-        chrome.identity.removeCachedAuthToken({ token: accessToken }, r),
-      );
-      accessToken = await getGoogleAccessToken(true);
-      idToken = await getFirebaseIdToken(accessToken);
-    }
+    const idToken = await getIdToken(true);
 
     setStatus("Saving…");
     const res = await fetch(`${cfg.APP_URL}/api/items`, {
@@ -97,6 +116,12 @@ async function save() {
       throw new Error(`Save API ${res.status}: ${body.slice(0, 120)}`);
     }
     setStatus("Saved! Layrrrd is reading it now.", "ok");
+    // Show the fresh save in the list right away.
+    const data = await res.json().catch(() => null);
+    if (data?.item) {
+      allItems = [data.item, ...allItems.filter((i) => i.id !== data.item.id)];
+      render(searchEl.value);
+    }
   } catch (err) {
     console.error(err);
     setStatus(String(err && err.message ? err.message : err), "err");
@@ -104,4 +129,115 @@ async function save() {
   }
 }
 
+/* ---------- Library (output) ---------- */
+
+function itemMeta(item) {
+  const bits = [];
+  if (item.domain) bits.push(item.domain);
+  const mins = item.ai?.readingTime;
+  if (mins) bits.push(`${mins} min`);
+  if (item.createdAt) bits.push(item.createdAt.slice(0, 10));
+  return bits.join(" · ");
+}
+
+function render(query) {
+  const q = (query || "").trim().toLowerCase();
+  const matches = q
+    ? allItems.filter((item) => {
+        const haystack = [
+          item.title,
+          item.domain,
+          item.ai?.tldr,
+          ...(item.ai?.topics ?? []),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return q.split(/\s+/).every((word) => haystack.includes(word));
+      })
+    : allItems;
+  const shown = matches.slice(0, q ? SEARCH_COUNT : RECENT_COUNT);
+
+  labelEl.textContent = q
+    ? `${matches.length} match${matches.length === 1 ? "" : "es"}`
+    : "Your recent saves";
+
+  listEl.textContent = "";
+  if (shown.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = q
+      ? "Nothing matches that yet. Try another word?"
+      : "No saves yet. This page could be your first!";
+    listEl.appendChild(empty);
+    return;
+  }
+
+  for (const item of shown) {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "item";
+    const title = document.createElement("div");
+    title.className = "title";
+    title.textContent = item.title || item.url;
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = itemMeta(item);
+    row.appendChild(title);
+    row.appendChild(meta);
+    row.addEventListener("click", () => chrome.tabs.create({ url: item.url }));
+    listEl.appendChild(row);
+  }
+}
+
+function showSignedOut() {
+  listEl.textContent = "";
+  const empty = document.createElement("div");
+  empty.className = "empty";
+  empty.append("Sign in to see your saves. ");
+  const link = document.createElement("a");
+  link.textContent = "Sign in";
+  link.addEventListener("click", () => loadLibrary(true));
+  empty.appendChild(link);
+  listEl.appendChild(empty);
+}
+
+async function loadLibrary(interactive) {
+  try {
+    const idToken = await getIdToken(interactive);
+    const res = await fetch(`${cfg.APP_URL}/api/items`, {
+      headers: { Authorization: `Bearer ${idToken}` },
+    });
+    if (!res.ok) throw new Error(`List API ${res.status}`);
+    const data = await res.json();
+    allItems = Array.isArray(data.items) ? data.items : [];
+    render(searchEl.value);
+  } catch (err) {
+    console.error(err);
+    if (interactive) {
+      listEl.textContent = "";
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "Couldn't load your library. Try again in a moment.";
+      listEl.appendChild(empty);
+    } else {
+      // Not signed in yet (or token expired) — don't interrupt with a popup.
+      showSignedOut();
+    }
+  }
+}
+
+let searchTimer = null;
+searchEl.addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => render(searchEl.value), 120);
+});
+
+dashboardEl.addEventListener("click", () =>
+  chrome.tabs.create({ url: `${cfg.APP_URL}/dashboard` }),
+);
+
 saveBtn.addEventListener("click", save);
+
+// Load the library on open — silently if already signed in.
+loadLibrary(false);
