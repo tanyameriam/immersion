@@ -1,4 +1,4 @@
-import { after, NextResponse } from "next/server";
+import { after } from "next/server";
 import { getAuthedUser, UnauthorizedError } from "@/lib/firebase/verify-auth";
 import { createPendingItem, listItems } from "@/lib/firestore/items";
 import { processItem } from "@/lib/items/process-item";
@@ -51,17 +51,17 @@ export async function POST(req: Request) {
   }
 }
 
-/** List the current user's saved items. */
+/** List the current user's saved items (web app + extension popup). */
 export async function GET(req: Request) {
   try {
     const user = await getAuthedUser(req);
     const items = await listItems(user.uid);
-    return NextResponse.json({ items });
+    return jsonWithCors(req, { items });
   } catch (err) {
     if (err instanceof UnauthorizedError) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithCors(req, { error: "Unauthorized" }, 401);
     }
     console.error("GET /api/items failed", err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    return jsonWithCors(req, { error: "Internal error" }, 500);
   }
 }
