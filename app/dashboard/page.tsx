@@ -12,6 +12,7 @@ import { useAuth } from "@/components/AuthContext";
 import { useKnowledgeItems } from "@/hooks/use-knowledge-items";
 import { useRecommendations } from "@/hooks/use-recommendations";
 import { usePreferences } from "@/hooks/use-preferences";
+import { track } from "@/lib/analytics";
 import { LoadingDog } from "@/components/LoadingDog";
 import { type Resource } from "@/lib/dashboard-data";
 
@@ -62,12 +63,18 @@ export default function DashboardPage() {
       updates.mutedTopics = prefs.mutedTopics.filter((t) => !same(t));
     }
     if (Object.keys(updates).length > 0) void savePrefs(updates);
+    track("recommendation_liked", { kind: resource.kind, topic });
   }
 
   function handleDismissRecommendation(resource: Resource) {
     if (!prefs.dismissedUrls.includes(resource.url)) {
       void savePrefs({ dismissedUrls: [...prefs.dismissedUrls, resource.url] });
     }
+    track("recommendation_dismissed", {
+      kind: resource.kind,
+      topic: resource.reasonTopic,
+      source: resource.source,
+    });
   }
 
   // Muting a topic also drops it from stated interests, so the profile page
@@ -81,6 +88,7 @@ export default function DashboardPage() {
       mutedTopics: [...prefs.mutedTopics, topic],
       preferredTopics: prefs.preferredTopics.filter((t) => !same(t)),
     });
+    track("topic_muted", { topic });
   }
 
   // Bookmark a recommendation = actually save its URL (real save pipeline).
@@ -88,6 +96,11 @@ export default function DashboardPage() {
   // interests, so that topic starts feeding their matched recommendations.
   function handleBookmarkFromRecommendations(resource: Resource) {
     void save(resource.url);
+    track("recommendation_bookmarked", {
+      kind: resource.kind,
+      topic: resource.reasonTopic,
+      source: resource.source,
+    });
     if (resource.kind === "discover" && resource.discoveryTopic) {
       const topic = resource.discoveryTopic;
       if (!prefs.preferredTopics.includes(topic)) {
@@ -109,7 +122,15 @@ export default function DashboardPage() {
           </h1>
         </div>
 
-        <Tabs value={tab} onValueChange={(v) => v && setTab(String(v))} className="mt-10">
+        <Tabs
+          value={tab}
+          onValueChange={(v) => {
+            if (!v) return;
+            setTab(String(v));
+            track("tab_viewed", { tab: String(v) });
+          }}
+          className="mt-10"
+        >
           <TabsList variant="line">
             <TabsTrigger value="bookmarks">Bookmarks</TabsTrigger>
             <TabsTrigger value="recommended">Recommended</TabsTrigger>

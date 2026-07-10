@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
+import { track } from "@/lib/analytics";
 import { useAuth } from "@/components/AuthContext";
 
 export type NotificationPreference = "email" | "telegram";
@@ -72,6 +73,15 @@ export function usePreferences() {
     async (partial: Partial<Preferences>) => {
       if (!user) return;
       setPrefs((prev) => ({ ...prev, ...partial }));
+      // Every interests change funnels through here (onboarding, profile,
+      // like/mute on recommendation cards), so this one event tracks how
+      // stated interests evolve.
+      if (partial.preferredTopics) {
+        track("interests_updated", {
+          topics: partial.preferredTopics,
+          count: partial.preferredTopics.length,
+        });
+      }
       try {
         await setDoc(
           doc(db, "users", user.uid),

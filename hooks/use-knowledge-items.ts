@@ -14,6 +14,7 @@ import {
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/components/AuthContext";
 import { apiFetch } from "@/lib/api-client";
+import { track } from "@/lib/analytics";
 import { toResource } from "@/lib/map-item";
 import type { KnowledgeItem, ProcessingStatus } from "@/lib/types/knowledge-item";
 import type { Resource } from "@/lib/dashboard-data";
@@ -128,6 +129,11 @@ export function useKnowledgeItems() {
               ? "That doesn't look like a valid URL."
               : "Couldn't save the link.",
         };
+      }
+      try {
+        track("link_saved", { domain: new URL(url).hostname.replace(/^www\./, "") });
+      } catch {
+        // invalid URL already rejected above; never let analytics break a save
       }
       return { ok: true };
     },
