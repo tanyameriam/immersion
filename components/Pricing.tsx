@@ -31,14 +31,13 @@ export default function Pricing() {
                 <br />
                 Member.
               </h2>
-              <p className="mt-6 text-5xl font-bold tracking-[-0.03em] text-foreground md:text-6xl">
-                ₹99
-                <span className="text-2xl font-medium text-muted-foreground">
-                  /month
-                </span>
+              <p className="mt-6 text-2xl font-medium tracking-[-0.02em] text-muted-foreground">
+                Early access · invite only
               </p>
               <p className="mt-6 max-w-sm text-[17px] leading-[1.65] text-muted-foreground">
-                One plan. Everything included. Cancel any time.
+                One plan. Everything included. Pricing will be announced when
+                Layrrrd opens up, and founding members get the best rate we
+                ever offer.
               </p>
               <div className="mt-10">
                 <Button size="lg" onClick={openWaitlist}>

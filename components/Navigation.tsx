@@ -28,7 +28,7 @@ import { useWaitlist } from "@/components/WaitlistContext";
 const navLinks = [
   { label: "Why", href: "/#why" },
   { label: "What's Inside", href: "/#inside" },
-  { label: "Pricing", href: "/#pricing" },
+  { label: "Membership", href: "/#pricing" },
   { label: "FAQ", href: "/#faq" },
 ];
 

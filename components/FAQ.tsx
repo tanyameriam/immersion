@@ -39,7 +39,7 @@ const faqs = [
   {
     question: "How do I get in, and what does it cost?",
     answer:
-      "Layrrrd is invite-only right now while we onboard founding members at ₹99/month. Join the waitlist and we'll reach out with access. Once you're in you can cancel anytime from your account, and you keep access through the end of the period you've already paid for.",
+      "Layrrrd is invite-only right now while we onboard founding members. Join the waitlist and we'll reach out with access. Pricing will be announced when we open up, and founding members get the best rate we ever offer. Whenever paid plans exist, you'll be able to cancel anytime and keep access through the period you've paid for.",
   },
 ];
 
