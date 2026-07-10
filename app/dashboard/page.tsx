@@ -18,7 +18,7 @@ import { type Resource } from "@/lib/dashboard-data";
 export default function DashboardPage() {
   const { user } = useAuth();
   const { resources, loading, remove, save, markRead } = useKnowledgeItems();
-  const { recommendations, discover } = useRecommendations();
+  const { recommendations, discover, web } = useRecommendations();
   const { prefs, save: savePrefs } = usePreferences();
   const [tab, setTab] = useState("bookmarks");
   const [bookmarks, setBookmarks] = useState<Resource[]>([]);
@@ -41,8 +41,9 @@ export default function DashboardPage() {
     return {
       recommendations: recommendations.filter(keep),
       discover: discover.filter(keep),
+      web: web.filter(keep),
     };
-  }, [recommendations, discover, prefs.dismissedUrls, prefs.mutedTopics]);
+  }, [recommendations, discover, web, prefs.dismissedUrls, prefs.mutedTopics]);
 
   // 👍 on a card = adopt its topic into stated interests (and un-mute it if
   // it was hidden before), so more of that topic feeds future matches.
@@ -134,6 +135,7 @@ export default function DashboardPage() {
             <RecommendedTab
               items={visible.recommendations}
               discover={visible.discover}
+              web={visible.web}
               onBookmark={handleBookmarkFromRecommendations}
               onLike={handleLikeRecommendation}
               onDismiss={handleDismissRecommendation}

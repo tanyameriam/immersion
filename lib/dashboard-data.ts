@@ -28,8 +28,9 @@ export type Resource = {
   // The topic the reason cites — what "Hide this topic" mutes.
   reasonTopic?: string;
   // "match" = shares a topic the user already cares about; "discover" = a nudge
-  // toward a topic they haven't picked yet. `discoveryTopic` is that new topic.
-  kind?: "match" | "discover";
+  // toward a topic they haven't picked yet (`discoveryTopic` is that new
+  // topic); "web" = a public article pulled from an external feed.
+  kind?: "match" | "discover" | "web";
   discoveryTopic?: string;
 };
 

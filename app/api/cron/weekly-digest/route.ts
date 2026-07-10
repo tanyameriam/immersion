@@ -8,6 +8,7 @@ import {
 } from "@/lib/digest/build";
 import { sendEmail } from "@/lib/email/resend";
 import { sendTelegramMessage } from "@/lib/telegram/send";
+import { buildRecommendations } from "@/lib/recommendations/generate";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -38,6 +39,20 @@ async function run(req: Request) {
     for (const digest of digests) {
       if (!force && digest.notificationDay !== today) continue;
       considered++;
+
+      // A "Picked for you" section: same engine as the Recommended tab, so
+      // the digest carries community matches, a discover nudge, and the web
+      // picks, each with its reason. Never let it block the digest itself.
+      try {
+        const recs = await buildRecommendations(digest.userId);
+        digest.recommendations = [
+          ...recs.matched.slice(0, 2),
+          ...recs.discover.slice(0, 1),
+          ...recs.web.slice(0, 3),
+        ];
+      } catch (err) {
+        console.error("weekly-digest recommendations failed", digest.userId, err);
+      }
 
       const wantTelegram =
         digest.notificationPreference === "telegram" && !!digest.telegramChatId;
