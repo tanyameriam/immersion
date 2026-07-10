@@ -19,6 +19,7 @@ import {
 } from "firebase/auth";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db, googleProvider } from "@/lib/firebase/client";
+import { resetAnalytics } from "@/lib/analytics";
 import { AuthModal } from "@/components/AuthModal";
 
 export type AuthMode = "sign-in" | "sign-up";
@@ -186,6 +187,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
             window.sessionStorage.removeItem(TEST_SESSION_KEY);
           }
           setUser(null);
+          resetAnalytics(); // next visitor on this device starts anonymous
           void fbSignOut(auth);
         },
       }}

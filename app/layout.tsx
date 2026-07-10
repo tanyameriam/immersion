@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { satoshi, sardin } from "@/design-system/fonts";
 import WaitlistProvider from "@/components/WaitlistContext";
 import AuthProvider from "@/components/AuthContext";
+import { Analytics } from "@/components/Analytics";
 
 const interTight = Inter_Tight({
   subsets: ["latin"],
@@ -39,7 +40,10 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <WaitlistProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <Analytics />
+            {children}
+          </AuthProvider>
         </WaitlistProvider>
       </body>
     </html>
