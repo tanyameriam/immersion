@@ -1,6 +1,7 @@
 import { adminDb } from "@/lib/firebase/admin";
 import { toKnowledgeItem } from "@/lib/firestore/items";
 import { toResource } from "@/lib/map-item";
+import { buildWebRecommendations } from "@/lib/recommendations/external";
 import type { KnowledgeItem } from "@/lib/types/knowledge-item";
 import type { Resource } from "@/lib/dashboard-data";
 
@@ -16,6 +17,8 @@ export type Recommendations = {
   matched: Resource[];
   /** A few popular items in topics the user hasn't picked yet — a gentle nudge. */
   discover: Resource[];
+  /** Public articles from external feeds, matched to the user's interests. */
+  web: Resource[];
 };
 
 /** What the user already engages with — the basis for matching and exclusion. */
@@ -30,6 +33,12 @@ type TasteProfile = {
   /** Everything the user already knows (or explicitly hid) — excluded from
    * discovery. */
   knownTopics: Set<string>;
+  /** Display labels for basis topics, keyed by normalized form — reasons cite
+   * these instead of the lowercased matching keys. */
+  basisLabels: Map<string, string>;
+  /** Basis topics as display labels, strongest first (by how often the user
+   * saves them; pure onboarding picks keep their picked order). */
+  rankedBasis: string[];
 };
 
 async function loadTasteProfile(userId: string): Promise<TasteProfile> {
@@ -40,7 +49,15 @@ async function loadTasteProfile(userId: string): Promise<TasteProfile> {
   const mine = mineSnap.docs.map((d) => toKnowledgeItem(d.id, d.data()));
   const myUrls = new Set(mine.map((i) => i.url));
   const myTopics = new Set<string>();
-  for (const i of mine) for (const t of i.ai?.topics ?? []) myTopics.add(norm(t));
+  const topicCounts = new Map<string, number>();
+  const basisLabels = new Map<string, string>();
+  for (const i of mine)
+    for (const t of i.ai?.topics ?? []) {
+      const n = norm(t);
+      myTopics.add(n);
+      topicCounts.set(n, (topicCounts.get(n) ?? 0) + 1);
+      if (!basisLabels.has(n)) basisLabels.set(n, t.trim());
+    }
 
   // Onboarding-selected interests seed recommendations for users who haven't
   // saved anything yet, so a brand-new account still has a basis to match on.
@@ -48,6 +65,10 @@ async function loadTasteProfile(userId: string): Promise<TasteProfile> {
   const profile = profileSnap.data() ?? {};
   const preferredTopics: string[] = profile.preferredTopics ?? [];
   const preferredNorm = preferredTopics.map(norm);
+  for (const t of preferredTopics) {
+    const n = norm(t);
+    if (!basisLabels.has(n)) basisLabels.set(n, t.trim());
+  }
 
   // Explicit "not for me" feedback from the Recommended tab.
   const dismissedUrls: string[] = profile.dismissedUrls ?? [];
@@ -57,10 +78,18 @@ async function loadTasteProfile(userId: string): Promise<TasteProfile> {
   const basis = myTopics.size > 0 ? new Set(myTopics) : new Set(preferredNorm);
   for (const t of mutedNorm) basis.delete(t);
 
+  // With no saves, counts are all zero and the sort (stable) keeps the order
+  // the user picked their interests in.
+  const rankedBasis = [...basis]
+    .sort((a, b) => (topicCounts.get(b) ?? 0) - (topicCounts.get(a) ?? 0))
+    .map((n) => basisLabels.get(n) ?? n);
+
   return {
     excludedUrls: new Set([...myUrls, ...dismissedUrls]),
     basis,
     knownTopics: new Set([...myTopics, ...preferredNorm, ...mutedNorm]),
+    basisLabels,
+    rankedBasis,
   };
 }
 
@@ -129,10 +158,14 @@ function toSuggestion(g: Group, reason: string): Resource {
 export async function buildRecommendations(
   userId: string,
 ): Promise<Recommendations> {
-  const { excludedUrls, basis, knownTopics } = await loadTasteProfile(userId);
+  const { excludedUrls, basis, knownTopics, basisLabels, rankedBasis } =
+    await loadTasteProfile(userId);
   if (basis.size === 0 && knownTopics.size === 0) {
-    return { matched: [], discover: [] }; // no basis for recommendations yet
+    return { matched: [], discover: [], web: [] }; // no basis yet
   }
+
+  // External feeds are network-bound — fetch them while we scan Firestore.
+  const webPromise = buildWebRecommendations(rankedBasis, excludedUrls);
 
   // Everyone else's completed items — one scan, reused for both buckets.
   const allSnap = await adminDb()
@@ -142,6 +175,37 @@ export async function buildRecommendations(
   const others = allSnap.docs
     .map((d) => toKnowledgeItem(d.id, d.data()))
     .filter((i) => i.userId !== userId && !excludedUrls.has(i.url));
+
+  // What each other user saves (normalized), so a discover item can explain
+  // itself through savers who share the user's tastes.
+  const saverTopics = new Map<string, Set<string>>();
+  for (const i of others) {
+    let set = saverTopics.get(i.userId);
+    if (!set) {
+      set = new Set();
+      saverTopics.set(i.userId, set);
+    }
+    for (const t of i.ai?.topics ?? []) set.add(norm(t));
+  }
+
+  /** The user's interest most shared with this group's savers — the honest
+   * "why" behind an otherwise out-of-taste discover item. Null when none of
+   * the savers overlap with the user's basis at all. */
+  function tasteBridge(g: Group): { label: string; savers: number } | null {
+    const counts = new Map<string, number>();
+    for (const saver of g.savers) {
+      const theirs = saverTopics.get(saver);
+      if (!theirs) continue;
+      for (const t of basis)
+        if (theirs.has(t)) counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+    let best: { label: string; savers: number } | null = null;
+    for (const [t, n] of counts) {
+      if (!best || n > best.savers)
+        best = { label: basisLabels.get(t) ?? t, savers: n };
+    }
+    return best;
+  }
 
   // "For you": items sharing at least one basis topic, favoring broader
   // topic overlap first, then popularity.
@@ -166,7 +230,8 @@ export async function buildRecommendations(
   });
 
   // "Discover": popular items whose topics are ALL outside what the user
-  // already knows. Ranked purely by popularity (how many people saved it).
+  // already knows. Ranked by popularity, with a boost for items saved by
+  // people who share the user's tastes — those come with a real "why".
   const matchedUrls = new Set(matched.map((r) => r.url));
   const discover = topRanked(
     groupByUrl(others, (it) => {
@@ -176,14 +241,18 @@ export async function buildRecommendations(
       if (topics.some((t) => knownTopics.has(norm(t)))) return null; // not new to them
       return topics;
     }),
-    (g) => g.savers.size,
+    (g) => g.savers.size + (tasteBridge(g) ? 2 : 0),
     MAX_DISCOVER,
   ).map((g) => {
     const topic = [...g.topics][0];
-    const reason =
-      g.savers.size > 1
-        ? `New in ${topic} — saved by ${g.savers.size} people`
-        : `New in ${topic} — outside your usual`;
+    const bridge = tasteBridge(g);
+    const reason = bridge
+      ? bridge.savers > 1
+        ? `New in ${topic}, saved by ${bridge.savers} people who are also into ${bridge.label}`
+        : `New in ${topic}, saved by someone who's also into ${bridge.label}`
+      : g.savers.size > 1
+        ? `New in ${topic}, popular across the community (${g.savers.size} saves)`
+        : `New in ${topic}, a fresh find from the community`;
     return {
       ...toSuggestion(g, reason),
       kind: "discover" as const,
@@ -192,5 +261,5 @@ export async function buildRecommendations(
     };
   });
 
-  return { matched, discover };
+  return { matched, discover, web: await webPromise };
 }

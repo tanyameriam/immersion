@@ -9,9 +9,9 @@ export const maxDuration = 30;
 export async function GET(req: Request) {
   try {
     const user = await getAuthedUser(req);
-    const { matched, discover } = await buildRecommendations(user.uid);
+    const { matched, discover, web } = await buildRecommendations(user.uid);
     // `recommendations` stays for backwards compatibility with existing clients.
-    return NextResponse.json({ recommendations: matched, discover });
+    return NextResponse.json({ recommendations: matched, discover, web });
   } catch (err) {
     if (err instanceof UnauthorizedError) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

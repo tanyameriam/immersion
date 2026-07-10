@@ -1,6 +1,7 @@
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { toKnowledgeItem } from "@/lib/firestore/items";
 import type { KnowledgeItem } from "@/lib/types/knowledge-item";
+import type { Resource } from "@/lib/dashboard-data";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.layrrrd.com";
@@ -14,6 +15,9 @@ export interface UserDigest {
   notificationPreference: string;
   byTopic: [string, KnowledgeItem[]][]; // top topics → items saved this week
   unread: KnowledgeItem[]; // completed but not read
+  /** Fresh picks (community + web), each carrying its `reason`. Attached by
+   * the cron route only for users actually getting a digest today. */
+  recommendations?: Resource[];
   savedThisWeek: number;
   readThisWeek: number;
   communityAvgRead: number;
@@ -182,6 +186,17 @@ export function digestText(d: UserDigest): string {
     lines.push("");
   }
 
+  if (d.recommendations?.length) {
+    lines.push(`<b>Picked for you</b>`);
+    for (const r of d.recommendations) {
+      lines.push(
+        `• <a href="${r.url}">${r.title}</a>${r.readingTime > 0 ? ` · ${r.readingTime} min` : ""}`,
+      );
+      if (r.reason) lines.push(`<i>${r.reason}</i>`);
+    }
+    lines.push("");
+  }
+
   lines.push(`Open your dashboard: ${appUrl}/dashboard`);
   return lines.join("\n");
 }
@@ -208,6 +223,21 @@ export function digestHtml(d: UserDigest): string {
     )
     .join("");
 
+  const recsBlock = d.recommendations?.length
+    ? `<div style="margin-top:28px;">
+        <p style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#9a9a9a;margin:0 0 8px;">Picked for you</p>
+        ${d.recommendations
+          .map(
+            (r) => `<div style="padding:8px 0;border-bottom:1px solid #eee;">
+              <a href="${r.url}" style="color:#1a1a1a;text-decoration:none;">${r.title}</a>
+              ${r.readingTime > 0 ? `<span style="color:#9a9a9a;font-size:12px;"> · ${r.readingTime} min</span>` : ""}
+              ${r.reason ? `<div style="color:#6b6b6b;font-size:13px;font-style:italic;">${r.reason}</div>` : ""}
+            </div>`,
+          )
+          .join("")}
+      </div>`
+    : "";
+
   const unreadBlock = d.unread.length
     ? `<div style="margin-top:28px;">
         <p style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#9a9a9a;margin:0 0 8px;">Still to read · pick what fits your time</p>
@@ -231,6 +261,7 @@ export function digestHtml(d: UserDigest): string {
       <p style="color:#6b6b6b;margin:6px 0 0;font-size:14px;">${d.savedThisWeek} saved this week.</p>
       ${topicBlocks}
       ${unreadBlock}
+      ${recsBlock}
       <a href="${appUrl}/dashboard" style="display:inline-block;margin-top:28px;background:#1a1a1a;color:#f4f1ea;padding:12px 20px;text-decoration:none;font-weight:600;">Open your dashboard</a>
     </div>
   </div>`;

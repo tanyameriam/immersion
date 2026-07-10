@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Compass, Sparkles } from "lucide-react";
+import { Search, Compass, Globe, Sparkles, type LucideIcon } from "lucide-react";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { Input } from "@/components/ui/input";
 import {
@@ -38,16 +38,23 @@ function sortResources(list: Resource[], sort: string) {
 }
 
 /**
- * A subtle secondary section nudging the user toward topics they haven't picked.
- * Uses the same recommendation card so a click flows through the real save path.
+ * A subtle secondary section of suggestions ("Explore something new", "Fresh
+ * from around the web"). Uses the same recommendation card so a click flows
+ * through the real save path.
  */
-function DiscoverSection({
+function SuggestionSection({
+  icon: Icon,
+  title,
+  description,
   items,
   onBookmark,
   onLike,
   onDismiss,
   onMuteTopic,
 }: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
   items: Resource[];
   onBookmark: (id: string) => void;
   onLike: (id: string) => void;
@@ -57,15 +64,10 @@ function DiscoverSection({
   return (
     <section className="space-y-4 border-t border-border pt-8">
       <div className="flex items-start gap-2">
-        <Sparkles className="mt-0.5 size-4 text-muted-foreground" />
+        <Icon className="mt-0.5 size-4 text-muted-foreground" />
         <div>
-          <h2 className="text-sm font-medium text-foreground">
-            Explore something new
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Popular in topics outside your usual — save one to add it to your
-            interests.
-          </p>
+          <h2 className="text-sm font-medium text-foreground">{title}</h2>
+          <p className="text-sm text-muted-foreground">{description}</p>
         </div>
       </div>
       <div className="flex flex-col gap-4">
@@ -93,6 +95,7 @@ export function RecommendedTab({
   onMuteTopic,
   items,
   discover,
+  web,
 }: {
   onBookmark: (resource: Resource) => void;
   /** 👍 "Interested" — adopt this card's topic into the user's interests. */
@@ -108,9 +111,12 @@ export function RecommendedTab({
   items?: Resource[];
   /** Popular items in topics the user hasn't picked yet — a gentle nudge. */
   discover?: Resource[];
+  /** Public articles from external feeds, matched to the user's interests. */
+  web?: Resource[];
 }) {
   const source = useMemo(() => items ?? recommendations, [items]);
   const discoverList = useMemo(() => discover ?? [], [discover]);
+  const webList = useMemo(() => web ?? [], [web]);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("Most Relevant");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
@@ -154,6 +160,7 @@ export function RecommendedTab({
 
   const hasMatched = source.length > 0;
   const hasDiscover = discoverList.length > 0;
+  const hasWeb = webList.length > 0;
 
   function handleFilterChange(groupKey: string, option: string, checked: boolean) {
     setFilters((prev) => {
@@ -168,7 +175,8 @@ export function RecommendedTab({
   function findResource(id: string) {
     return (
       source.find((item) => item.id === id) ??
-      discoverList.find((item) => item.id === id)
+      discoverList.find((item) => item.id === id) ??
+      webList.find((item) => item.id === id)
     );
   }
 
@@ -194,7 +202,7 @@ export function RecommendedTab({
     if (resource) onMuteTopic?.(resource);
   }
 
-  if (!hasMatched && !hasDiscover) {
+  if (!hasMatched && !hasDiscover && !hasWeb) {
     return (
       <EmptyState
         icon={Compass}
@@ -280,12 +288,28 @@ export function RecommendedTab({
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">
-          No topic matches yet — here are a few fresh things worth a look.
+          No topic matches yet, but here are a few fresh things worth a look.
         </p>
       )}
 
+      {hasWeb && (
+        <SuggestionSection
+          icon={Globe}
+          title="Fresh from around the web"
+          description="Public articles matched to your interests, from sources like Medium and UX Collective. Each one says why it's here."
+          items={webList}
+          onBookmark={handleBookmark}
+          onLike={handleLike}
+          onDismiss={handleDismiss}
+          onMuteTopic={handleMuteTopic}
+        />
+      )}
+
       {hasDiscover && (
-        <DiscoverSection
+        <SuggestionSection
+          icon={Sparkles}
+          title="Explore something new"
+          description="Outside your usual topics, saved by people who share your taste. Save one to add it to your interests."
           items={discoverList}
           onBookmark={handleBookmark}
           onLike={handleLike}
