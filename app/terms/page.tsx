@@ -27,10 +27,10 @@ export default function TermsPage() {
               you submit.
             </p>
             <p>
-              Layrrrd is billed monthly at the price shown on our pricing
-              page at the time of signup. You may cancel at any time; access
-              continues through the end of the billing period already paid
-              for.
+              If Layrrrd introduces paid plans, they will be billed at the
+              price shown at the time of signup. You may cancel at any time;
+              access continues through the end of any billing period already
+              paid for.
             </p>
             <p>
               We may update these terms as the product evolves. Continued use

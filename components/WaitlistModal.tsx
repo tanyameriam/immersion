@@ -92,14 +92,9 @@ export function WaitlistModal() {
             </DialogHeader>
 
             <div className="border-y border-border py-4">
-              <p className="text-3xl font-bold tracking-[-0.03em] text-foreground">
-                ₹99
-                <span className="text-base font-medium text-muted-foreground">
-                  /month
-                </span>
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                One plan. Everything included. Cancel any time.
+              <p className="text-sm text-muted-foreground">
+                One plan. Everything included. Founding members get the best
+                rate we ever offer, announced at launch.
               </p>
               <ul className="mt-4 space-y-2">
                 {perks.map((perk) => (

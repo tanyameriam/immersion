@@ -113,7 +113,7 @@ export default function Hero() {
                 Join Waitlist
               </Button>
               <span className="text-xs text-muted-foreground">
-                Founding members · ₹99/month
+                Founding members · early access
               </span>
             </div>
           </FadeUp>
