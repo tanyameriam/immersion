@@ -39,7 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { INTEREST_GROUPS } from "@/lib/constants";
+import { INTEREST_GROUPS, isTopicAvailable } from "@/lib/constants";
 
 type DeliveryMethod = "email" | "telegram";
 
@@ -143,11 +143,20 @@ function RecommendationPreferencesCard() {
               <div className="grid gap-3 sm:grid-cols-2">
                 {group.topics.map((option) => {
                   const id = `interest-${option}`;
+                  const available = isTopicAvailable(option);
                   return (
-                    <div key={option} className="flex items-center gap-2">
+                    <div
+                      key={option}
+                      className={
+                        "flex items-center gap-2" +
+                        (available ? "" : " cursor-default opacity-50")
+                      }
+                      title={available ? undefined : "Coming soon"}
+                    >
                       <Checkbox
                         id={id}
                         checked={selected.has(option)}
+                        disabled={!available}
                         onCheckedChange={(checked) =>
                           toggle(option, checked === true)
                         }

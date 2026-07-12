@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Check, Upload } from "lucide-react";
 import { useAuth } from "@/components/AuthContext";
 import { usePreferences } from "@/hooks/use-preferences";
 import { ProfilePreview } from "@/components/onboarding/ProfilePreview";
+import { StarterPicksStep } from "@/components/onboarding/StarterPicksStep";
 import { TelegramConnect } from "@/components/TelegramConnect";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -19,8 +20,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { LoadingDog } from "@/components/LoadingDog";
-import { INTEREST_GROUPS } from "@/lib/constants";
+import { INTEREST_GROUPS, isTopicAvailable, slugify } from "@/lib/constants";
+import { apiFetch } from "@/lib/api-client";
+import { track } from "@/lib/analytics";
+import type { StarterPick } from "@/lib/types/starter-list";
+import type { StarterListResponseItem } from "@/app/api/starter-lists/route";
 
 const DAYS = [
   "Monday",
@@ -32,7 +42,17 @@ const DAYS = [
   "Sunday",
 ];
 
-const STEPS = ["Name", "Email", "Photo", "Interests", "Delivery"] as const;
+const STEPS = [
+  "Name",
+  "Email",
+  "Photo",
+  "Interests",
+  "Starter picks",
+  "Delivery",
+] as const;
+
+/** How many starter picks we nudge for (soft minimum, never blocks). */
+const PICKS_SOFT_MIN = 3;
 
 /** Center-crop an uploaded image to a small square JPEG data URL, so the
  * avatar can live directly on the profile document (no file storage needed). */
@@ -69,6 +89,25 @@ export default function OnboardingPage() {
   const [submitting, setSubmitting] = useState(false);
   const prefilled = useRef(false);
 
+  // Starter picks (taste calibration). The fetched union is keyed by the
+  // sorted topic slugs, so going back and changing topics refetches and prunes
+  // picks, while an unchanged back/forward pass reuses everything.
+  const [starterItems, setStarterItems] = useState<StarterListResponseItem[]>([]);
+  const [starterKey, setStarterKey] = useState("");
+  const [starterLoading, setStarterLoading] = useState(false);
+  const [starterError, setStarterError] = useState(false);
+  const [picks, setPicks] = useState<Map<string, StarterPick>>(new Map());
+  const starterFetchSeq = useRef(0);
+
+  const topicsKey = useMemo(
+    () =>
+      [...topics]
+        .map((t) => slugify(t))
+        .sort()
+        .join(","),
+    [topics],
+  );
+
   // Not signed in → back to the landing page. Already onboarded → straight to
   // the dashboard (no reason to re-run the one-time flow).
   useEffect(() => {
@@ -84,10 +123,56 @@ export default function OnboardingPage() {
     prefilled.current = true;
     setName(prefs.name || user.name || "");
     setPhoto(prefs.profilePhoto || user.photoURL || null);
-    if (prefs.preferredTopics.length) setTopics(new Set(prefs.preferredTopics));
+    if (prefs.preferredTopics.length) {
+      // Drop topics that are no longer selectable (design-first for now).
+      setTopics(new Set(prefs.preferredTopics.filter(isTopicAvailable)));
+    }
     setChannel(prefs.notificationPreference);
     setDay(prefs.notificationDay);
   }, [loaded, user, prefs]);
+
+  // Load the starter lists for the selected topics. Called when the user
+  // leaves the Interests step (prefetch) and when landing on the picks step
+  // with a stale key (back-navigation after changing topics).
+  async function loadStarterItems(key: string) {
+    const seq = ++starterFetchSeq.current;
+    setStarterKey(key);
+    setStarterError(false);
+    if (!key) {
+      setStarterItems([]);
+      setPicks(new Map());
+      return;
+    }
+    setStarterLoading(true);
+    try {
+      const res = await apiFetch(`/api/starter-lists?topics=${key}`);
+      if (!res.ok) throw new Error(`starter-lists ${res.status}`);
+      const data = (await res.json()) as { items: StarterListResponseItem[] };
+      if (seq !== starterFetchSeq.current) return; // superseded by a newer fetch
+      const items = data.items ?? [];
+      setStarterItems(items);
+      // Keep only picks still present in the new union (topic was deselected).
+      setPicks((prev) => {
+        const urls = new Set(items.map((i) => i.url));
+        const next = new Map<string, StarterPick>();
+        for (const [url, pick] of prev) if (urls.has(url)) next.set(url, pick);
+        return next;
+      });
+    } catch (err) {
+      console.error("Failed to load starter lists", err);
+      if (seq === starterFetchSeq.current) setStarterError(true);
+    } finally {
+      if (seq === starterFetchSeq.current) setStarterLoading(false);
+    }
+  }
+
+  const starterStep = STEPS.indexOf("Starter picks");
+  useEffect(() => {
+    if (step === starterStep && topicsKey !== starterKey && !starterLoading) {
+      void loadStarterItems(topicsKey);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, topicsKey, starterKey, starterLoading]);
 
   const previewState = useMemo(
     () => ({
@@ -130,14 +215,35 @@ export default function OnboardingPage() {
     }
   }
 
+  function togglePick(item: StarterListResponseItem) {
+    setPicks((prev) => {
+      const next = new Map(prev);
+      if (next.has(item.url)) {
+        next.delete(item.url);
+      } else {
+        next.set(item.url, {
+          id: item.id,
+          topicSlug: item.topicSlug,
+          title: item.title,
+          url: item.url,
+          medium: item.medium,
+          source: item.source,
+        });
+      }
+      return next;
+    });
+  }
+
   async function handleFinish() {
     if (!user) return;
     setSubmitting(true);
     try {
+      track("starter_picks_selected", { count: picks.size });
       await save({
         name: name.trim() || user.name,
         profilePhoto: photo ?? "",
         preferredTopics: [...topics],
+        starterPicks: [...picks.values()],
         notificationPreference: channel,
         notificationDay: day,
       });
@@ -269,6 +375,21 @@ export default function OnboardingPage() {
                       <div className="flex flex-wrap gap-2">
                         {group.topics.map((topic) => {
                           const active = topics.has(topic);
+                          const available = isTopicAvailable(topic);
+                          if (!available) {
+                            return (
+                              <Tooltip key={topic}>
+                                <TooltipTrigger
+                                  type="button"
+                                  aria-disabled
+                                  className="inline-flex cursor-not-allowed items-center gap-1.5 border border-border px-3 py-1.5 text-sm text-muted-foreground/50"
+                                >
+                                  {topic}
+                                </TooltipTrigger>
+                                <TooltipContent>Coming soon</TooltipContent>
+                              </Tooltip>
+                            );
+                          }
                           return (
                             <button
                               key={topic}
@@ -295,6 +416,33 @@ export default function OnboardingPage() {
             )}
 
             {step === 4 && (
+              <StepShell
+                title="Pick what looks good"
+                subtitle="Tap the ones you would read, watch or listen to. We use them to build your feed."
+              >
+                <div className="space-y-4">
+                  <StarterPicksStep
+                    items={starterItems}
+                    picked={new Set(picks.keys())}
+                    onToggle={togglePick}
+                    loading={starterLoading}
+                    error={starterError}
+                    onRetry={() => void loadStarterItems(topicsKey)}
+                  />
+                  {!starterLoading && !starterError && starterItems.length > 0 && (
+                    <p className="text-sm text-muted-foreground" aria-live="polite">
+                      {picks.size === 0
+                        ? `Pick at least ${PICKS_SOFT_MIN} for a better feed.`
+                        : picks.size < PICKS_SOFT_MIN
+                          ? `${picks.size} picked. A few more makes your feed sharper.`
+                          : `${picks.size} picked. Nice taste.`}
+                    </p>
+                  )}
+                </div>
+              </StepShell>
+            )}
+
+            {step === 5 && (
               <StepShell
                 title="When do you usually read?"
                 subtitle="Pick the day you want your weekly digest. We send it that morning at 8:00 AM UTC."
@@ -367,7 +515,14 @@ export default function OnboardingPage() {
             ) : (
               <Button
                 size="sm"
-                onClick={() => setStep((s) => Math.min(STEPS.length - 1, s + 1))}
+                onClick={() => {
+                  // Leaving Interests: prefetch the starter lists so the next
+                  // step usually renders instantly.
+                  if (STEPS[step] === "Interests" && topicsKey !== starterKey) {
+                    void loadStarterItems(topicsKey);
+                  }
+                  setStep((s) => Math.min(STEPS.length - 1, s + 1));
+                }}
               >
                 Next
                 <ArrowRight className="size-4" />
