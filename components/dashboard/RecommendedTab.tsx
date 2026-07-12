@@ -14,7 +14,8 @@ import {
 import { ResourceCard } from "@/components/dashboard/ResourceCard";
 import { FilterMenu, type FilterGroup } from "@/components/dashboard/FilterMenu";
 import { ViewToggle, type ResourceView } from "@/components/dashboard/ViewToggle";
-import { recommendations, type Resource } from "@/lib/dashboard-data";
+import { LoadingDog } from "@/components/LoadingDog";
+import { type Resource } from "@/lib/dashboard-data";
 import { CATEGORIES, CONTENT_TYPES, READING_TIME_BUCKETS } from "@/lib/constants";
 
 const SORT_OPTIONS = ["Most Relevant", "Newest", "Trending", "Reading Time"];
@@ -96,6 +97,7 @@ export function RecommendedTab({
   items,
   discover,
   web,
+  loading,
 }: {
   onBookmark: (resource: Resource) => void;
   /** 👍 "Interested" — adopt this card's topic into the user's interests. */
@@ -104,17 +106,16 @@ export function RecommendedTab({
   onDismiss?: (resource: Resource) => void;
   /** Hide the topic this card was recommended for. */
   onMuteTopic?: (resource: Resource) => void;
-  /**
-   * Real recommendations to show. Falls back to sample content until the
-   * community-based recommendation engine exists (needs multiple users).
-   */
+  /** Real recommendations to show (community items matched to interests). */
   items?: Resource[];
   /** Popular items in topics the user hasn't picked yet — a gentle nudge. */
   discover?: Resource[];
-  /** Public articles from external feeds, matched to the user's interests. */
+  /** Mixed-medium picks from around the web, matched to the user's taste. */
   web?: Resource[];
+  /** True while the feed is being fetched; shows a loading state, not empty. */
+  loading?: boolean;
 }) {
-  const source = useMemo(() => items ?? recommendations, [items]);
+  const source = useMemo(() => items ?? [], [items]);
   const discoverList = useMemo(() => discover ?? [], [discover]);
   const webList = useMemo(() => web ?? [], [web]);
   const [search, setSearch] = useState("");
@@ -203,11 +204,18 @@ export function RecommendedTab({
   }
 
   if (!hasMatched && !hasDiscover && !hasWeb) {
+    if (loading) {
+      return (
+        <div className="py-16">
+          <LoadingDog label="Building your feed…" />
+        </div>
+      );
+    }
     return (
       <EmptyState
         icon={Compass}
-        title="No recommendations yet"
-        description="Recommendations come from what people with similar interests save. Save a few articles, and as the community grows we'll surface links others like you are reading."
+        title="Your feed is warming up"
+        description="Fresh picks based on your interests and starter selections will appear here shortly. Saving a few things you like sharpens it further."
       />
     );
   }
@@ -296,7 +304,7 @@ export function RecommendedTab({
         <SuggestionSection
           icon={Globe}
           title="Fresh from around the web"
-          description="Public articles matched to your interests, from sources like Medium and UX Collective. Each one says why it's here."
+          description="Articles, videos and podcasts matched to your taste, from sources like Medium, YouTube and Spotify. Each one says why it's here."
           items={webList}
           onBookmark={handleBookmark}
           onLike={handleLike}

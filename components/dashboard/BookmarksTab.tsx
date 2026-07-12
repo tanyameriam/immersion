@@ -92,7 +92,7 @@ export function BookmarksTab({
 
   const filterGroups: FilterGroup[] = [
     { key: "category", label: "Category", options: CATEGORIES },
-    { key: "contentType", label: "Content Type", options: CONTENT_TYPES },
+    { key: "contentType", label: "Medium", options: CONTENT_TYPES },
     { key: "readingTime", label: "Reading Time", options: READING_TIME_BUCKETS },
     { key: "dateSaved", label: "Date Saved", options: DATE_SAVED_BUCKETS },
     { key: "source", label: "Source", options: sources },

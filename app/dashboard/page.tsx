@@ -19,9 +19,15 @@ import { type Resource } from "@/lib/dashboard-data";
 export default function DashboardPage() {
   const { user } = useAuth();
   const { resources, loading, remove, save, markRead } = useKnowledgeItems();
-  const { recommendations, discover, web } = useRecommendations();
+  const {
+    recommendations,
+    discover,
+    web,
+    loading: recommendationsLoading,
+  } = useRecommendations();
   const { prefs, save: savePrefs } = usePreferences();
-  const [tab, setTab] = useState("bookmarks");
+  // The personalized feed is the product's front door, so it's the default tab.
+  const [tab, setTab] = useState("recommended");
   const [bookmarks, setBookmarks] = useState<Resource[]>([]);
 
   // Server (Firestore) is the source of truth; sync in real saved items as
@@ -132,9 +138,22 @@ export default function DashboardPage() {
           className="mt-10"
         >
           <TabsList variant="line">
-            <TabsTrigger value="bookmarks">Bookmarks</TabsTrigger>
             <TabsTrigger value="recommended">Recommended</TabsTrigger>
+            <TabsTrigger value="bookmarks">Bookmarks</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="recommended" className="mt-8">
+            <RecommendedTab
+              items={visible.recommendations}
+              discover={visible.discover}
+              web={visible.web}
+              loading={recommendationsLoading}
+              onBookmark={handleBookmarkFromRecommendations}
+              onLike={handleLikeRecommendation}
+              onDismiss={handleDismissRecommendation}
+              onMuteTopic={handleMuteTopic}
+            />
+          </TabsContent>
 
           <TabsContent value="bookmarks" className="mt-8 space-y-8">
             <ExtensionCallout />
@@ -150,18 +169,6 @@ export default function DashboardPage() {
                 onMarkReadPersist={(ids) => ids.forEach((id) => markRead(id))}
               />
             )}
-          </TabsContent>
-
-          <TabsContent value="recommended" className="mt-8">
-            <RecommendedTab
-              items={visible.recommendations}
-              discover={visible.discover}
-              web={visible.web}
-              onBookmark={handleBookmarkFromRecommendations}
-              onLike={handleLikeRecommendation}
-              onDismiss={handleDismissRecommendation}
-              onMuteTopic={handleMuteTopic}
-            />
           </TabsContent>
         </Tabs>
       </main>
