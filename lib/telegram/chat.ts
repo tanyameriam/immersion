@@ -6,6 +6,12 @@ import {
   sendTelegramMessage,
   sendTelegramTyping,
 } from "@/lib/telegram/send";
+import { getCachedFeed, type FeedEntry } from "@/lib/telegram/feed";
+import {
+  getRecentMentions,
+  rememberMentions,
+  type Mention,
+} from "@/lib/telegram/memory";
 import type { KnowledgeItem } from "@/lib/types/knowledge-item";
 
 /**
@@ -25,10 +31,48 @@ const FULL_SUMMARY_ITEMS = 25;
 
 export const HELP_MESSAGES = [
   "Hey, I'm Rudolf 🐕 Here's what we can do together:",
-  "Paste me any link and I'll save it to your library and give you the gist, so you know if it's worth your time.",
-  'Ask me about your saves, like "what did I save about design?" or "what should I read tonight?"',
-  'And if you want a recap, try "sum up my AI saves from this week" and I\'ll pull them into one briefing.',
+  "Paste me any link and I'll save it to your library and give you the gist, so you know if it's worth your time. Add a comment with the link and I'll keep it as a note on the bookmark.",
+  'Ask me about your saves or your feed, like "what did I save about design?" or "which podcast covered portfolios?"',
+  "I also fetch you a couple of fresh picks between digests. Send /mute to pause those, /unmute to bring them back.",
 ];
+
+/** Telegram message entity — offsets are UTF-16 code units, same as JS strings. */
+export type TelegramEntity = {
+  type: string;
+  offset: number;
+  length: number;
+  /** Present on "text_link" entities: the URL behind the anchor text. */
+  url?: string;
+};
+
+const MAX_NOTE_LENGTH = 500;
+
+/**
+ * Split a message into the links to save and the user's own words. Handles
+ * plain pasted URLs and Telegram share-target messages where the URL hides
+ * behind anchor text (a "text_link" entity). Whatever text remains after
+ * removing the links becomes a note stored on the bookmark.
+ */
+export function extractUrlsAndNote(
+  text: string,
+  entities: TelegramEntity[] = [],
+): { urls: string[]; note?: string } {
+  const plainUrls = text.match(URL_RE) ?? [];
+  const linkEntities = entities.filter((e) => e.type === "text_link" && e.url);
+
+  const urls = [...new Set([...plainUrls, ...linkEntities.map((e) => e.url!)])];
+
+  // The note is the message minus every URL span and every text_link anchor.
+  let note = text;
+  for (const e of [...linkEntities].sort((a, b) => b.offset - a.offset)) {
+    note = note.slice(0, e.offset) + note.slice(e.offset + e.length);
+  }
+  note = note.replace(URL_RE, " ").replace(/\s+/g, " ").trim();
+  if (note.length > MAX_NOTE_LENGTH) {
+    note = `${note.slice(0, MAX_NOTE_LENGTH).trimEnd()}…`;
+  }
+  return { urls, note: note || undefined };
+}
 
 /** Find the Layrrrd user linked to a Telegram chat, if any. */
 export async function userIdForChat(chatId: number): Promise<string | null> {
@@ -84,10 +128,11 @@ export async function handleChatMessage(
   userId: string,
   chatId: number,
   text: string,
+  entities: TelegramEntity[] = [],
 ): Promise<void> {
-  const urls = [...new Set(text.match(URL_RE) ?? [])];
+  const { urls, note } = extractUrlsAndNote(text, entities);
   if (urls.length > 0) {
-    await ingestLinks(userId, chatId, urls);
+    await ingestLinks(userId, chatId, urls, note);
   } else {
     await answerQuestion(userId, chatId, text);
   }
@@ -98,10 +143,11 @@ async function ingestLinks(
   userId: string,
   chatId: number,
   urls: string[],
+  note?: string,
 ): Promise<void> {
   const take = urls.slice(0, MAX_LINKS_PER_MESSAGE);
   const results = await Promise.all(
-    take.map((url) => createPendingItem({ userId, url })),
+    take.map((url) => createPendingItem({ userId, url, note })),
   );
   const created = results.filter((r) => r.created);
   const dupes = results.length - created.length;
@@ -110,20 +156,25 @@ async function ingestLinks(
   if (created.length > 0) {
     intro.push(
       created.length === 1
-        ? "Got it! Saving that one and giving it a read 👀"
-        : `Got them! Saving ${created.length} links and reading through now 👀`,
+        ? "Fetched it! Saving that one and giving it a good read 👀"
+        : `Fetched them! Saving ${created.length} links and reading through now 👀`,
     );
   }
   if (dupes > 0) {
     intro.push(
       dupes === 1
-        ? "One of those was already in your library, by the way."
+        ? note
+          ? "That one was already in your library, so I tucked your comment onto it."
+          : "One of those was already in your library, by the way."
         : `${dupes} of those were already in your library, by the way.`,
     );
   }
+  if (note && created.length > 0) {
+    intro.push("Kept your comment too, it's on the bookmark as a note.");
+  }
   if (urls.length > take.length) {
     intro.push(
-      `I can take ${MAX_LINKS_PER_MESSAGE} links at a time, send me the rest in another message.`,
+      `I can carry ${MAX_LINKS_PER_MESSAGE} links at a time, send me the rest in another message.`,
     );
   }
   await sendMessages(chatId, intro);
@@ -145,8 +196,15 @@ async function ingestLinks(
           `The gist: ${fresh.ai?.tldr ?? fresh.title}\n\n${nudge}`,
       );
     } else {
+      // Metadata salvage means we usually still know what the page is called.
+      const title =
+        fresh?.title && fresh.title !== fresh.url ? `"${fresh.title}"` : null;
       gists.push(
-        `I couldn't read this one just now, it might be paywalled:\n${r.item.url}\nIt's saved though, and it'll retry from your dashboard.`,
+        (title
+          ? `I couldn't fully read ${title}, it might be paywalled:\n`
+          : `I couldn't read this one just now, it might be paywalled:\n`) +
+          `${r.item.url}\n` +
+          `It's saved with what I could grab, and it'll retry from your dashboard.`,
       );
     }
   }
@@ -167,17 +225,35 @@ function contextLine(item: KnowledgeItem, withSummary: boolean): string {
   return base;
 }
 
-/** Answer a question / produce a combined briefing from the user's bookmarks. */
+function feedLine(e: FeedEntry): string {
+  const mins = e.readingTime ? `, ${e.readingTime} min` : "";
+  return (
+    `- "${e.title}" (${e.source}, ${e.contentType}${mins}) | why: ${e.reason}\n` +
+    `  url: ${e.url}\n  tldr: ${e.tldr}`
+  );
+}
+
+function mentionLine(m: Mention): string {
+  return `- "${m.title}" ${m.url} (sent ${m.at.slice(0, 10)})`;
+}
+
+/** Answer a question / briefing request from the user's saves and their feed. */
 async function answerQuestion(
   userId: string,
   chatId: number,
   question: string,
 ): Promise<void> {
-  const items = (await listItems(userId, { limit: 400 }))
-    .filter((i) => i.status === "completed")
-    .slice(0, MAX_CONTEXT_ITEMS);
+  // Feed and recent-mention context are always optional — failures fall back
+  // to a bookmarks-only answer rather than blocking the reply.
+  const [items, feed, mentions] = await Promise.all([
+    listItems(userId, { limit: 400 }).then((list) =>
+      list.filter((i) => i.status === "completed").slice(0, MAX_CONTEXT_ITEMS),
+    ),
+    getCachedFeed(userId).catch(() => []),
+    getRecentMentions(chatId).catch(() => []),
+  ]);
 
-  if (items.length === 0) {
+  if (items.length === 0 && feed.length === 0) {
     await sendMessages(chatId, [
       "Your library is empty so far, let's fix that 🙂",
       "Paste me any link, an article, a video, whatever caught your eye. I'll save it and tell you the gist.",
@@ -196,29 +272,44 @@ async function answerQuestion(
   const context = items
     .map((item, i) => contextLine(item, i < FULL_SUMMARY_ITEMS))
     .join("\n");
+  const feedContext = feed.map(feedLine).join("\n");
+  const mentionsContext = mentions.map(mentionLine).join("\n");
 
   const message = await claude().messages.create({
     model: AI_MODEL,
     max_tokens: 1200,
     system:
-      `You are Rudolf, the friendly reading companion behind Layrrrd, texting with a user on Telegram. ` +
-      `You help them get real value from what they save: recall bookmarks, answer questions about ` +
-      `their contents, pull several saves into one briefing, and suggest what to read next.\n\n` +
+      `You are Rudolf, the friendly dog behind Layrrrd, texting with a user on Telegram. ` +
+      `You help them get real value from what they save and from the fresh picks in their feed: ` +
+      `recall bookmarks, answer questions about their contents, pull several saves into one briefing, ` +
+      `and suggest what to read, watch or listen to next.\n\n` +
       `How you write:\n` +
       `- Like a friend texting, not an assistant writing a report. Warm, casual, brief.\n` +
+      `- You are a dog, lightly. At most one playful dog touch in a whole reply, a woof, a fetch pun, ` +
+      `a wagging tail. Often none, and never when the topic is serious. The answer always comes first.\n` +
       `- Split your reply into 1 to ${MAX_REPLY_PARTS} short messages. Put a line containing only --- between messages. ` +
       `Keep each message under about 300 characters, two or three short sentences. Never send a wall of text, ` +
       `even for briefings: pick the few things that matter most instead of covering everything.\n` +
       `- Plain text only. No markdown, no bullet lists, no headers. Never use em dashes or semicolons, ` +
       `use commas and full stops instead. At most one emoji per message, often none.\n` +
-      `- When you point at a bookmark, do it like you're handing it to them: a short lead-in like ` +
+      `- When you point at a bookmark or a feed pick, do it like you're handing it to them: a short lead-in like ` +
       `"This is the one:", then the url on its own line, then "The gist:" and one or two sentences. ` +
-      `One bookmark per message, at most two or three bookmarks in a whole reply.\n` +
+      `One item per message, at most two or three items in a whole reply.\n` +
       `- Encourage reading, gently. If an unread save fits the conversation, point at one worth reading, ` +
       `say why in a few words, and mention how long it takes. If they have been reading, notice it and ` +
       `celebrate briefly. Never guilt trip, never lecture.\n` +
+      `- Where it feels natural, end your last message with one genuinely useful follow-up question, ` +
+      `like offering the gist of a pick, asking which one to queue up, or offering to find more like ` +
+      `something. Skip it when the conversation is clearly wrapping up. Never ask filler questions.\n` +
       `- If you are not sure what they want, ask, and offer one concrete example of something you can do, ` +
       `like "what did I save about design last month?"\n\n` +
+      `What you may talk about:\n` +
+      `- Only items that appear below in their library, their feed, or the recently sent list. If they ask ` +
+      `about something that is not there, say you couldn't sniff that one out and ask them to send you the ` +
+      `link. Never invent titles, contents or urls.\n` +
+      `- Feed picks are recommendations they have NOT saved yet. You cannot save things yourself. If they ` +
+      `want a feed item saved or properly summarized, hand them its url on its own line and tell them: ` +
+      `send that link back to me and I'll save it and read it for you.\n\n` +
       `Today is ${new Date().toISOString().slice(0, 10)}. ` +
       `They have read ${readCount} of their ${items.length} processed saves.\n\n` +
       `THEIR PREFERENCES:\n` +
@@ -226,7 +317,9 @@ async function answerQuestion(
       `- Topics they chose to hide: ${mutedTopics.join(", ") || "none"}\n` +
       `Lean toward their interests when suggesting what to read or building a briefing. ` +
       `Never surface a hidden topic unless they ask for it by name.\n\n` +
-      `THEIR LIBRARY (newest first):\n${context}`,
+      `THEIR LIBRARY (things they saved, newest first):\n${context || "nothing saved yet"}\n\n` +
+      `THEIR FEED (recommended for them, NOT saved yet):\n${feedContext || "nothing right now"}\n\n` +
+      `LINKS YOU (RUDOLF) SENT THEM RECENTLY:\n${mentionsContext || "none"}`,
     messages: [{ role: "user", content: question }],
   });
 
@@ -244,4 +337,18 @@ async function answerQuestion(
   }
   const parts = answer.split(/\n\s*-{3,}\s*\n/);
   await sendMessages(chatId, parts);
+
+  // Remember which links Rudolf handed over, so "save that one you sent me"
+  // still resolves after the feed snapshot rotates.
+  const mentionedUrls = [...new Set(answer.match(URL_RE) ?? [])];
+  if (mentionedUrls.length) {
+    const titleFor = (url: string) =>
+      feed.find((e) => e.url === url)?.title ??
+      items.find((i) => i.url === url)?.title ??
+      url;
+    await rememberMentions(
+      chatId,
+      mentionedUrls.map((url) => ({ url, title: titleFor(url) })),
+    );
+  }
 }

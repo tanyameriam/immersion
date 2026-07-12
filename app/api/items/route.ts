@@ -27,6 +27,7 @@ export async function POST(req: Request) {
       url: parsed.data.url,
       title: parsed.data.title,
       favicon: parsed.data.favicon,
+      note: parsed.data.note,
     });
 
     // Process in the background after the response is sent (best-effort; the

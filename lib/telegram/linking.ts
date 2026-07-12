@@ -6,6 +6,7 @@ import {
   HELP_MESSAGES,
   sendMessages,
   userIdForChat,
+  type TelegramEntity,
 } from "@/lib/telegram/chat";
 import { sendTelegramMessage } from "@/lib/telegram/send";
 
@@ -20,11 +21,15 @@ import { sendTelegramMessage } from "@/lib/telegram/send";
 const CODES_COLLECTION = "telegramLinkCodes";
 const CODE_TTL_MS = 15 * 60 * 1000;
 
-/** Minimal shape of a Telegram update we care about. */
+/** Minimal shape of a Telegram update we care about. Media shares from other
+ * apps arrive as `caption` + `caption_entities` instead of `text`. */
 type TelegramUpdate = {
   update_id?: number;
   message?: {
     text?: string;
+    caption?: string;
+    entities?: TelegramEntity[];
+    caption_entities?: TelegramEntity[];
     chat?: { id?: number };
   };
 };
@@ -99,7 +104,9 @@ const CONNECT_MESSAGES = [
 export async function processTelegramUpdate(
   update: TelegramUpdate,
 ): Promise<boolean> {
-  const text = update.message?.text;
+  const text = update.message?.text ?? update.message?.caption;
+  const entities =
+    update.message?.entities ?? update.message?.caption_entities ?? [];
   const chatId = update.message?.chat?.id;
   if (!text || !chatId) return false;
 
@@ -118,8 +125,27 @@ export async function processTelegramUpdate(
     return false;
   }
 
+  // Nudge controls: pause or resume Rudolf's between-digest picks.
+  if (text.startsWith("/mute") || text.startsWith("/unmute")) {
+    const muting = text.startsWith("/mute");
+    await adminDb().collection("users").doc(userId).set(
+      { botNudges: muting ? "off" : "on", updatedAt: FieldValue.serverTimestamp() },
+      { merge: true },
+    );
+    await sendMessages(
+      chatId,
+      muting
+        ? [
+            "Okay, no more surprise picks from me. Your digest still arrives as usual.",
+            "Send /unmute whenever you want them back.",
+          ]
+        : ["Woof, picks are back on 🐕 I'll fetch you something good between digests."],
+    );
+    return false;
+  }
+
   try {
-    await handleChatMessage(userId, chatId, text);
+    await handleChatMessage(userId, chatId, text, entities);
   } catch (err) {
     console.error("Telegram chat handling failed", err);
     await sendTelegramMessage(

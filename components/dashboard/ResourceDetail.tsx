@@ -23,6 +23,15 @@ export function ResourceDetail({ resource }: { resource: Resource }) {
 
   return (
     <div className="mt-4 space-y-4 border-t border-border pt-4">
+      {resource.note && (
+        <div className="space-y-2">
+          <p className="text-sm font-bold text-foreground">Your note</p>
+          <p className="whitespace-pre-line text-sm italic leading-relaxed text-muted-foreground">
+            {resource.note}
+          </p>
+        </div>
+      )}
+
       {resource.summary && (
         <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
           {resource.summary}
