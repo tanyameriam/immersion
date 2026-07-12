@@ -1,0 +1,83 @@
+{
+  "topic": "UX Design",
+  "items": [
+    {
+      "title": "10 Usability Heuristics for User Interface Design",
+      "url": "https://www.nngroup.com/articles/ten-usability-heuristics/",
+      "source": "NN/g",
+      "medium": "article",
+      "readingTime": 12
+    },
+    {
+      "title": "Usability 101: Introduction to Usability",
+      "url": "https://www.nngroup.com/articles/usability-101-introduction-to-usability/",
+      "source": "NN/g",
+      "medium": "article",
+      "readingTime": 5
+    },
+    {
+      "title": "The Definition of User Experience (UX)",
+      "url": "https://www.nngroup.com/articles/definition-user-experience/",
+      "source": "NN/g",
+      "medium": "article",
+      "readingTime": 3
+    },
+    {
+      "title": "F-Shaped Pattern For Reading Web Content",
+      "url": "https://www.nngroup.com/articles/f-shaped-pattern-reading-web-content-discovered/",
+      "source": "NN/g",
+      "medium": "article",
+      "readingTime": 7
+    },
+    {
+      "title": "Usability (User) Testing 101",
+      "url": "https://www.nngroup.com/articles/usability-testing-101/",
+      "source": "NN/g",
+      "medium": "article",
+      "readingTime": 8
+    },
+    {
+      "title": "UX Research Cheat Sheet",
+      "url": "https://www.nngroup.com/articles/ux-research-cheat-sheet/",
+      "source": "NN/g",
+      "medium": "article",
+      "readingTime": 9
+    },
+    {
+      "title": "Don Norman: The Term \"UX\"",
+      "url": "https://www.youtube.com/watch?v=9BdtGjoIN4E",
+      "source": "NN/g",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/9BdtGjoIN4E/hqdefault.jpg",
+      "readingTime": 2
+    },
+    {
+      "title": "It's not you. Bad doors are everywhere.",
+      "url": "https://www.youtube.com/watch?v=yY96hTb8WgI",
+      "source": "Vox",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/yY96hTb8WgI/hqdefault.jpg",
+      "readingTime": 6
+    },
+    {
+      "title": "Design Thinking 101",
+      "url": "https://www.youtube.com/watch?v=6lmvCqvmjfE",
+      "source": "NN/g",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/6lmvCqvmjfE/hqdefault.jpg",
+      "readingTime": 3
+    },
+    {
+      "title": "NN/g UX Podcast",
+      "url": "https://open.spotify.com/show/3GFTfWpfv6m8nhKsPOlT8m",
+      "source": "NN/g",
+      "medium": "podcast"
+    },
+    {
+      "title": "UI Breakfast: UI/UX Design and Product Strategy",
+      "url": "https://open.spotify.com/show/1mpwVsWRVGB7SfBWqZJbAb",
+      "source": "Jane Portman",
+      "medium": "podcast"
+    }
+  ]
+}

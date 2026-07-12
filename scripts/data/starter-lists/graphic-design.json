@@ -1,0 +1,75 @@
+{
+  "topic": "Graphic Design",
+  "items": [
+    {
+      "title": "Ten Things I Have Learned",
+      "url": "https://www.miltonglaser.com/files/Essays-10things-8400.pdf",
+      "source": "Milton Glaser",
+      "medium": "article",
+      "readingTime": 6
+    },
+    {
+      "title": "The Vignelli Canon",
+      "url": "https://www.rit.edu/vignellicenter/sites/rit.edu.vignellicenter/files/documents/The%20Vignelli%20Canon.pdf",
+      "source": "Massimo Vignelli",
+      "medium": "article"
+    },
+    {
+      "title": "Design Principles: Visual Perception And The Principles Of Gestalt",
+      "url": "https://www.smashingmagazine.com/2014/03/design-principles-visual-perception-and-the-principles-of-gestalt/",
+      "source": "Smashing Magazine",
+      "medium": "article",
+      "readingTime": 12
+    },
+    {
+      "title": "Design Principles: Dominance, Focal Points And Hierarchy",
+      "url": "https://www.smashingmagazine.com/2015/02/design-principles-dominance-focal-points-hierarchy/",
+      "source": "Smashing Magazine",
+      "medium": "article",
+      "readingTime": 12
+    },
+    {
+      "title": "What Made a Logo Great",
+      "url": "https://www.printmag.com/logo-design-examples-advice/what-made-a-logo-great/",
+      "source": "PRINT Magazine",
+      "medium": "article",
+      "readingTime": 7
+    },
+    {
+      "title": "Beginning Graphic Design: Fundamentals",
+      "url": "https://www.youtube.com/watch?v=YqQx75OPRa0",
+      "source": "GCFLearnFree",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/YqQx75OPRa0/hqdefault.jpg",
+      "readingTime": 6
+    },
+    {
+      "title": "Paula Scher: Great design is serious (not solemn)",
+      "url": "https://www.youtube.com/watch?v=atn22-bmTPU",
+      "source": "TED",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/atn22-bmTPU/hqdefault.jpg",
+      "readingTime": 22
+    },
+    {
+      "title": "Mike Monteiro: F*ck You, Pay Me",
+      "url": "https://www.youtube.com/watch?v=jVkLVRt6c1U",
+      "source": "CreativeMornings",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/jVkLVRt6c1U/hqdefault.jpg",
+      "readingTime": 38
+    },
+    {
+      "title": "Design Matters with Debbie Millman",
+      "url": "https://open.spotify.com/show/4dsmuZLxVGsXpQesSWrebO",
+      "source": "Debbie Millman",
+      "medium": "podcast"
+    },
+    {
+      "title": "99% Invisible",
+      "url": "https://open.spotify.com/show/2VRS1IJCTn2Nlkg33ZVfkM",
+      "source": "Roman Mars",
+      "medium": "podcast"
+    }
+  ]
+}

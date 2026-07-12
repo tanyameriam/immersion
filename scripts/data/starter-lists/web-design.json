@@ -1,0 +1,71 @@
+{
+  "topic": "Web Design",
+  "items": [
+    {
+      "title": "Responsive Web Design",
+      "url": "https://alistapart.com/article/responsive-web-design/",
+      "source": "A List Apart",
+      "medium": "article",
+      "readingTime": 15
+    },
+    {
+      "title": "A Dao of Web Design",
+      "url": "https://alistapart.com/article/dao/",
+      "source": "A List Apart",
+      "medium": "article",
+      "readingTime": 12
+    },
+    {
+      "title": "A Complete Guide to Flexbox",
+      "url": "https://css-tricks.com/snippets/css/a-guide-to-flexbox/",
+      "source": "CSS-Tricks",
+      "medium": "article",
+      "readingTime": 20
+    },
+    {
+      "title": "Learn Responsive Design",
+      "url": "https://web.dev/learn/design",
+      "source": "web.dev",
+      "medium": "article"
+    },
+    {
+      "title": "Designing A Better Back Button UX",
+      "url": "https://www.smashingmagazine.com/2022/08/back-button-ux-design/",
+      "source": "Smashing Magazine",
+      "medium": "article",
+      "readingTime": 10
+    },
+    {
+      "title": "Learn Web Design For Beginners - Full Course",
+      "url": "https://www.youtube.com/watch?v=j6Ule7GXaRs",
+      "source": "Flux Academy",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/j6Ule7GXaRs/hqdefault.jpg"
+    },
+    {
+      "title": "How to make a design portfolio website",
+      "url": "https://www.youtube.com/watch?v=2hfO13OtdzQ",
+      "source": "CharliMarieTV",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/2hfO13OtdzQ/hqdefault.jpg"
+    },
+    {
+      "title": "ShopTalk",
+      "url": "https://open.spotify.com/show/2PUoQB330ft0sTzSNoCPrH",
+      "source": "Chris Coyier & Dave Rupert",
+      "medium": "podcast"
+    },
+    {
+      "title": "Layout",
+      "url": "https://open.spotify.com/show/46PnocmscpnkSUMXORknlv",
+      "source": "Kevin Clark & Rafael Conde",
+      "medium": "podcast"
+    },
+    {
+      "title": "Design Life",
+      "url": "https://open.spotify.com/show/60VdDbOqh5NAqa82JRsZRq",
+      "source": "Charli Prangley & Femke van Schoonhoven",
+      "medium": "podcast"
+    }
+  ]
+}

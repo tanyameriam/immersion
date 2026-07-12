@@ -1,0 +1,75 @@
+{
+  "topic": "Illustration",
+  "items": [
+    {
+      "title": "Should I Work for Free?",
+      "url": "https://shouldiworkforfree.com/",
+      "source": "Jessica Hische",
+      "medium": "article",
+      "readingTime": 4
+    },
+    {
+      "title": "The insider's guide to becoming a professional illustrator",
+      "url": "https://www.creativeboom.com/tips/the-insiders-guide-to-becoming-a-professional-illustrator/",
+      "source": "Creative Boom",
+      "medium": "article",
+      "readingTime": 8
+    },
+    {
+      "title": "10 steps to help you become a better illustrator",
+      "url": "https://www.creativeboom.com/tips/10-steps-to-help-you-become-a-better-illustrator/",
+      "source": "Creative Boom",
+      "medium": "article",
+      "readingTime": 7
+    },
+    {
+      "title": "Want to go freelance? These top illustrators share the big secrets to their success",
+      "url": "https://www.creativeboom.com/tips/want-to-go-freelance-these-top-illustrators-share-the-big-secrets-to-their-success/",
+      "source": "Creative Boom",
+      "medium": "article",
+      "readingTime": 8
+    },
+    {
+      "title": "You are fluent in this language (and don't even know it) | Christoph Niemann",
+      "url": "https://www.youtube.com/watch?v=0R9zjn9BBvA",
+      "source": "TED",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/0R9zjn9BBvA/hqdefault.jpg",
+      "readingTime": 16
+    },
+    {
+      "title": "How to Draw the Head from Any Angle",
+      "url": "https://www.youtube.com/watch?v=1EPNYWeEf1U",
+      "source": "Proko",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/1EPNYWeEf1U/hqdefault.jpg",
+      "readingTime": 12
+    },
+    {
+      "title": "Finished Not Perfect",
+      "url": "https://www.youtube.com/watch?v=Q4vWXbOLmaE",
+      "source": "Jake Parker",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/Q4vWXbOLmaE/hqdefault.jpg",
+      "readingTime": 4
+    },
+    {
+      "title": "Creative Pep Talk",
+      "url": "https://open.spotify.com/show/47vLbaJTqqLdeqnvjmyjaf",
+      "source": "Andy J. Pizza",
+      "medium": "podcast"
+    },
+    {
+      "title": "3 Point Perspective: The Illustration Podcast",
+      "url": "https://open.spotify.com/show/5CJv3YA2vzbWazcFPnuwCN",
+      "source": "SVSLearn",
+      "medium": "podcast"
+    },
+    {
+      "title": "The Honest Designers Show",
+      "url": "https://open.spotify.com/show/3WPexVH2px2QMIFQubMlJH",
+      "source": "Tom Ross, Ian Barnard, Dustin Lee & Lisa Glanz",
+      "medium": "podcast"
+    }
+  ]
+}
