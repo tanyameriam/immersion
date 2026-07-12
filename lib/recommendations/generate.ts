@@ -1,28 +1,43 @@
 import { adminDb } from "@/lib/firebase/admin";
 import { toKnowledgeItem } from "@/lib/firestore/items";
 import { toResource } from "@/lib/map-item";
-import { buildWebRecommendations } from "@/lib/recommendations/external";
+import { buildWebFeed } from "@/lib/recommendations/web-feed";
+import type { TopicQuery } from "@/lib/recommendations/sources/types";
 import type { KnowledgeItem } from "@/lib/types/knowledge-item";
+import type { StarterPick } from "@/lib/types/starter-list";
 import type { Resource } from "@/lib/dashboard-data";
+import { RECOMMENDATION_INTERESTS, slugify } from "@/lib/constants";
 
 const MAX_RECS = 24;
 const MAX_DISCOVER = 6;
+/** How many of the user's strongest topics drive external source queries. */
+const MAX_TOPIC_QUERIES = 3;
+/** A starter pick is a weaker signal than actually saving something. */
+const STARTER_PICK_WEIGHT = 0.5;
 
 /** Topics come from different sources (AI analysis vs. onboarding checkboxes),
  * so compare them case-insensitively. */
 const norm = (t: string) => t.toLowerCase().trim();
+
+/** Starter picks store the topic slug; recover the display label from the
+ * interest taxonomy (falls back to de-hyphenating unknown slugs). */
+const SLUG_TO_LABEL = new Map(
+  RECOMMENDATION_INTERESTS.map((label) => [slugify(label), label]),
+);
+const labelForSlug = (slug: string) =>
+  SLUG_TO_LABEL.get(slug) ?? slug.replace(/-/g, " ");
 
 export type Recommendations = {
   /** Community items sharing topics the user already cares about. */
   matched: Resource[];
   /** A few popular items in topics the user hasn't picked yet — a gentle nudge. */
   discover: Resource[];
-  /** Public articles from external feeds, matched to the user's interests. */
+  /** Mixed-medium picks from external sources, matched to the user's taste. */
   web: Resource[];
 };
 
 /** What the user already engages with — the basis for matching and exclusion. */
-type TasteProfile = {
+export type TasteProfile = {
   /** URLs never to recommend: the user's own saves plus links they marked
    * "Not interested". */
   excludedUrls: Set<string>;
@@ -39,9 +54,11 @@ type TasteProfile = {
   /** Basis topics as display labels, strongest first (by how often the user
    * saves them; pure onboarding picks keep their picked order). */
   rankedBasis: string[];
+  /** The strongest basis topics, ready for external source queries. */
+  topicQueries: TopicQuery[];
 };
 
-async function loadTasteProfile(userId: string): Promise<TasteProfile> {
+export async function loadTasteProfile(userId: string): Promise<TasteProfile> {
   const mineSnap = await adminDb()
     .collection("knowledgeItems")
     .where("userId", "==", userId)
@@ -70,26 +87,55 @@ async function loadTasteProfile(userId: string): Promise<TasteProfile> {
     if (!basisLabels.has(n)) basisLabels.set(n, t.trim());
   }
 
+  // Starter picks from onboarding: a real taste signal for brand-new accounts.
+  // Each pick counts toward its topic (weaker than a save), so a user who
+  // picked mostly typography content ranks Typography above their other
+  // interests before they've saved a single thing.
+  const starterPicks: StarterPick[] = profile.starterPicks ?? [];
+  const starterNorm = new Set<string>();
+  for (const p of starterPicks) {
+    const label = labelForSlug(p.topicSlug);
+    const n = norm(label);
+    starterNorm.add(n);
+    topicCounts.set(n, (topicCounts.get(n) ?? 0) + STARTER_PICK_WEIGHT);
+    if (!basisLabels.has(n)) basisLabels.set(n, label);
+  }
+
   // Explicit "not for me" feedback from the Recommended tab.
   const dismissedUrls: string[] = profile.dismissedUrls ?? [];
   const mutedTopics: string[] = profile.mutedTopics ?? [];
   const mutedNorm = mutedTopics.map(norm);
 
-  const basis = myTopics.size > 0 ? new Set(myTopics) : new Set(preferredNorm);
+  const basis =
+    myTopics.size > 0
+      ? new Set([...myTopics, ...starterNorm])
+      : new Set([...starterNorm, ...preferredNorm]);
   for (const t of mutedNorm) basis.delete(t);
 
-  // With no saves, counts are all zero and the sort (stable) keeps the order
-  // the user picked their interests in.
+  // With no saves or picks, counts are all zero and the sort (stable) keeps
+  // the order the user picked their interests in.
   const rankedBasis = [...basis]
     .sort((a, b) => (topicCounts.get(b) ?? 0) - (topicCounts.get(a) ?? 0))
     .map((n) => basisLabels.get(n) ?? n);
 
   return {
-    excludedUrls: new Set([...myUrls, ...dismissedUrls]),
+    excludedUrls: new Set([
+      ...myUrls,
+      ...dismissedUrls,
+      ...starterPicks.map((p) => p.url), // they chose it already, don't re-suggest
+    ]),
     basis,
-    knownTopics: new Set([...myTopics, ...preferredNorm, ...mutedNorm]),
+    knownTopics: new Set([
+      ...myTopics,
+      ...preferredNorm,
+      ...mutedNorm,
+      ...starterNorm,
+    ]),
     basisLabels,
     rankedBasis,
+    topicQueries: rankedBasis
+      .slice(0, MAX_TOPIC_QUERIES)
+      .map((label, rank) => ({ label, slug: slugify(label), rank })),
   };
 }
 
@@ -158,14 +204,14 @@ function toSuggestion(g: Group, reason: string): Resource {
 export async function buildRecommendations(
   userId: string,
 ): Promise<Recommendations> {
-  const { excludedUrls, basis, knownTopics, basisLabels, rankedBasis } =
-    await loadTasteProfile(userId);
+  const profile = await loadTasteProfile(userId);
+  const { excludedUrls, basis, knownTopics, basisLabels } = profile;
   if (basis.size === 0 && knownTopics.size === 0) {
     return { matched: [], discover: [], web: [] }; // no basis yet
   }
 
-  // External feeds are network-bound — fetch them while we scan Firestore.
-  const webPromise = buildWebRecommendations(rankedBasis, excludedUrls);
+  // External sources are network-bound — fetch them while we scan Firestore.
+  const webPromise = buildWebFeed(profile);
 
   // Everyone else's completed items — one scan, reused for both buckets.
   const allSnap = await adminDb()
