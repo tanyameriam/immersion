@@ -1,4 +1,4 @@
-import type { SummarySection } from "@/lib/types/knowledge-item";
+import type { ItemMedium, SummarySection } from "@/lib/types/knowledge-item";
 
 export type Resource = {
   id: string;
@@ -13,6 +13,8 @@ export type Resource = {
   url: string;
   read?: boolean;
   image?: string; // preview thumbnail (og:image / video thumbnail)
+  medium?: ItemMedium; // article/video/podcast; contentType carries the label
+  note?: string; // the user's own comment, saved alongside the bookmark
   // Full AI detail (present on real saved items; optional so mock data still fits).
   summary?: string;
   sections?: SummarySection[];

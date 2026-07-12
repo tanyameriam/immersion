@@ -1,5 +1,12 @@
-import type { KnowledgeItem } from "@/lib/types/knowledge-item";
+import { ITEM_MEDIUMS, type ItemMedium, type KnowledgeItem } from "@/lib/types/knowledge-item";
 import type { Resource } from "@/lib/dashboard-data";
+
+/** Legacy docs hold free-form type strings; anything unknown reads as article. */
+function toMedium(type: string): ItemMedium {
+  return (ITEM_MEDIUMS as readonly string[]).includes(type)
+    ? (type as ItemMedium)
+    : "article";
+}
 
 function capitalize(s: string): string {
   return s ? s[0].toUpperCase() + s.slice(1) : s;
@@ -29,6 +36,7 @@ export function toResource(item: KnowledgeItem): Resource {
     description,
     category: item.ai?.topics ?? [],
     contentType: capitalize(item.type || "Article"),
+    medium: toMedium(item.type),
     source: item.domain || "",
     readingTime: item.ai?.readingTime ?? 0,
     publishedDate: item.createdAt || new Date().toISOString(),
@@ -44,5 +52,6 @@ export function toResource(item: KnowledgeItem): Resource {
     difficulty: item.ai?.difficulty,
     sentiment: item.ai?.sentiment,
     status: item.status,
+    note: item.note,
   };
 }

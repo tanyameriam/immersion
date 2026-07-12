@@ -45,8 +45,9 @@ export async function processItem(id: string): Promise<void> {
   if (!claimed) return; // not ours to process
 
   // 2. Extract + analyze (outside the transaction - these are slow/networked).
+  let content: Awaited<ReturnType<typeof extractContent>> | null = null;
   try {
-    const content = await extractContent(claimed.url);
+    content = await extractContent(claimed.url);
     const analysis = await analyzeContent({
       title: content.title,
       text: content.text,
@@ -72,6 +73,15 @@ export async function processItem(id: string): Promise<void> {
   } catch (err) {
     console.error(`processItem failed for ${id}`, err);
     await ref.update({
+      // Salvage whatever metadata extraction produced before the failure so
+      // the bookmark still shows a real title/description instead of its URL.
+      ...(content
+        ? {
+            title: content.title,
+            description: content.description,
+            image: content.image,
+          }
+        : {}),
       status: "failed",
       error: err instanceof Error ? err.message : "Unknown error",
       retryCount: FieldValue.increment(1),
