@@ -111,18 +111,29 @@ export function TelegramConnect({
           <DialogHeader>
             <DialogTitle>Connect Telegram</DialogTitle>
             <DialogDescription>
-              <span className="max-sm:hidden">
-                Scan the code with your phone&apos;s camera.
-              </span>
-              <span className="sm:hidden">Tap the button below.</span>{" "}
+              <span className="sm:hidden">Tap the button below. </span>
               The bot opens in Telegram, tap <strong>Start</strong>, and this
               page connects by itself.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex justify-center max-sm:hidden">
-            <div className="rounded-md border bg-white p-3">
-              <QRCode value={linkUrl} size={176} />
+          <div className="space-y-3 max-sm:hidden">
+            <p className="text-center text-base font-bold text-foreground">
+              Scan this with your phone&apos;s camera app
+              <span className="mt-0.5 block text-sm font-medium text-muted-foreground">
+                (not the QR scanner inside Telegram, it can&apos;t read this
+                code)
+              </span>
+            </p>
+            <div className="flex justify-center">
+              <div className="rounded-md border bg-white p-4">
+                <QRCode
+                  value={linkUrl}
+                  size={208}
+                  fgColor="#000000"
+                  bgColor="#ffffff"
+                />
+              </div>
             </div>
           </div>
 
