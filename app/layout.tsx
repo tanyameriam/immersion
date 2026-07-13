@@ -6,6 +6,7 @@ import { satoshi, sardin } from "@/design-system/fonts";
 import WaitlistProvider from "@/components/WaitlistContext";
 import AuthProvider from "@/components/AuthContext";
 import { Analytics } from "@/components/Analytics";
+import { Toaster } from "@/components/ui/sonner";
 
 const interTight = Inter_Tight({
   subsets: ["latin"],
@@ -43,6 +44,7 @@ export default function RootLayout({
           <AuthProvider>
             <Analytics />
             {children}
+            <Toaster position="bottom-right" />
           </AuthProvider>
         </WaitlistProvider>
       </body>

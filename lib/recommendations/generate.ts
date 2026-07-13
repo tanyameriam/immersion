@@ -10,8 +10,10 @@ import { RECOMMENDATION_INTERESTS, slugify } from "@/lib/constants";
 
 const MAX_RECS = 24;
 const MAX_DISCOVER = 6;
-/** How many of the user's strongest topics drive external source queries. */
-const MAX_TOPIC_QUERIES = 3;
+/** How many of the user's strongest topics drive external source queries.
+ * Topic results are cached daily and shared across users, so querying more
+ * topics deepens the feed (infinite scroll) at negligible quota cost. */
+const MAX_TOPIC_QUERIES = 6;
 /** A starter pick is a weaker signal than actually saving something. */
 const STARTER_PICK_WEIGHT = 0.5;
 
@@ -34,6 +36,8 @@ export type Recommendations = {
   discover: Resource[];
   /** Mixed-medium picks from external sources, matched to the user's taste. */
   web: Resource[];
+  /** Whether deeper pages of the web feed exist (infinite scroll). */
+  webHasMore: boolean;
 };
 
 /** What the user already engages with — the basis for matching and exclusion. */
@@ -207,7 +211,7 @@ export async function buildRecommendations(
   const profile = await loadTasteProfile(userId);
   const { excludedUrls, basis, knownTopics, basisLabels } = profile;
   if (basis.size === 0 && knownTopics.size === 0) {
-    return { matched: [], discover: [], web: [] }; // no basis yet
+    return { matched: [], discover: [], web: [], webHasMore: false }; // no basis yet
   }
 
   // External sources are network-bound — fetch them while we scan Firestore.
@@ -307,5 +311,6 @@ export async function buildRecommendations(
     };
   });
 
-  return { matched, discover, web: await webPromise };
+  const webPage = await webPromise;
+  return { matched, discover, web: webPage.items, webHasMore: webPage.hasMore };
 }

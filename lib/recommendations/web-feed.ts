@@ -9,12 +9,8 @@ import type {
   TopicQuery,
 } from "@/lib/recommendations/sources/types";
 
-/** Total mixed-medium picks in the web feed. */
-const WEB_FEED_SIZE = 16;
-/** No single source may fill more than this many slots. */
-const PER_SOURCE_CAP = 6;
-/** How many of the user's strongest topics to query per source. */
-const TOPICS_QUERIED = 3;
+/** Mixed-medium picks per page of the web feed. */
+export const WEB_FEED_PAGE = 16;
 
 /** Editorial refresh cadence. Medium's feeds churn fast (6h); API-metered
  * sources refresh daily, which also keeps quotas trivial. */
@@ -73,15 +69,25 @@ type Scored = { candidate: Candidate; score: number };
 
 /**
  * The mixed-medium "from around the web" feed: every enabled source × the
- * user's top topics, scored on a common 0-1 scale (within-batch engagement
- * percentile + taste-topic strength + freshness) and interleaved across
- * mediums so no platform dominates. Quality over volume: only the top
- * WEB_FEED_SIZE survive.
+ * user's strongest topics, scored on a common 0-1 scale (within-batch
+ * engagement percentile + taste-topic strength + freshness) and interleaved
+ * across mediums so no platform dominates. Paged: `offset`/`limit` slice the
+ * full ranked pool, and `hasMore` tells the client whether scrolling deeper
+ * will yield anything.
  */
-export async function buildWebFeed(profile: TasteProfile): Promise<Resource[]> {
-  const topics = profile.topicQueries.slice(0, TOPICS_QUERIED);
+export async function buildWebFeed(
+  profile: TasteProfile,
+  { offset = 0, limit = WEB_FEED_PAGE }: { offset?: number; limit?: number } = {},
+): Promise<{ items: Resource[]; hasMore: boolean }> {
+  const topics = profile.topicQueries;
   const sources = enabledSources();
-  if (!topics.length || !sources.length) return [];
+  if (!topics.length || !sources.length) return { items: [], hasMore: false };
+  // No single source may fill more than ~60% of what's shown — balancing
+  // only makes sense when there is more than one source to balance.
+  const perSourceCap =
+    sources.length > 1
+      ? Math.max(6, Math.ceil((offset + limit) * 0.6))
+      : Infinity;
 
   const batches = await Promise.all(
     sources.flatMap((source) =>
@@ -114,7 +120,7 @@ export async function buildWebFeed(profile: TasteProfile): Promise<Resource[]> {
       const key = canonicalUrl(candidate.resource.url);
       if (excluded.has(key)) return;
       const engNorm = ranked.length > 1 ? 1 - i / (ranked.length - 1) : 1;
-      const tasteWeight = 1 - batch.topic.rank / TOPICS_QUERIED;
+      const tasteWeight = 1 - batch.topic.rank / topics.length;
       const freshness = candidate.publishedAt
         ? Math.min(1, Math.max(0, 1 - (now - candidate.publishedAt) / (90 * DAY_MS)))
         : 0.5; // source didn't say — neutral
@@ -139,7 +145,8 @@ export async function buildWebFeed(profile: TasteProfile): Promise<Resource[]> {
   const picks: Resource[] = [];
   const perSource = new Map<string, number>();
   const mediumCounts = new Map<ItemMedium, number>();
-  while (picks.length < WEB_FEED_SIZE && buckets.size > 0) {
+  // Build one item past the window so hasMore is exact.
+  while (picks.length < offset + limit + 1 && buckets.size > 0) {
     // Least-represented medium first; break ties by its best remaining score.
     const medium = [...buckets.keys()].sort((a, b) => {
       const diff = (mediumCounts.get(a) ?? 0) - (mediumCounts.get(b) ?? 0);
@@ -148,7 +155,7 @@ export async function buildWebFeed(profile: TasteProfile): Promise<Resource[]> {
     })[0];
     const list = buckets.get(medium)!;
     const next = list.find(
-      (e) => (perSource.get(e.sourceId) ?? 0) < PER_SOURCE_CAP,
+      (e) => (perSource.get(e.sourceId) ?? 0) < perSourceCap,
     );
     if (!next) {
       buckets.delete(medium); // capped out or empty
@@ -160,5 +167,10 @@ export async function buildWebFeed(profile: TasteProfile): Promise<Resource[]> {
     mediumCounts.set(medium, (mediumCounts.get(medium) ?? 0) + 1);
     picks.push(next.candidate.resource);
   }
-  return picks;
+  return {
+    items: picks.slice(offset, offset + limit),
+    // More either interleaved past the window, or still in the pool (items a
+    // capped-out source will surface once a deeper page raises its cap).
+    hasMore: picks.length > offset + limit || byUrl.size > picks.length,
+  };
 }

@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search, Compass, Globe, Sparkles, type LucideIcon } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Search, Compass } from "lucide-react";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -18,7 +19,7 @@ import { LoadingDog } from "@/components/LoadingDog";
 import { type Resource } from "@/lib/dashboard-data";
 import { CATEGORIES, CONTENT_TYPES, READING_TIME_BUCKETS } from "@/lib/constants";
 
-const SORT_OPTIONS = ["Most Relevant", "Newest", "Trending", "Reading Time"];
+const SORT_OPTIONS = ["Most Relevant", "Newest", "Reading Time"];
 
 function sortResources(list: Resource[], sort: string) {
   const sorted = [...list];
@@ -31,62 +32,44 @@ function sortResources(list: Resource[], sort: string) {
       );
     case "Reading Time":
       return sorted.sort((a, b) => a.readingTime - b.readingTime);
-    case "Trending":
     case "Most Relevant":
     default:
-      return sorted;
+      return sorted; // woven order is the relevance order
   }
 }
 
 /**
- * A subtle secondary section of suggestions ("Explore something new", "Fresh
- * from around the web"). Uses the same recommendation card so a click flows
- * through the real save path.
+ * One feed, not three sections: community matches and web picks alternate,
+ * with a discover nudge woven in every few cycles. Deterministic and
+ * append-stable, so infinite scroll extends the tail without reshuffling
+ * what the user already scrolled past.
  */
-function SuggestionSection({
-  icon: Icon,
-  title,
-  description,
-  items,
-  onBookmark,
-  onLike,
-  onDismiss,
-  onMuteTopic,
-}: {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  items: Resource[];
-  onBookmark: (id: string) => void;
-  onLike: (id: string) => void;
-  onDismiss: (id: string) => void;
-  onMuteTopic: (id: string) => void;
-}) {
-  return (
-    <section className="space-y-4 border-t border-border pt-8">
-      <div className="flex items-start gap-2">
-        <Icon className="mt-0.5 size-4 text-muted-foreground" />
-        <div>
-          <h2 className="text-sm font-medium text-foreground">{title}</h2>
-          <p className="text-sm text-muted-foreground">{description}</p>
-        </div>
-      </div>
-      <div className="flex flex-col gap-4">
-        {items.map((item) => (
-          <ResourceCard
-            key={item.id}
-            resource={item}
-            variant="recommendation"
-            view="list"
-            onBookmark={onBookmark}
-            onLike={onLike}
-            onDismiss={onDismiss}
-            onMuteTopic={onMuteTopic}
-          />
-        ))}
-      </div>
-    </section>
-  );
+function weaveFeed(
+  matched: Resource[],
+  web: Resource[],
+  discover: Resource[],
+): Resource[] {
+  const out: Resource[] = [];
+  const seen = new Set<string>();
+  const push = (r?: Resource) => {
+    if (r && !seen.has(r.url)) {
+      seen.add(r.url);
+      out.push(r);
+    }
+  };
+  let mi = 0;
+  let wi = 0;
+  let di = 0;
+  for (let cycle = 0; mi < matched.length || wi < web.length || di < discover.length; cycle++) {
+    push(matched[mi++]);
+    push(web[wi++]);
+    if (cycle % 3 === 2) push(discover[di++]);
+    // Only discover items left: drain them so the loop terminates.
+    if (mi >= matched.length && wi >= web.length && cycle % 3 !== 2) {
+      push(discover[di++]);
+    }
+  }
+  return out;
 }
 
 export function RecommendedTab({
@@ -98,6 +81,9 @@ export function RecommendedTab({
   discover,
   web,
   loading,
+  loadingMore,
+  hasMore,
+  onLoadMore,
 }: {
   onBookmark: (resource: Resource) => void;
   /** 👍 "Interested" — adopt this card's topic into the user's interests. */
@@ -106,7 +92,7 @@ export function RecommendedTab({
   onDismiss?: (resource: Resource) => void;
   /** Hide the topic this card was recommended for. */
   onMuteTopic?: (resource: Resource) => void;
-  /** Real recommendations to show (community items matched to interests). */
+  /** Community recommendations matched to the user's interests. */
   items?: Resource[];
   /** Popular items in topics the user hasn't picked yet — a gentle nudge. */
   discover?: Resource[];
@@ -114,25 +100,35 @@ export function RecommendedTab({
   web?: Resource[];
   /** True while the feed is being fetched; shows a loading state, not empty. */
   loading?: boolean;
+  /** True while the next page is being appended. */
+  loadingMore?: boolean;
+  /** Whether deeper pages exist. */
+  hasMore?: boolean;
+  /** Fetch and append the next page. */
+  onLoadMore?: () => void;
 }) {
-  const source = useMemo(() => items ?? [], [items]);
+  const matched = useMemo(() => items ?? [], [items]);
   const discoverList = useMemo(() => discover ?? [], [discover]);
   const webList = useMemo(() => web ?? [], [web]);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("Most Relevant");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
-  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [view, setView] = useState<ResourceView>("list");
+
+  const feed = useMemo(
+    () => weaveFeed(matched, webList, discoverList),
+    [matched, webList, discoverList],
+  );
 
   const filterGroups: FilterGroup[] = [
     { key: "category", label: "Category", options: CATEGORIES },
-    { key: "contentType", label: "Content Type", options: CONTENT_TYPES },
+    { key: "contentType", label: "Medium", options: CONTENT_TYPES },
     { key: "readingTime", label: "Reading Time", options: READING_TIME_BUCKETS },
   ];
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return source.filter((item) => {
+    return feed.filter((item) => {
       if (
         query &&
         !item.title.toLowerCase().includes(query) &&
@@ -155,13 +151,27 @@ export function RecommendedTab({
       }
       return true;
     });
-  }, [source, search, filters]);
+  }, [feed, search, filters]);
 
   const sorted = useMemo(() => sortResources(filtered, sort), [filtered, sort]);
 
-  const hasMatched = source.length > 0;
-  const hasDiscover = discoverList.length > 0;
-  const hasWeb = webList.length > 0;
+  // Infinite scroll: when the sentinel under the list becomes visible, pull
+  // the next page. The button stays as an explicit fallback.
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore || !onLoadMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting) && !loadingMore) {
+          onLoadMore();
+        }
+      },
+      { rootMargin: "400px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, onLoadMore]);
 
   function handleFilterChange(groupKey: string, option: string, checked: boolean) {
     setFilters((prev) => {
@@ -174,18 +184,12 @@ export function RecommendedTab({
   }
 
   function findResource(id: string) {
-    return (
-      source.find((item) => item.id === id) ??
-      discoverList.find((item) => item.id === id) ??
-      webList.find((item) => item.id === id)
-    );
+    return feed.find((item) => item.id === id);
   }
 
   function handleBookmark(id: string) {
     const resource = findResource(id);
-    if (!resource) return;
-    setBookmarkedIds((prev) => new Set(prev).add(id));
-    onBookmark(resource);
+    if (resource) onBookmark(resource);
   }
 
   function handleLike(id: string) {
@@ -203,7 +207,7 @@ export function RecommendedTab({
     if (resource) onMuteTopic?.(resource);
   }
 
-  if (!hasMatched && !hasDiscover && !hasWeb) {
+  if (feed.length === 0) {
     if (loading) {
       return (
         <div className="py-16">
@@ -220,118 +224,82 @@ export function RecommendedTab({
     );
   }
 
+  const cardProps = {
+    variant: "recommendation" as const,
+    onBookmark: handleBookmark,
+    onLike: handleLike,
+    onDismiss: handleDismiss,
+    onMuteTopic: handleMuteTopic,
+  };
+
   return (
-    <div className="space-y-10">
-      {hasMatched ? (
-        <div className="space-y-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="relative w-full max-w-sm">
-              <Search className="pointer-events-none absolute left-0 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search title, description, source…"
-                className="pl-6"
-              />
-            </div>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="relative w-full max-w-sm">
+          <Search className="pointer-events-none absolute left-0 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search title, description, source…"
+            className="pl-6"
+          />
+        </div>
 
-            <div className="flex items-center gap-3">
-              <FilterMenu
-                groups={filterGroups}
-                selected={filters}
-                onChange={handleFilterChange}
-                onClear={() => setFilters({})}
-              />
-              <Select value={sort} onValueChange={(v) => v && setSort(v)}>
-                <SelectTrigger className="w-fit">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SORT_OPTIONS.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <ViewToggle view={view} onChange={setView} />
-            </div>
-          </div>
+        <div className="flex items-center gap-3">
+          <FilterMenu
+            groups={filterGroups}
+            selected={filters}
+            onChange={handleFilterChange}
+            onClear={() => setFilters({})}
+          />
+          <Select value={sort} onValueChange={(v) => v && setSort(v)}>
+            <SelectTrigger className="w-fit">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <ViewToggle view={view} onChange={setView} />
+        </div>
+      </div>
 
-          {sorted.length === 0 ? (
-            <p className="py-16 text-center text-sm text-muted-foreground">
-              No recommendations match your search and filters.
-            </p>
-          ) : view === "list" ? (
-            <div className="flex flex-col gap-4">
-              {sorted.map((item) => (
-                <ResourceCard
-                  key={item.id}
-                  resource={item}
-                  variant="recommendation"
-                  view="list"
-                  onBookmark={handleBookmark}
-                  onLike={handleLike}
-                  onDismiss={handleDismiss}
-                  onMuteTopic={handleMuteTopic}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {sorted.map((item) => (
-                <ResourceCard
-                  key={item.id}
-                  resource={item}
-                  variant="recommendation"
-                  view="grid"
-                  onBookmark={handleBookmark}
-                  onLike={handleLike}
-                  onDismiss={handleDismiss}
-                  onMuteTopic={handleMuteTopic}
-                />
-              ))}
-            </div>
-          )}
+      {sorted.length === 0 ? (
+        <p className="py-16 text-center text-sm text-muted-foreground">
+          No recommendations match your search and filters.
+        </p>
+      ) : view === "list" ? (
+        <div className="flex flex-col gap-4">
+          {sorted.map((item) => (
+            <ResourceCard key={item.id} resource={item} view="list" {...cardProps} />
+          ))}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          No topic matches yet, but here are a few fresh things worth a look.
-        </p>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {sorted.map((item) => (
+            <ResourceCard key={item.id} resource={item} view="grid" {...cardProps} />
+          ))}
+        </div>
       )}
 
-      {hasWeb && (
-        <SuggestionSection
-          icon={Globe}
-          title="Fresh from around the web"
-          description="Articles, videos and podcasts matched to your taste, from sources like Medium, YouTube and Spotify. Each one says why it's here."
-          items={webList}
-          onBookmark={handleBookmark}
-          onLike={handleLike}
-          onDismiss={handleDismiss}
-          onMuteTopic={handleMuteTopic}
-        />
-      )}
-
-      {hasDiscover && (
-        <SuggestionSection
-          icon={Sparkles}
-          title="Explore something new"
-          description="Outside your usual topics, saved by people who share your taste. Save one to add it to your interests."
-          items={discoverList}
-          onBookmark={handleBookmark}
-          onLike={handleLike}
-          onDismiss={handleDismiss}
-          onMuteTopic={handleMuteTopic}
-        />
-      )}
-
-      {bookmarkedIds.size > 0 && (
-        <p className="text-sm text-muted-foreground">
-          Saved {bookmarkedIds.size} recommendation
-          {bookmarkedIds.size === 1 ? "" : "s"} to your bookmarks.
-        </p>
-      )}
+      <div ref={sentinelRef} />
+      <div className="flex flex-col items-center gap-3 pb-4">
+        {loadingMore ? (
+          <LoadingDog label="Fetching more picks…" />
+        ) : hasMore ? (
+          <Button variant="outline" size="sm" onClick={() => onLoadMore?.()}>
+            Load more
+          </Button>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            You&apos;re all caught up for now. Fresh picks arrive daily.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

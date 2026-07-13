@@ -193,6 +193,9 @@ export function ResourceCard({
   const [detailOpen, setDetailOpen] = useState(false);
   const isBookmark = variant === "bookmark";
   const toggleDetail = () => setDetailOpen((o) => !o);
+  // Keep cards scannable: a few topic pills, never a wall of them.
+  const topicPills = resource.category.slice(0, 3);
+  const moreTopics = resource.category.length - topicPills.length;
   // Medium is shown as a badge, so the meta line only carries source + time.
   const metaLine = [resource.source, `${resource.readingTime} min`]
     .filter(Boolean)
@@ -259,15 +262,22 @@ export function ResourceCard({
                 >
                   {resource.title}
                 </button>
+                {isBookmark && resource.read && (
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Read
+                  </span>
+                )}
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 <MediumBadge label={resource.contentType} />
-                {resource.category.map((cat) => (
+                {topicPills.map((cat) => (
                   <Badge key={cat} variant="secondary">
                     {cat}
                   </Badge>
                 ))}
-                {isBookmark && resource.read && (
-                  <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Read
+                {moreTopics > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    +{moreTopics} more
                   </span>
                 )}
               </div>
@@ -395,11 +405,16 @@ export function ResourceCard({
         )}
         <div className="flex flex-wrap items-center gap-2">
           <MediumBadge label={resource.contentType} />
-          {resource.category.map((cat) => (
+          {topicPills.map((cat) => (
             <Badge key={cat} variant="secondary">
               {cat}
             </Badge>
           ))}
+          {moreTopics > 0 && (
+            <span className="text-xs text-muted-foreground">
+              +{moreTopics} more
+            </span>
+          )}
         </div>
         <p className="text-sm text-muted-foreground">{metaLine}</p>
         <p className="text-sm text-muted-foreground">{dateLine}</p>
