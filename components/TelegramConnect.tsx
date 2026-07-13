@@ -3,16 +3,26 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Send } from "lucide-react";
 import QRCode from "react-qr-code";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { apiFetch } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 
 /**
- * Connect a Telegram account for digest delivery. Opens a one-time deep link
- * to the bot and shows a guided panel: users who already have Telegram just
- * tap Start, users who don't get install steps and a QR code to hand the
- * link to their phone. While waiting, nudges the server to process pending
- * updates (needed in local dev, harmless in production) and re-reads the
- * profile until the chat id appears.
+ * Connect a Telegram account for digest delivery. Clicking Connect opens a
+ * modal with a QR code for the one-time deep link: scanning it on a phone
+ * opens the bot in Telegram (or, without Telegram installed, lands on the
+ * t.me page that offers the app stores). Deliberately does NOT auto-open
+ * the t.me tab: that steals focus and strands users without Telegram on a
+ * "download Telegram" page instead of this guidance. While waiting, nudges
+ * the server to process pending updates (needed in local dev, harmless in
+ * production) and re-reads the profile until the chat id appears.
  */
 export function TelegramConnect({
   chatId,
@@ -26,6 +36,7 @@ export function TelegramConnect({
   onDisconnect: () => void;
 }) {
   const [connecting, setConnecting] = useState(false);
+  const [open, setOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [error, setError] = useState("");
   const linked = Boolean(chatId);
@@ -46,7 +57,10 @@ export function TelegramConnect({
   }, [connecting, linked, refresh]);
 
   useEffect(() => {
-    if (linked) setConnecting(false);
+    if (linked) {
+      setConnecting(false);
+      setOpen(false);
+    }
   }, [linked]);
 
   async function connect() {
@@ -56,7 +70,7 @@ export function TelegramConnect({
       if (!res.ok) throw new Error(`link failed: ${res.status}`);
       const { url } = (await res.json()) as { url: string };
       setLinkUrl(url);
-      window.open(url, "_blank", "noopener");
+      setOpen(true);
       setConnecting(true);
     } catch (err) {
       console.error("Telegram connect failed", err);
@@ -79,89 +93,102 @@ export function TelegramConnect({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <Button size="sm" variant="outline" onClick={connect}>
         <Send data-icon="inline-start" />
         {connecting ? "Waiting for Telegram…" : "Connect Telegram"}
       </Button>
+      {connecting && !open && (
+        <p className="text-sm text-muted-foreground">
+          Waiting for you to tap Start in Telegram. Tap the button to show
+          the QR code again.
+        </p>
+      )}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
-      {connecting && linkUrl && (
-        <div className="max-w-md space-y-4 rounded-lg border p-4 text-sm">
-          <p className="text-foreground">
-            <strong>Already have Telegram?</strong> Tap <strong>Start</strong>{" "}
-            in the chat that just opened. This page updates by itself once
-            you&apos;re connected.
-          </p>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Connect Telegram</DialogTitle>
+            <DialogDescription>
+              <span className="max-sm:hidden">
+                Scan the code with your phone&apos;s camera.
+              </span>
+              <span className="sm:hidden">Tap the button below.</span>{" "}
+              The bot opens in Telegram, tap <strong>Start</strong>, and this
+              page connects by itself.
+            </DialogDescription>
+          </DialogHeader>
 
-          <div className="space-y-3 border-t pt-4">
-            <p className="text-foreground">
-              <strong>New to Telegram?</strong> It&apos;s a free messaging
-              app, and setup takes about two minutes:
-            </p>
-            <ol className="list-decimal space-y-1.5 pl-5 text-muted-foreground">
-              <li>
-                Install Telegram on your phone: get it from the{" "}
-                <a
-                  className="underline underline-offset-2 hover:text-foreground"
-                  href="https://apps.apple.com/app/telegram-messenger/id686449807"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  App Store
-                </a>{" "}
-                (iPhone) or{" "}
-                <a
-                  className="underline underline-offset-2 hover:text-foreground"
-                  href="https://play.google.com/store/apps/details?id=org.telegram.messenger"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Google Play
-                </a>{" "}
-                (Android).
-              </li>
-              <li>Open the app and sign up with your phone number.</li>
-              <li className="max-sm:hidden">
-                Scan the code below with your phone&apos;s camera, then tap{" "}
-                <strong>Start</strong> in the chat that opens.
-              </li>
-              <li className="sm:hidden">
-                Come back here and tap{" "}
-                <a
-                  className="underline underline-offset-2 hover:text-foreground"
-                  href={linkUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  open the bot
-                </a>
-                , then tap <strong>Start</strong> in the chat.
-              </li>
-            </ol>
-            <div className="w-fit rounded-md border bg-white p-3 max-sm:hidden">
-              <QRCode value={linkUrl} size={128} />
+          <div className="flex justify-center max-sm:hidden">
+            <div className="rounded-md border bg-white p-3">
+              <QRCode value={linkUrl} size={176} />
             </div>
+          </div>
+
+          <div className="sm:hidden">
+            <a
+              className={cn(buttonVariants(), "w-full")}
+              href={linkUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open the bot in Telegram
+            </a>
+          </div>
+
+          <div className="space-y-1.5 text-sm">
+            <p className="font-medium text-foreground">
+              No Telegram on your phone?
+            </p>
             <p className="text-muted-foreground">
-              Prefer your laptop? Install{" "}
+              That&apos;s fine: the page that opens will point you to{" "}
               <a
                 className="underline underline-offset-2 hover:text-foreground"
-                href="https://telegram.org/apps"
+                href="https://play.google.com/store/apps/details?id=org.telegram.messenger"
                 target="_blank"
                 rel="noreferrer"
               >
-                Telegram for desktop
-              </a>
-              , sign in, then tap Connect Telegram again.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              This connect link works for 15 minutes. If it expires, just tap
-              Connect Telegram again for a fresh one.
+                Google Play
+              </a>{" "}
+              or the{" "}
+              <a
+                className="underline underline-offset-2 hover:text-foreground"
+                href="https://apps.apple.com/app/telegram-messenger/id686449807"
+                target="_blank"
+                rel="noreferrer"
+              >
+                App Store
+              </a>{" "}
+              to install it. Sign up with your phone number, come back to
+              that page, open the bot, and tap <strong>Start</strong>.
             </p>
           </div>
-        </div>
-      )}
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+          <div className="space-y-1.5 border-t pt-4 text-xs text-muted-foreground">
+            <p className="max-sm:hidden">
+              Telegram installed on this computer?{" "}
+              <a
+                className="underline underline-offset-2 hover:text-foreground"
+                href={linkUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open the bot here
+              </a>{" "}
+              instead of scanning.
+            </p>
+            <p>
+              This code works for 15 minutes. If it expires, tap Connect
+              Telegram again for a fresh one.
+            </p>
+            <p className="flex items-center gap-1.5">
+              <span className="size-1.5 animate-pulse rounded-full bg-foreground" />
+              Waiting for you to tap Start…
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
