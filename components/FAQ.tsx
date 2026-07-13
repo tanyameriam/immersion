@@ -9,37 +9,37 @@ const faqs = [
   {
     question: "What exactly is Layrrrd?",
     answer:
-      "Layrrrd is your AI knowledge layer for the web. Save any page (articles, videos, threads, docs) in one click, and the AI reads it for you, turning it into a summary, key topics, and a reading time, all organized in your dashboard. A weekly digest then brings the best of what you saved back to you, so the things you found actually get read.",
+      "Layrrrd is an AI-powered personal knowledge companion. It helps you discover relevant content, organize everything you save into a personal knowledge library, and retrieve information simply by asking questions in natural language.",
   },
   {
     question: "How do I save things?",
     answer:
-      "Two ways: the one-click browser extension (click the Layrrrd button on any page), or paste a link straight into your dashboard. Sign in with Google or email, and support for more browsers and sources is on the way.",
+      "Save articles, videos, newsletters, podcasts, research papers, or any webpage. Everything is automatically added to your personal knowledge library and organized for you.",
   },
   {
     question: "Does the AI actually summarize what I save?",
     answer:
-      "Yes. Every save gets a concise AI summary, a one-line TL;DR, topics, keywords, and an estimated reading time, so in a few seconds you can tell what's worth your time and what isn't.",
+      "Yes. Every piece of content is automatically summarized and enriched with key topics, source information, and contextual metadata to make it easier to revisit and retrieve later.",
   },
   {
     question: "How does the weekly digest work?",
     answer:
-      "Once a week, on the day you choose, you get a digest by email and/or Telegram. It groups everything you saved by topic and highlights what you haven't read yet, so nothing slips through the cracks.",
+      "Your personalized dashboard updates continuously as you save and discover content. Optional digests are available, but the primary experience is retrieving knowledge on demand whenever you need it.",
   },
   {
     question: "Where do recommendations come from?",
     answer:
-      "From the community: people who save about the same topics as you. When several readers with similar interests save something, it surfaces in your Recommended tab with social proof (\"saved by N people interested in this\"), so you discover the good stuff without the noise.",
+      "Recommendations are personalized around your interests and curated from trusted, relevant sources. As your library grows, Layrrrd continuously improves what it recommends.",
   },
   {
     question: "Is my data private?",
     answer:
-      "Your library is yours. Only you can see what you've saved. Recommendations are aggregated: we surface links, not who saved them. You can delete any item, or your entire account, at any time.",
+      "Yes. Your library belongs to you. Only you can access your saved content, and every answer links back to your own sources.",
   },
   {
     question: "How do I get in, and what does it cost?",
     answer:
-      "Layrrrd is invite-only right now while we onboard founding members. Join the waitlist and we'll reach out with access. Pricing will be announced when we open up, and founding members get the best rate we ever offer. Whenever paid plans exist, you'll be able to cancel anytime and keep access through the period you've paid for.",
+      "Layrrrd is currently invite-only while we're onboarding founding members. Join the waitlist for early access and help shape the product before launch.",
   },
 ];
 

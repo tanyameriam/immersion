@@ -15,10 +15,10 @@ import { useWaitlist } from "@/components/WaitlistContext";
 type Status = "idle" | "submitting" | "success" | "error";
 
 const perks = [
-  "Unlimited saves from any page or app",
-  "AI summary, TL;DR & reading time on everything",
-  "Weekly digest, grouped by topic, on your schedule",
-  "Recommendations picked for your interests",
+  "Unlimited saves from anywhere",
+  "Personalized recommendations",
+  "AI-powered knowledge library",
+  "Conversational retrieval",
 ];
 
 export function WaitlistModal() {
@@ -93,8 +93,8 @@ export function WaitlistModal() {
 
             <div className="border-y border-border py-4">
               <p className="text-sm text-muted-foreground">
-                One plan. Everything included. Founding members get the best
-                rate we ever offer, announced at launch.
+                Help shape the future of personal knowledge management. Join
+                early and get access before public launch.
               </p>
               <ul className="mt-4 space-y-2">
                 {perks.map((perk) => (

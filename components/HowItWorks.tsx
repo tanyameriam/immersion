@@ -3,22 +3,24 @@ import { cn } from "@/lib/utils";
 
 const steps = [
   {
-    title: "Sign up.",
-    description: "Choose Email or Telegram for your weekly digest.",
-  },
-  {
-    title: "Save while scrolling.",
+    title: "Choose your interests.",
     description:
-      "See something interesting? Forward it to Layrrrd. No folders. No tags. No organization.",
+      "Select the topics you care about and start with personalized recommendations curated around your goals.",
   },
   {
-    title: "Receive your digest.",
+    title: "Save from anywhere.",
     description:
-      "Every week you'll get everything you've saved: organized, summarized, and prioritized.",
+      "Articles, videos, newsletters, podcasts, research papers: everything becomes part of one growing knowledge library.",
   },
   {
-    title: "Gets smarter over time.",
-    description: "The more you save, the more personal your digest becomes.",
+    title: "Build your knowledge.",
+    description:
+      "Every save is automatically organized, summarized, and connected with its original source.",
+  },
+  {
+    title: "Ask. Retrieve. Learn.",
+    description:
+      "Instead of searching folders or bookmarks, ask a question and instantly retrieve what you've already saved.",
   },
 ];
 
@@ -41,9 +43,9 @@ export default function HowItWorks() {
           <h2 className="text-5xl font-bold leading-[1.05] tracking-[-0.03em] text-foreground md:text-6xl">
             As simple
             <br />
-            as forwarding
+            as saving
             <br />
-            a link.
+            what matters.
           </h2>
         </FadeUp>
 
