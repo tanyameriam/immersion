@@ -7,8 +7,8 @@ file first regardless of which tool you are.
 
 ## Project snapshot
 
-- **Product:** Layrrrd. - an editorial waitlist landing page (Next.js App
-  Router), plus legal pages and a waitlist signup API.
+- **Product:** Layrrrd. - an editorial landing page (Next.js App Router)
+  with auth-based sign-up, plus legal pages and the app API routes.
 - **Stack:** Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4,
   shadcn/ui, framer-motion.
 - Full stack/layout/motion details: [design-system/README.md](design-system/README.md).
@@ -72,9 +72,6 @@ passing build does not confirm the feature looks or behaves correctly.
 
 - Copy `.env.example` → `.env.local` for local secrets; never commit
   `.env.local`.
-- `GOOGLE_SCRIPT_URL` is required for the waitlist API
-  (`app/api/waitlist/route.ts`) to actually forward signups; without it the
-  route returns a 500 by design.
 
 ## Reference map
 
