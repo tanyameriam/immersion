@@ -9,6 +9,7 @@ import {
   spotifyEpisodeId,
   youTubeVideoId,
 } from "@/lib/ai/media-content";
+import { watchYouTubeVideo } from "@/lib/ai/gemini-video";
 import { fetchSpotifyEpisode } from "@/lib/recommendations/sources/spotify";
 import { AI_MODEL } from "@/lib/ai/claude";
 import type { AiFields } from "@/lib/types/knowledge-item";
@@ -64,8 +65,22 @@ async function loadSummarySource(url: string): Promise<SummarySource> {
         kind: "transcript",
       };
     }
-    // No captions: the official Data API description is the next-best
-    // substance (long-form videos usually include one, often with chapters).
+    // No captions: have Gemini watch the actual video (official YouTube URL
+    // input) and return timestamped notes — still a true content summary.
+    const watched = await watchYouTubeVideo(url);
+    if (watched) {
+      return {
+        title: content.title,
+        image: content.image,
+        text: watched,
+        readingTime: content.readingTime,
+        wordCount: countWords(watched),
+        degraded: false,
+        kind: "transcript",
+      };
+    }
+    // Next best: the official Data API description (long-form videos usually
+    // include one, often with chapters) — about the video, not its content.
     const detail = await fetchYouTubeDescription(videoId);
     if (detail && countWords(detail.description) >= MIN_WORDS) {
       return {
