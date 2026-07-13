@@ -58,11 +58,11 @@ export default function Hero() {
                 lineHeight: 0.98,
               }}
             >
-              Never lose
+              Keep up,
               <br />
-              a good read
+              without keeping
               <br />
-              again.
+              track.
             </h1>
           </FadeUp>
         </div>
@@ -96,13 +96,12 @@ export default function Hero() {
           <FadeUp delay={0.06}>
             <div className="max-w-xl">
               <p className="text-lg font-bold text-foreground">
-                You save great things. Then you never see them again.
+                You save knowledge. Then you lose access to it.
               </p>
               <p className="mt-2 text-[15px] leading-[1.65] text-muted-foreground md:text-base">
-                Tweets. LinkedIn posts. Articles. Dribbble shots. Case
-                studies. <span className="text-foreground">Layrrrd</span>{" "}
-                remembers what you save, reminds you to read it, and mixes in
-                fresh picks worth your time, all in one weekly digest.
+                Articles. Videos. Podcasts. Research papers. Save everything
+                in one place, discover what matters, and retrieve it
+                instantly through natural conversation.
               </p>
             </div>
           </FadeUp>

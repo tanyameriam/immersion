@@ -10,10 +10,10 @@ export default function WhyLayrd() {
         <FadeUp>
           <div>
             <h2 className="text-5xl font-bold leading-[1.05] tracking-[-0.03em] text-foreground md:text-6xl">
-              You don&apos;t have <br /> a discovery <br /> problem.
+              You don&apos;t have <br /> an information <br /> problem.
             </h2>
             <h2 className="mt-16 text-5xl font-bold leading-[1.05] tracking-[-0.03em] text-foreground md:text-6xl">
-              You have <br /> a revisit <br /> problem.
+              You have <br /> a retrieval <br /> problem.
             </h2>
           </div>
         </FadeUp>
@@ -21,17 +21,19 @@ export default function WhyLayrd() {
         <FadeUp delay={0.1}>
           <div className="text-lg leading-[1.65] text-muted-foreground md:pt-2">
             <p>
-              Every day you save something worth reading. Then it disappears
-              into bookmarks, screenshots, browser tabs, Telegram chats, or
-              Notes.
+              The internet gives you more content than you could ever
+              consume.
             </p>
             <p className="mt-4">
-              Layrrrd gives those forgotten saves a second life by turning
-              them into a curated weekly reading list, so the best things
-              you found actually get read.
+              Saving takes seconds. Finding it again takes minutes, or never
+              happens at all.
+            </p>
+            <p className="mt-4">
+              Most tools help you collect links. Layrrrd helps you turn them
+              into knowledge you can actually use.
             </p>
             <p className="mt-4 font-bold text-foreground">
-              Save once. Revisit intentionally.
+              Save once. Retrieve anytime.
             </p>
           </div>
         </FadeUp>

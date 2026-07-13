@@ -5,11 +5,12 @@ import { FadeUp } from "@/components/FadeUp";
 import { useWaitlist } from "@/components/WaitlistContext";
 
 const included = [
-  "Unlimited saves from any page or app",
-  "AI summary, TL;DR, and reading time on everything",
-  "Weekly digest, grouped by topic, on the day you choose",
-  "Recommendations picked for your interests",
-  "Source and context kept with every save",
+  "Unlimited saves from anywhere",
+  "Personalized recommendations",
+  "AI-powered knowledge library",
+  "Conversational retrieval",
+  "Smart summaries with source references",
+  "Early access to every new feature",
 ];
 
 export default function Pricing() {
@@ -35,9 +36,8 @@ export default function Pricing() {
                 Early access · invite only
               </p>
               <p className="mt-6 max-w-sm text-[17px] leading-[1.65] text-muted-foreground">
-                One plan. Everything included. Pricing will be announced when
-                Layrrrd opens up, and founding members get the best rate we
-                ever offer.
+                Help shape the future of personal knowledge management. Join
+                early and get access before public launch.
               </p>
               <div className="mt-10">
                 <Button size="lg" onClick={openWaitlist}>

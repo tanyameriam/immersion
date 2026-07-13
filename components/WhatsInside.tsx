@@ -2,28 +2,28 @@ import { FadeUp } from "@/components/FadeUp";
 
 const features = [
   {
-    title: "Save From Anywhere",
-    subtitle: "One click, any page.",
+    title: "Discover what matters",
+    subtitle: "Curated for your interests.",
     description:
-      "Articles, threads, videos, and shots go into Layrrrd the moment you find them, with the source and context kept intact.",
+      "Discover relevant articles, videos, newsletters, and research without the endless scrolling.",
   },
   {
-    title: "Read by AI",
-    subtitle: "Skim in seconds, not minutes.",
+    title: "Save effortlessly",
+    subtitle: "One click. Any source.",
     description:
-      "Every save comes back with a summary, a one-line TL;DR, topics, and a reading time, so you know what's worth opening.",
+      "Everything you save is organized into one personal library, with context and source preserved.",
   },
   {
-    title: "Your Weekly Digest",
-    subtitle: "The good stuff, resurfaced.",
+    title: "Ask instead of search",
+    subtitle: "Find anything instantly.",
     description:
-      "Once a week, everything you saved returns grouped by topic and flagged by what you haven't read yet, so nothing slips away.",
+      "Forget folders and bookmarks. Ask a question, and Layrrrd retrieves exactly what you're looking for.",
   },
   {
-    title: "Recommended For You",
-    subtitle: "Discover beyond your own saves.",
+    title: "Stay one step ahead",
+    subtitle: "Personalized recommendations.",
     description:
-      "Links that readers with your interests are saving surface alongside yours, curated picks with none of the noise.",
+      "Keep discovering trusted content tailored to your interests as your library grows.",
   },
 ];
 
@@ -36,9 +36,9 @@ export default function WhatsInside() {
       <div className="mx-auto max-w-[1280px] px-6 md:px-10 xl:px-20">
         <FadeUp>
           <h2 className="text-5xl font-bold leading-[1.05] tracking-[-0.03em] text-foreground md:text-6xl">
-            Every week.
+            Everything you save.
             <br />
-            Everything worth revisiting.
+            Ready when you need it.
           </h2>
         </FadeUp>
 
