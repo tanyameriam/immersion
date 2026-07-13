@@ -1,0 +1,75 @@
+{
+  "topic": "Motion Design",
+  "items": [
+    {
+      "title": "Creating Usability with Motion: The UX in Motion Manifesto",
+      "url": "https://medium.com/ux-in-motion/creating-usability-with-motion-the-ux-in-motion-manifesto-a87a4584ddc",
+      "source": "Issara Willenskomer",
+      "medium": "article",
+      "readingTime": 25
+    },
+    {
+      "title": "Implementing Motion",
+      "url": "https://medium.com/google-design/implementing-motion-9f2839002016",
+      "source": "Google Design",
+      "medium": "article",
+      "readingTime": 8
+    },
+    {
+      "title": "Understanding motion",
+      "url": "https://m2.material.io/design/motion/understanding-motion.html",
+      "source": "Material Design",
+      "medium": "article",
+      "readingTime": 6
+    },
+    {
+      "title": "Making Motion Meaningful",
+      "url": "https://design.google/library/making-motion-meaningful",
+      "source": "Google Design",
+      "medium": "article",
+      "readingTime": 7
+    },
+    {
+      "title": "Designing Safer Web Animation For Motion Sensitivity",
+      "url": "https://alistapart.com/article/designing-safer-web-animation-for-motion-sensitivity/",
+      "source": "A List Apart",
+      "medium": "article",
+      "readingTime": 10
+    },
+    {
+      "title": "12 Principles of Animation (Official Full Series)",
+      "url": "https://www.youtube.com/watch?v=uDqjIdI4bF4",
+      "source": "Alan Becker",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/uDqjIdI4bF4/hqdefault.jpg",
+      "readingTime": 24
+    },
+    {
+      "title": "I'll Teach You After Effects in 60 Minutes...",
+      "url": "https://www.youtube.com/watch?v=jFbRZZmMW7c",
+      "source": "Ben Marriott",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/jFbRZZmMW7c/hqdefault.jpg",
+      "readingTime": 60
+    },
+    {
+      "title": "Advanced Motion Graphics Animations | After Effects Tutorial with Ben Marriott",
+      "url": "https://www.youtube.com/watch?v=Vw6ozvJ8oxs",
+      "source": "Adobe",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/Vw6ozvJ8oxs/hqdefault.jpg"
+    },
+    {
+      "title": "School of Motion Podcast",
+      "url": "https://open.spotify.com/show/1BcNxYLdLmkQzPImAlUO60",
+      "source": "School of Motion",
+      "medium": "podcast"
+    },
+    {
+      "title": "Motion Hatch: Helping Motion Designers Do Better Business",
+      "url": "https://open.spotify.com/show/45ikx9FuW20l8kmZvKYEQc",
+      "source": "Hayley Akins",
+      "medium": "podcast"
+    }
+  ]
+}

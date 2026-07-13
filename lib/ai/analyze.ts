@@ -116,7 +116,17 @@ const INPUT_SCHEMA = {
 export async function analyzeContent(input: {
   title: string;
   text: string;
+  /** "transcript" organizes sections as timestamped chapters in play order. */
+  kind?: "article" | "transcript";
 }): Promise<AiAnalysis> {
+  const transcriptNote =
+    input.kind === "transcript"
+      ? `The content is a spoken transcript with [mm:ss] timestamps. ` +
+        `Organize the sections as chapters in play order, and start each ` +
+        `section heading with the timestamp where that chapter begins, ` +
+        `like "[04:30] Building the color system". Clean up spoken-word ` +
+        `filler; keep the substance.\n\n`
+      : "";
   const message = await claude().messages.create({
     model: AI_MODEL,
     max_tokens: 3072,
@@ -136,6 +146,7 @@ export async function analyzeContent(input: {
           `The summary, sections, and takeaways together must stand in for ` +
           `the original: someone who reads only them should come away with ` +
           `the substance of the content, not just what it is about.\n\n` +
+          transcriptNote +
           `Title: ${input.title}\n\n` +
           `Content:\n${input.text}`,
       },

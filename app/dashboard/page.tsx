@@ -15,13 +15,24 @@ import { usePreferences } from "@/hooks/use-preferences";
 import { track } from "@/lib/analytics";
 import { LoadingDog } from "@/components/LoadingDog";
 import { type Resource } from "@/lib/dashboard-data";
+import { toast } from "sonner";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { resources, loading, remove, save, markRead } = useKnowledgeItems();
-  const { recommendations, discover, web } = useRecommendations();
+  const {
+    recommendations,
+    discover,
+    web,
+    webHasMore,
+    loading: recommendationsLoading,
+    loadingMore,
+    loadMore,
+    refetch,
+  } = useRecommendations();
   const { prefs, save: savePrefs } = usePreferences();
-  const [tab, setTab] = useState("bookmarks");
+  // The personalized feed is the product's front door, so it's the default tab.
+  const [tab, setTab] = useState("recommended");
   const [bookmarks, setBookmarks] = useState<Resource[]>([]);
 
   // Server (Firestore) is the source of truth; sync in real saved items as
@@ -62,7 +73,14 @@ export default function DashboardPage() {
     if (prefs.mutedTopics.some(same)) {
       updates.mutedTopics = prefs.mutedTopics.filter((t) => !same(t));
     }
-    if (Object.keys(updates).length > 0) void savePrefs(updates);
+    if (Object.keys(updates).length > 0) {
+      void savePrefs(updates).then(() => refetch());
+      toast.success(`Got it, more ${topic} coming up`, {
+        description: "Your feed is being retuned around this.",
+      });
+    } else {
+      toast.success(`Noted, you'll keep seeing ${topic}`);
+    }
     track("recommendation_liked", { kind: resource.kind, topic });
   }
 
@@ -70,6 +88,9 @@ export default function DashboardPage() {
     if (!prefs.dismissedUrls.includes(resource.url)) {
       void savePrefs({ dismissedUrls: [...prefs.dismissedUrls, resource.url] });
     }
+    toast(`Removed from your feed`, {
+      description: "You won't be recommended that link again.",
+    });
     track("recommendation_dismissed", {
       kind: resource.kind,
       topic: resource.reasonTopic,
@@ -88,12 +109,16 @@ export default function DashboardPage() {
       mutedTopics: [...prefs.mutedTopics, topic],
       preferredTopics: prefs.preferredTopics.filter((t) => !same(t)),
     });
+    toast(`Muted ${topic}`, {
+      description: "It won't drive your recommendations anymore.",
+    });
     track("topic_muted", { topic });
   }
 
   // Bookmark a recommendation = actually save its URL (real save pipeline).
-  // Engaging with a "discover" item also adopts its new topic into the user's
-  // interests, so that topic starts feeding their matched recommendations.
+  // Saving is the strongest taste signal we get, so the item's topic is
+  // adopted into the user's stated interests (set up during onboarding) and
+  // starts driving their feed.
   function handleBookmarkFromRecommendations(resource: Resource) {
     void save(resource.url);
     track("recommendation_bookmarked", {
@@ -101,12 +126,20 @@ export default function DashboardPage() {
       topic: resource.reasonTopic,
       source: resource.source,
     });
-    if (resource.kind === "discover" && resource.discoveryTopic) {
-      const topic = resource.discoveryTopic;
-      if (!prefs.preferredTopics.includes(topic)) {
-        void savePrefs({ preferredTopics: [...prefs.preferredTopics, topic] });
-      }
+    const topic = resource.discoveryTopic ?? resource.reasonTopic;
+    const same = (t: string) => t.toLowerCase() === topic?.toLowerCase();
+    const adopted = topic && !prefs.preferredTopics.some(same);
+    if (adopted) {
+      void savePrefs({
+        preferredTopics: [...prefs.preferredTopics, topic],
+        mutedTopics: prefs.mutedTopics.filter((t) => !same(t)),
+      });
     }
+    toast.success("Saved to your bookmarks", {
+      description: adopted
+        ? `Added ${topic} to your interests, your feed will follow.`
+        : "Find it in the Bookmarks tab.",
+    });
   }
 
   return (
@@ -132,9 +165,25 @@ export default function DashboardPage() {
           className="mt-10"
         >
           <TabsList variant="line">
-            <TabsTrigger value="bookmarks">Bookmarks</TabsTrigger>
             <TabsTrigger value="recommended">Recommended</TabsTrigger>
+            <TabsTrigger value="bookmarks">Bookmarks</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="recommended" className="mt-8">
+            <RecommendedTab
+              items={visible.recommendations}
+              discover={visible.discover}
+              web={visible.web}
+              loading={recommendationsLoading}
+              loadingMore={loadingMore}
+              hasMore={webHasMore}
+              onLoadMore={loadMore}
+              onBookmark={handleBookmarkFromRecommendations}
+              onLike={handleLikeRecommendation}
+              onDismiss={handleDismissRecommendation}
+              onMuteTopic={handleMuteTopic}
+            />
+          </TabsContent>
 
           <TabsContent value="bookmarks" className="mt-8 space-y-8">
             <ExtensionCallout />
@@ -150,18 +199,6 @@ export default function DashboardPage() {
                 onMarkReadPersist={(ids) => ids.forEach((id) => markRead(id))}
               />
             )}
-          </TabsContent>
-
-          <TabsContent value="recommended" className="mt-8">
-            <RecommendedTab
-              items={visible.recommendations}
-              discover={visible.discover}
-              web={visible.web}
-              onBookmark={handleBookmarkFromRecommendations}
-              onLike={handleLikeRecommendation}
-              onDismiss={handleDismissRecommendation}
-              onMuteTopic={handleMuteTopic}
-            />
           </TabsContent>
         </Tabs>
       </main>

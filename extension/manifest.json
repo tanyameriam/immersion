@@ -20,15 +20,17 @@
   },
   "permissions": ["identity", "activeTab", "storage"],
   "host_permissions": [
+    "https://layrrrd.com/*",
+    "https://layrrrd.vercel.app/*",
     "https://immersion-one.vercel.app/*",
-    "https://app.layrrrd.com/*",
     "http://localhost:3000/*"
   ],
   "content_scripts": [
     {
       "matches": [
+        "https://layrrrd.com/*",
+        "https://layrrrd.vercel.app/*",
         "https://immersion-one.vercel.app/*",
-        "https://app.layrrrd.com/*",
         "http://localhost:3000/*"
       ],
       "js": ["content.js"],

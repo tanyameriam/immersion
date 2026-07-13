@@ -1,0 +1,72 @@
+{
+  "topic": "Design Systems",
+  "items": [
+    {
+      "title": "Atomic Web Design",
+      "url": "https://bradfrost.com/blog/post/atomic-web-design/",
+      "source": "Brad Frost",
+      "medium": "article",
+      "readingTime": 10
+    },
+    {
+      "title": "Design Systems Handbook",
+      "url": "https://www.designbetter.co/design-systems-handbook",
+      "source": "DesignBetter",
+      "medium": "article"
+    },
+    {
+      "title": "Space in Design Systems",
+      "url": "https://medium.com/eightshapes-llc/space-in-design-systems-188bcbae0d62",
+      "source": "Nathan Curtis",
+      "medium": "article",
+      "readingTime": 12
+    },
+    {
+      "title": "Building a Visual Language: Behind the scenes of our Airbnb design system",
+      "url": "https://medium.com/airbnb-design/building-a-visual-language-behind-the-scenes-of-our-airbnb-design-system-224748775e4e",
+      "source": "Airbnb Design",
+      "medium": "article",
+      "readingTime": 10
+    },
+    {
+      "title": "How Spotify's Design System Goes Beyond Platforms",
+      "url": "https://www.figma.com/blog/creating-coherence-how-spotifys-design-system-goes-beyond-platforms/",
+      "source": "Figma",
+      "medium": "article",
+      "readingTime": 8
+    },
+    {
+      "title": "Brad Frost: Atomic Design (beyond tellerrand 2013)",
+      "url": "https://www.youtube.com/watch?v=84LZyZsTiaA",
+      "source": "beyond tellerrand",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/84LZyZsTiaA/hqdefault.jpg"
+    },
+    {
+      "title": "Brad Frost: Is Atomic Design Dead? (Hatch Conference 2023)",
+      "url": "https://www.youtube.com/watch?v=PK_PICNTgAg",
+      "source": "Hatch Conference",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/PK_PICNTgAg/hqdefault.jpg"
+    },
+    {
+      "title": "Config 2024: Design systems best practices",
+      "url": "https://www.youtube.com/watch?v=MJTCfSFLUGE",
+      "source": "Figma",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/MJTCfSFLUGE/hqdefault.jpg"
+    },
+    {
+      "title": "Design Systems Podcast",
+      "url": "https://www.designsystemspodcast.com/",
+      "source": "Chris Strahl (Knapsack)",
+      "medium": "podcast"
+    },
+    {
+      "title": "From Ideas to Impact: Five Years of Design Systems Innovation (Design Systems Podcast, Ep. 124)",
+      "url": "https://open.spotify.com/episode/3SSqbzI8Eis2C4WvZvie1c",
+      "source": "Design Systems Podcast",
+      "medium": "podcast"
+    }
+  ]
+}

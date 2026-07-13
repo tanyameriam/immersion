@@ -1,0 +1,73 @@
+{
+  "topic": "Branding",
+  "items": [
+    {
+      "title": "Logos, Flags, and Escutcheons",
+      "url": "https://www.paulrand.design/writing/articles/1991-logos-flags-and-escutcheons.html",
+      "source": "Paul Rand",
+      "medium": "article",
+      "readingTime": 8
+    },
+    {
+      "title": "The Brand Gap",
+      "url": "https://www.martyneumeier.com/the-brand-gap",
+      "source": "Marty Neumeier",
+      "medium": "article"
+    },
+    {
+      "title": "The Three-Hour Brand Sprint",
+      "url": "https://library.gv.com/the-three-hour-brand-sprint-3ccabf4b768a",
+      "source": "GV",
+      "medium": "article",
+      "readingTime": 10
+    },
+    {
+      "title": "define: Brand",
+      "url": "https://seths.blog/2009/12/define-brand/",
+      "source": "Seth Godin",
+      "medium": "article",
+      "readingTime": 2
+    },
+    {
+      "title": "Sagi Haviv interview",
+      "url": "https://www.logodesignlove.com/sagi-haviv-interview",
+      "source": "Logo Design Love",
+      "medium": "article",
+      "readingTime": 6
+    },
+    {
+      "title": "What Is Branding? 4 Minute Crash Course.",
+      "url": "https://www.youtube.com/watch?v=sO4te2QNsHY",
+      "source": "The Futur",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/sO4te2QNsHY/hqdefault.jpg",
+      "readingTime": 4
+    },
+    {
+      "title": "What Makes A Logo Great & Iconic? (with Sagi Haviv)",
+      "url": "https://www.youtube.com/watch?v=Fz-XGd8EX3U",
+      "source": "The Futur",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/Fz-XGd8EX3U/hqdefault.jpg"
+    },
+    {
+      "title": "Visual Identities: More Than Just A Logo | Sagi Haviv",
+      "url": "https://www.youtube.com/watch?v=OcF1KBnlvTc",
+      "source": "TEDx Talks",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/OcF1KBnlvTc/hqdefault.jpg"
+    },
+    {
+      "title": "How Brands Are Built",
+      "url": "https://open.spotify.com/show/6eICZZWFCt9KGe56thHwyc",
+      "source": "Rob Meyerson",
+      "medium": "podcast"
+    },
+    {
+      "title": "The Futur with Chris Do",
+      "url": "https://open.spotify.com/show/5K96ryZCjCmxqMzEotvS8h",
+      "source": "The Futur",
+      "medium": "podcast"
+    }
+  ]
+}

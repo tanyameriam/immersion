@@ -74,6 +74,23 @@ export const RECOMMENDATION_INTERESTS = INTEREST_GROUPS.flatMap(
   (g) => g.topics,
 );
 
+/**
+ * Groups whose topics are currently selectable. Layrrrd is design-first for
+ * now: other groups render greyed out with a "Coming soon" tooltip until
+ * their starter lists and feed sources are curated.
+ */
+export const AVAILABLE_TOPIC_GROUPS = ["Design"];
+
+const AVAILABLE_TOPICS = new Set(
+  INTEREST_GROUPS.filter((g) => AVAILABLE_TOPIC_GROUPS.includes(g.label)).flatMap(
+    (g) => g.topics,
+  ),
+);
+
+export function isTopicAvailable(topic: string): boolean {
+  return AVAILABLE_TOPICS.has(topic);
+}
+
 export const CATEGORIES = [
   "AI",
   "Product Design",
@@ -89,14 +106,7 @@ export const CATEGORIES = [
   "Other",
 ];
 
-export const CONTENT_TYPES = [
-  "Tool",
-  "Article",
-  "Case Study",
-  "Resource",
-  "Event",
-  "Newsletter",
-];
+export const CONTENT_TYPES = ["Article", "Video", "Podcast"];
 
 export const READING_TIME_BUCKETS = [
   "Under 5 min",

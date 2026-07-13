@@ -53,6 +53,7 @@ export function toKnowledgeItem(
     retryCount: data.retryCount ?? 0,
     ai: data.ai ?? null,
     error: data.error ?? null,
+    note: data.note || undefined,
   };
 }
 
@@ -65,12 +66,18 @@ export async function createPendingItem(input: {
   url: string;
   title?: string;
   favicon?: string;
+  note?: string;
 }): Promise<{ item: KnowledgeItem; created: boolean }> {
   const id = itemId(input.userId, input.url);
   const ref = adminDb().collection(COLLECTION).doc(id);
   const existing = await ref.get();
   if (existing.exists) {
-    return { item: toKnowledgeItem(id, existing.data()!), created: false };
+    // Re-saving with a comment still attaches it to the existing bookmark.
+    if (input.note) {
+      await ref.update({ note: input.note, updatedAt: FieldValue.serverTimestamp() });
+    }
+    const data = { ...existing.data()!, ...(input.note ? { note: input.note } : {}) };
+    return { item: toKnowledgeItem(id, data), created: false };
   }
 
   await ref.set({
@@ -93,6 +100,7 @@ export async function createPendingItem(input: {
     retryCount: 0,
     ai: null,
     error: null,
+    note: input.note ?? null,
   });
 
   const saved = await ref.get();

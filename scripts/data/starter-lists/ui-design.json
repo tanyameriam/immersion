@@ -1,0 +1,71 @@
+{
+  "topic": "UI Design",
+  "items": [
+    {
+      "title": "7 Rules for Creating Gorgeous UI (Part 1)",
+      "url": "https://www.learnui.design/blog/7-rules-for-creating-gorgeous-ui-part-1.html",
+      "source": "Erik D. Kennedy",
+      "medium": "article",
+      "readingTime": 20
+    },
+    {
+      "title": "7 Rules for Creating Gorgeous UI (Part 2)",
+      "url": "https://www.learnui.design/blog/7-rules-for-creating-gorgeous-ui-part-2.html",
+      "source": "Erik D. Kennedy",
+      "medium": "article",
+      "readingTime": 20
+    },
+    {
+      "title": "Laws of UX",
+      "url": "https://lawsofux.com/",
+      "source": "Jon Yablonski",
+      "medium": "article",
+      "readingTime": 15
+    },
+    {
+      "title": "How To Design Better Buttons",
+      "url": "https://www.smashingmagazine.com/2016/11/a-quick-guide-for-designing-better-buttons/",
+      "source": "Smashing Magazine",
+      "medium": "article",
+      "readingTime": 9
+    },
+    {
+      "title": "Human Interface Guidelines",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/",
+      "source": "Apple",
+      "medium": "article"
+    },
+    {
+      "title": "Material Design 3",
+      "url": "https://m3.material.io/",
+      "source": "Google",
+      "medium": "article"
+    },
+    {
+      "title": "Steve Schoger: Refactoring UI (CSS Day 2019)",
+      "url": "https://www.youtube.com/watch?v=7Z9rrryIOC4",
+      "source": "CSS Day",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/7Z9rrryIOC4/hqdefault.jpg"
+    },
+    {
+      "title": "Figma For Beginners: Explore ideas (1/4)",
+      "url": "https://www.youtube.com/watch?v=dXQ7IHkTiMM",
+      "source": "Figma",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/dXQ7IHkTiMM/hqdefault.jpg"
+    },
+    {
+      "title": "Design Details",
+      "url": "https://open.spotify.com/show/7kAx8RJce757LXVoX2FIpf",
+      "source": "Brian Lovin & Marshall Bock",
+      "medium": "podcast"
+    },
+    {
+      "title": "Episode 154: Refactoring UI with Adam Wathan and Steve Schoger",
+      "url": "https://uibreakfast.com/154-refactoring-ui-with-adam-wathan-and-steve-schoger/",
+      "source": "UI Breakfast",
+      "medium": "podcast"
+    }
+  ]
+}
