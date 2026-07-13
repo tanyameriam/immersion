@@ -16,9 +16,9 @@ import { cn } from "@/lib/utils";
 
 /**
  * Connect a Telegram account for digest delivery. Clicking Connect opens a
- * modal with a QR code for the one-time deep link: scanning it on a phone
- * opens the bot in Telegram (or, without Telegram installed, lands on the
- * t.me page that offers the app stores). Deliberately does NOT auto-open
+ * modal with a QR code pointing at /telegram/open, which opens the bot in
+ * the Telegram app (or, without Telegram installed, forwards the phone to
+ * its app store to get it). Deliberately does NOT auto-open
  * the t.me tab: that steals focus and strands users without Telegram on a
  * "download Telegram" page instead of this guidance. While waiting, nudges
  * the server to process pending updates (needed in local dev, harmless in
@@ -38,6 +38,7 @@ export function TelegramConnect({
   const [connecting, setConnecting] = useState(false);
   const [open, setOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+  const [openUrl, setOpenUrl] = useState("");
   const [error, setError] = useState("");
   const linked = Boolean(chatId);
 
@@ -70,6 +71,11 @@ export function TelegramConnect({
       if (!res.ok) throw new Error(`link failed: ${res.status}`);
       const { url } = (await res.json()) as { url: string };
       setLinkUrl(url);
+      // Phones scan/tap this wrapper: it opens the Telegram app when
+      // installed and forwards to the phone's app store when it isn't.
+      setOpenUrl(
+        `${window.location.origin}/telegram/open?u=${encodeURIComponent(url)}`,
+      );
       setOpen(true);
       setConnecting(true);
     } catch (err) {
@@ -128,7 +134,7 @@ export function TelegramConnect({
             <div className="flex justify-center">
               <div className="rounded-md border bg-white p-4">
                 <QRCode
-                  value={linkUrl}
+                  value={openUrl}
                   size={208}
                   fgColor="#000000"
                   bgColor="#ffffff"
@@ -140,7 +146,7 @@ export function TelegramConnect({
           <div className="sm:hidden">
             <a
               className={cn(buttonVariants(), "w-full")}
-              href={linkUrl}
+              href={openUrl}
               target="_blank"
               rel="noreferrer"
             >
@@ -153,26 +159,9 @@ export function TelegramConnect({
               No Telegram on your phone?
             </p>
             <p className="text-muted-foreground">
-              That&apos;s fine: the page that opens will point you to{" "}
-              <a
-                className="underline underline-offset-2 hover:text-foreground"
-                href="https://play.google.com/store/apps/details?id=org.telegram.messenger"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Google Play
-              </a>{" "}
-              or the{" "}
-              <a
-                className="underline underline-offset-2 hover:text-foreground"
-                href="https://apps.apple.com/app/telegram-messenger/id686449807"
-                target="_blank"
-                rel="noreferrer"
-              >
-                App Store
-              </a>{" "}
-              to install it. Sign up with your phone number, come back to
-              that page, open the bot, and tap <strong>Start</strong>.
+              That&apos;s fine: scanning the code takes you straight to Google
+              Play or the App Store to install it. Sign up with your phone
+              number, then scan the code again and tap <strong>Start</strong>.
             </p>
           </div>
 
