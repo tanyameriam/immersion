@@ -5,7 +5,6 @@ import Navigation from "@/components/Navigation";
 import { RequireAuth } from "@/components/dashboard/RequireAuth";
 import { BookmarksTab } from "@/components/dashboard/BookmarksTab";
 import { SaveLinkBar } from "@/components/dashboard/SaveLinkBar";
-import { ExtensionCallout } from "@/components/dashboard/ExtensionCallout";
 import { RecommendedTab } from "@/components/dashboard/RecommendedTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/components/AuthContext";
@@ -186,7 +185,6 @@ export default function DashboardPage() {
           </TabsContent>
 
           <TabsContent value="bookmarks" className="mt-8 space-y-8">
-            <ExtensionCallout />
             <SaveLinkBar onSave={save} />
             {loading && bookmarks.length === 0 ? (
               <LoadingDog label="Loading your bookmarks…" />
