@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { LoadingDog } from "@/components/LoadingDog";
 import { apiFetch } from "@/lib/api-client";
 import type { Resource } from "@/lib/dashboard-data";
 import type { AiFields } from "@/lib/types/knowledge-item";
@@ -17,13 +18,9 @@ import type { AiFields } from "@/lib/types/knowledge-item";
 export function ResourceDetail({ resource }: { resource: Resource }) {
   const processing =
     resource.status === "pending" || resource.status === "processing";
-  // Videos and podcasts have no readable article text to summarize; their
-  // own descriptions are the honest content, so don't fetch for those.
-  const isUnsummarizedPick =
-    resource.kind === "web" &&
-    !resource.summary &&
-    resource.medium !== "video" &&
-    resource.medium !== "podcast";
+  // Unsaved feed picks (articles, video transcripts, episode descriptions)
+  // summarize on demand; the server falls back gracefully per medium.
+  const isUnsummarizedPick = resource.kind === "web" && !resource.summary;
 
   const [webAi, setWebAi] = useState<AiFields | null>(null);
   const [webState, setWebState] = useState<"loading" | "error" | "done">(
@@ -60,9 +57,15 @@ export function ResourceDetail({ resource }: { resource: Resource }) {
   }
 
   if (isUnsummarizedPick && webState === "loading") {
+    const verb =
+      resource.medium === "video"
+        ? "Watching"
+        : resource.medium === "podcast"
+          ? "Listening to"
+          : "Reading";
     return (
-      <div className="mt-4 border-t border-border pt-4 text-sm text-muted-foreground">
-        Reading this one for you, the summary will appear in a moment…
+      <div className="mt-4 border-t border-border pt-6">
+        <LoadingDog label={`${verb} this one for you…`} />
       </div>
     );
   }

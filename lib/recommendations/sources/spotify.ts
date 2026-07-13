@@ -39,11 +39,57 @@ async function getToken(): Promise<string> {
 type Episode = {
   name?: string;
   description?: string;
+  html_description?: string;
   release_date?: string;
   duration_ms?: number;
   images?: { url?: string }[];
   external_urls?: { spotify?: string };
 };
+
+export type SpotifyEpisodeDetail = {
+  name: string;
+  /** Full episode description, HTML stripped. */
+  description: string;
+  durationMs: number;
+  image?: string;
+};
+
+/**
+ * Full metadata for one episode (the search payload truncates descriptions).
+ * Null when Spotify keys aren't configured or the lookup fails — callers
+ * degrade to whatever the recommendation card already carried.
+ */
+export async function fetchSpotifyEpisode(
+  id: string,
+): Promise<SpotifyEpisodeDetail | null> {
+  if (!spotifySource.enabled()) return null;
+  try {
+    const token = await getToken();
+    const res = await fetch(
+      `https://api.spotify.com/v1/episodes/${id}?market=US`,
+      {
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        cache: "no-store",
+        headers: { authorization: `Bearer ${token}` },
+      },
+    );
+    if (!res.ok) return null;
+    const e = (await res.json()) as Episode;
+    const description = (e.html_description ?? e.description ?? "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    return {
+      name: e.name ?? "",
+      description,
+      durationMs: e.duration_ms ?? 0,
+      image: e.images?.[0]?.url,
+    };
+  } catch (err) {
+    console.error(`Spotify episode lookup failed for ${id}`, err);
+    return null;
+  }
+}
 
 export const spotifySource: SourceFetcher = {
   id: "spotify",
