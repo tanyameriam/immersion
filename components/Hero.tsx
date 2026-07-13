@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   motion,
   useMotionValue,
@@ -10,10 +11,11 @@ import {
 } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { FadeUp } from "@/components/FadeUp";
-import { useWaitlist } from "@/components/WaitlistContext";
+import { useAuth } from "@/components/AuthContext";
 
 export default function Hero() {
-  const { openWaitlist } = useWaitlist();
+  const { user, openAuth } = useAuth();
+  const router = useRouter();
   const reduceMotion = useReducedMotion();
 
   // Normalized cursor position relative to the viewport center (-0.5 .. 0.5).
@@ -108,11 +110,16 @@ export default function Hero() {
 
           <FadeUp delay={0.12}>
             <div className="flex flex-col items-start gap-2 md:items-end">
-              <Button size="lg" onClick={openWaitlist}>
-                Join Waitlist
+              <Button
+                size="lg"
+                onClick={() =>
+                  user ? router.push("/dashboard") : openAuth("sign-up")
+                }
+              >
+                {user ? "Go to Dashboard" : "Get Started"}
               </Button>
               <span className="text-xs text-muted-foreground">
-                Founding members · early access
+                Free during early access
               </span>
             </div>
           </FadeUp>

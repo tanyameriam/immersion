@@ -3,7 +3,6 @@ import "./globals.css";
 import { Inter_Tight } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { satoshi, sardin } from "@/design-system/fonts";
-import WaitlistProvider from "@/components/WaitlistContext";
 import AuthProvider from "@/components/AuthContext";
 import { Analytics } from "@/components/Analytics";
 import { Toaster } from "@/components/ui/sonner";
@@ -40,13 +39,11 @@ export default function RootLayout({
         className="bg-background text-foreground antialiased"
         suppressHydrationWarning
       >
-        <WaitlistProvider>
-          <AuthProvider>
-            <Analytics />
-            {children}
-            <Toaster position="bottom-right" />
-          </AuthProvider>
-        </WaitlistProvider>
+        <AuthProvider>
+          <Analytics />
+          {children}
+          <Toaster position="bottom-right" />
+        </AuthProvider>
       </body>
     </html>
   );

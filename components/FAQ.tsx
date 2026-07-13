@@ -39,7 +39,7 @@ const faqs = [
   {
     question: "How do I get in, and what does it cost?",
     answer:
-      "Layrrrd is currently invite-only while we're onboarding founding members. Join the waitlist for early access and help shape the product before launch.",
+      "Layrrrd is free during early access. Create an account, start saving right away, and help shape the product before public launch.",
   },
 ];
 

@@ -1,8 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { FadeUp } from "@/components/FadeUp";
-import { useWaitlist } from "@/components/WaitlistContext";
+import { useAuth } from "@/components/AuthContext";
 
 const included = [
   "Unlimited saves from anywhere",
@@ -14,7 +15,8 @@ const included = [
 ];
 
 export default function Pricing() {
-  const { openWaitlist } = useWaitlist();
+  const { user, openAuth } = useAuth();
+  const router = useRouter();
 
   return (
     <section
@@ -33,15 +35,20 @@ export default function Pricing() {
                 Member.
               </h2>
               <p className="mt-6 text-2xl font-medium tracking-[-0.02em] text-muted-foreground">
-                Early access · invite only
+                Early access · free to join
               </p>
               <p className="mt-6 max-w-sm text-[17px] leading-[1.65] text-muted-foreground">
-                Help shape the future of personal knowledge management. Join
-                early and get access before public launch.
+                Create your account, start saving, and help shape the future
+                of personal knowledge management before public launch.
               </p>
               <div className="mt-10">
-                <Button size="lg" onClick={openWaitlist}>
-                  Join Waitlist
+                <Button
+                  size="lg"
+                  onClick={() =>
+                    user ? router.push("/dashboard") : openAuth("sign-up")
+                  }
+                >
+                  {user ? "Go to Dashboard" : "Get Started"}
                 </Button>
               </div>
             </div>
