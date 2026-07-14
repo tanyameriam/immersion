@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
-import { getCachedFeed, type FeedEntry } from "@/lib/telegram/feed";
-import { getRecentMentions, rememberMentions } from "@/lib/telegram/memory";
+import { getCachedFeed, type FeedEntry } from "@/lib/rudolf/feed";
+import { getRecentMentions, rememberMentions } from "@/lib/rudolf/memory";
 import { sendMessages } from "@/lib/telegram/chat";
 
 /**

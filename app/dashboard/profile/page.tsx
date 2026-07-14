@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { Blocks, MessageCircle, MessagesSquare, Bell } from "lucide-react";
+import { Blocks, MessagesSquare, Bell } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import { RequireAuth } from "@/components/dashboard/RequireAuth";
 import { TelegramConnect } from "@/components/TelegramConnect";
+import { WhatsAppConnect } from "@/components/WhatsAppConnect";
 import { useAuth } from "@/components/AuthContext";
 import { usePreferences } from "@/hooks/use-preferences";
 import { apiFetch } from "@/lib/api-client";
@@ -282,6 +283,22 @@ function NewsletterDeliveryCard() {
           </p>
         </div>
 
+        <div className="space-y-3 border-t border-border pt-4">
+          <p className="text-[13px] uppercase tracking-[0.1em] text-muted-foreground">
+            Rudolf on WhatsApp
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Chat with Rudolf on WhatsApp too: paste links to save them and ask
+            about your library, just like on Telegram. Your weekly digest
+            keeps arriving by email or Telegram for now.
+          </p>
+          <WhatsAppConnect
+            waId={prefs.whatsappWaId}
+            refresh={reload}
+            onDisconnect={() => void save({ whatsappWaId: "" })}
+          />
+        </div>
+
         <div className="border-t border-border pt-4">
           <p className="text-[13px] uppercase tracking-[0.1em] text-muted-foreground">
             More delivery options
@@ -289,7 +306,6 @@ function NewsletterDeliveryCard() {
           <div className="mt-3 flex flex-wrap gap-2">
             {[
               { name: "Slack", Icon: Blocks },
-              { name: "WhatsApp", Icon: MessageCircle },
               { name: "Discord", Icon: MessagesSquare },
               { name: "Push", Icon: Bell },
             ].map(({ name, Icon }) => (
