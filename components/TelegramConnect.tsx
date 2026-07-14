@@ -37,7 +37,8 @@ export function TelegramConnect({
 }) {
   const [connecting, setConnecting] = useState(false);
   const [open, setOpen] = useState(false);
-  const [linkUrl, setLinkUrl] = useState("");
+  const [appUrl, setAppUrl] = useState("");
+  const [webUrl, setWebUrl] = useState("");
   const [openUrl, setOpenUrl] = useState("");
   const [error, setError] = useState("");
   const linked = Boolean(chatId);
@@ -70,7 +71,18 @@ export function TelegramConnect({
       const res = await apiFetch("/api/telegram/link", { method: "POST" });
       if (!res.ok) throw new Error(`link failed: ${res.status}`);
       const { url } = (await res.json()) as { url: string };
-      setLinkUrl(url);
+      // Desktop links skip the t.me preview page: it only tries to launch
+      // the desktop app via tg:// and never falls back to Telegram Web, so
+      // without the app the tab just strands. Offer the tg:// deep link and
+      // a real Telegram Web link (tgaddr is Web's own deep-link format).
+      const parsed = new URL(url);
+      const bot = parsed.pathname.replaceAll("/", "");
+      const start = parsed.searchParams.get("start") ?? "";
+      const resolve = `tg://resolve?domain=${bot}&start=${start}`;
+      setAppUrl(resolve);
+      setWebUrl(
+        `https://web.telegram.org/k/#?tgaddr=${encodeURIComponent(resolve)}`,
+      );
       // Phones scan/tap this wrapper: it opens the Telegram app when
       // installed and forwards to the phone's app store when it isn't.
       setOpenUrl(
@@ -167,16 +179,23 @@ export function TelegramConnect({
 
           <div className="space-y-1.5 border-t pt-4 text-xs text-muted-foreground">
             <p className="max-sm:hidden">
-              Telegram installed on this computer?{" "}
+              On this computer instead of scanning:{" "}
               <a
                 className="underline underline-offset-2 hover:text-foreground"
-                href={linkUrl}
+                href={appUrl}
+              >
+                open the Telegram app
+              </a>{" "}
+              or{" "}
+              <a
+                className="underline underline-offset-2 hover:text-foreground"
+                href={webUrl}
                 target="_blank"
                 rel="noreferrer"
               >
-                Open the bot here
-              </a>{" "}
-              instead of scanning.
+                use Telegram Web
+              </a>
+              , then tap <strong>Start</strong>.
             </p>
             <p>
               This code works for 15 minutes. If it expires, tap Connect
