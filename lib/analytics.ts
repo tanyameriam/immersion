@@ -49,6 +49,7 @@ export function track(
     | "recommendation_dismissed"
     | "topic_muted"
     | "interests_updated"
+    | "starter_picks_selected"
     | "tab_viewed",
   props?: Record<string, unknown>,
 ) {

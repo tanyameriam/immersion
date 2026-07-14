@@ -22,13 +22,13 @@ export default function PrivacyPage() {
           <div className="space-y-8 text-[17px] leading-[1.7] text-muted-foreground">
             <p>
               Layrrrd (&quot;we&quot;, &quot;us&quot;) respects your privacy.
-              This policy explains what information we collect when you join
-              our waitlist or use our product, and how we use it.
+              This policy explains what information we collect when you
+              create an account or use our product, and how we use it.
             </p>
             <p>
-              We collect the email address you provide when joining the
-              waitlist, along with the content you choose to save through
-              Layrrrd once you have access. We use this information solely to
+              We collect the email address you provide when creating an
+              account, along with the content you choose to save through
+              Layrrrd. We use this information solely to
               operate the product, send you your curated reading list, and
               communicate updates about Layrrrd.
             </p>

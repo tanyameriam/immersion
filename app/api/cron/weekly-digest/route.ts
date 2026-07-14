@@ -8,6 +8,8 @@ import {
 } from "@/lib/digest/build";
 import { sendEmail } from "@/lib/email/resend";
 import { sendTelegramMessage } from "@/lib/telegram/send";
+import { sendDueNudges } from "@/lib/telegram/nudge";
+import { rememberMentions } from "@/lib/telegram/memory";
 import { buildRecommendations } from "@/lib/recommendations/generate";
 
 export const runtime = "nodejs";
@@ -61,6 +63,14 @@ async function run(req: Request) {
       let tgOk = false;
       if (wantTelegram) {
         tgOk = await sendTelegramMessage(digest.telegramChatId!, digestText(digest));
+        // Remember the digest's picks so "that podcast from the digest" is
+        // answerable in chat later.
+        if (tgOk && digest.recommendations?.length) {
+          await rememberMentions(
+            digest.telegramChatId!,
+            digest.recommendations.map((r) => ({ url: r.url, title: r.title })),
+          );
+        }
       }
       // Email if they chose it, or as a fallback when Telegram wasn't sent.
       if ((!wantTelegram || !tgOk) && digest.email) {
@@ -84,7 +94,19 @@ async function run(req: Request) {
       });
     }
 
-    return NextResponse.json({ day: today, considered, emailed, messaged });
+    // Rudolf's between-digest picks ride the same daily cron (the Hobby plan
+    // has no spare cron slot). Never let nudges fail the digest response.
+    // ?forceNudge=1 ignores the day gate for manual testing.
+    const forceNudge =
+      new URL(req.url).searchParams.get("forceNudge") === "1";
+    let nudges = { considered: 0, sent: 0 };
+    try {
+      nudges = await sendDueNudges(today, { force: forceNudge });
+    } catch (err) {
+      console.error("nudges failed", err);
+    }
+
+    return NextResponse.json({ day: today, considered, emailed, messaged, nudges });
   } catch (err) {
     console.error("weekly-digest failed", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

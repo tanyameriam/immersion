@@ -5,6 +5,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { track } from "@/lib/analytics";
 import { useAuth } from "@/components/AuthContext";
+import type { StarterPick } from "@/lib/types/starter-list";
 
 export type NotificationPreference = "email" | "telegram";
 
@@ -16,9 +17,13 @@ export interface Preferences {
    * again) and topics the user hid from recommendations entirely. */
   dismissedUrls: string[];
   mutedTopics: string[];
+  /** Curated items picked during onboarding; seeds the recommendation engine. */
+  starterPicks: StarterPick[];
   notificationPreference: NotificationPreference;
   telegramChatId: string;
   notificationDay: string; // "Monday" … "Sunday"
+  /** Whether Rudolf may send fresh picks between digests on Telegram. */
+  botNudges: "on" | "off";
 }
 
 const DEFAULTS: Preferences = {
@@ -27,9 +32,11 @@ const DEFAULTS: Preferences = {
   preferredTopics: [],
   dismissedUrls: [],
   mutedTopics: [],
+  starterPicks: [],
   notificationPreference: "email",
   telegramChatId: "",
   notificationDay: "Monday",
+  botNudges: "on",
 };
 
 /**
@@ -55,10 +62,12 @@ export function usePreferences() {
       preferredTopics: data.preferredTopics ?? [],
       dismissedUrls: data.dismissedUrls ?? [],
       mutedTopics: data.mutedTopics ?? [],
+      starterPicks: data.starterPicks ?? [],
       notificationPreference:
         (data.notificationPreference as NotificationPreference) ?? "email",
       telegramChatId: data.telegramChatId ?? "",
       notificationDay: data.notificationDay ?? "Monday",
+      botNudges: data.botNudges === "off" ? "off" : "on",
     });
     setOnboarded(Boolean(data.onboardedAt));
     setLoaded(true);
@@ -85,7 +94,11 @@ export function usePreferences() {
       try {
         await setDoc(
           doc(db, "users", user.uid),
-          { ...partial, updatedAt: serverTimestamp() },
+          {
+            ...partial,
+            ...(partial.starterPicks ? { starterPicksAt: serverTimestamp() } : {}),
+            updatedAt: serverTimestamp(),
+          },
           { merge: true },
         );
       } catch (err) {

@@ -1,0 +1,81 @@
+{
+  "topic": "Product Design",
+  "items": [
+    {
+      "title": "Design Thinking 101",
+      "url": "https://www.nngroup.com/articles/design-thinking/",
+      "source": "NN/g",
+      "medium": "article",
+      "readingTime": 8
+    },
+    {
+      "title": "The Design Sprint",
+      "url": "https://www.gv.com/sprint/",
+      "source": "GV",
+      "medium": "article",
+      "readingTime": 6
+    },
+    {
+      "title": "Junior Designers vs. Senior Designers",
+      "url": "https://medium.com/the-year-of-the-looking-glass/junior-designers-vs-senior-designers-fbe483d3b51e",
+      "source": "Julie Zhuo",
+      "medium": "article",
+      "readingTime": 4
+    },
+    {
+      "title": "The Dribbblisation of Design",
+      "url": "https://www.intercom.com/blog/the-dribbblisation-of-design/",
+      "source": "Intercom",
+      "medium": "article",
+      "readingTime": 8
+    },
+    {
+      "title": "Dieter Rams: Ten Principles for Good Design",
+      "url": "https://www.vitsoe.com/us/about/good-design",
+      "source": "Vitsoe",
+      "medium": "article",
+      "readingTime": 5
+    },
+    {
+      "title": "Shape Up: Stop Running in Circles and Ship Work that Matters",
+      "url": "https://basecamp.com/shapeup",
+      "source": "Basecamp",
+      "medium": "article"
+    },
+    {
+      "title": "The first secret of great design | Tony Fadell",
+      "url": "https://www.youtube.com/watch?v=9uOMectkCCs",
+      "source": "TED",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/9uOMectkCCs/hqdefault.jpg",
+      "readingTime": 17
+    },
+    {
+      "title": "Config 2024: Figma product launch keynote",
+      "url": "https://www.youtube.com/watch?v=n5gJgkO2Dg0",
+      "source": "Figma",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/n5gJgkO2Dg0/hqdefault.jpg"
+    },
+    {
+      "title": "The three ways that good design makes you happy | Don Norman",
+      "url": "https://www.youtube.com/watch?v=RlQEoJaLQRA",
+      "source": "TED",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/RlQEoJaLQRA/hqdefault.jpg",
+      "readingTime": 13
+    },
+    {
+      "title": "Design Better",
+      "url": "https://open.spotify.com/show/2jz60yoegrobXowBZ8ZxYb",
+      "source": "Eli Woolery & Aarron Walter",
+      "medium": "podcast"
+    },
+    {
+      "title": "Presentable",
+      "url": "https://open.spotify.com/show/2HMGa6BesR174n8NP28VEu",
+      "source": "Jeff Veen",
+      "medium": "podcast"
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "topic": "Typography",
+  "items": [
+    {
+      "title": "Typography in Ten Minutes",
+      "url": "https://practicaltypography.com/typography-in-ten-minutes.html",
+      "source": "Butterick's Practical Typography",
+      "medium": "article",
+      "readingTime": 10
+    },
+    {
+      "title": "Best Practices Of Combining Typefaces",
+      "url": "https://www.smashingmagazine.com/2010/11/best-practices-of-combining-typefaces/",
+      "source": "Smashing Magazine",
+      "medium": "article",
+      "readingTime": 12
+    },
+    {
+      "title": "Typographic Hierarchies",
+      "url": "https://www.smashingmagazine.com/2022/10/typographic-hierarchies/",
+      "source": "Smashing Magazine",
+      "medium": "article",
+      "readingTime": 15
+    },
+    {
+      "title": "A checklist for choosing type",
+      "url": "https://fonts.google.com/knowledge/choosing_type/a_checklist_for_choosing_type",
+      "source": "Google Fonts Knowledge",
+      "medium": "article",
+      "readingTime": 8
+    },
+    {
+      "title": "The foundations of web typography",
+      "url": "https://fonts.google.com/knowledge/using_type/the_foundations_of_web_typography",
+      "source": "Google Fonts Knowledge",
+      "medium": "article",
+      "readingTime": 10
+    },
+    {
+      "title": "Matthew Carter: My life in typefaces",
+      "url": "https://www.youtube.com/watch?v=xjxyEwjG2Es",
+      "source": "TED",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/xjxyEwjG2Es/hqdefault.jpg",
+      "readingTime": 16
+    },
+    {
+      "title": "The History of Typography - Animated Short",
+      "url": "https://www.youtube.com/watch?v=wOgIkxAfJsk",
+      "source": "Ben Barrett-Forrest",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/wOgIkxAfJsk/hqdefault.jpg",
+      "readingTime": 5
+    },
+    {
+      "title": "I promise this story about fonts is interesting",
+      "url": "https://www.youtube.com/watch?v=WVfRxFwVHQc",
+      "source": "Struthless",
+      "medium": "video",
+      "image": "https://img.youtube.com/vi/WVfRxFwVHQc/hqdefault.jpg"
+    },
+    {
+      "title": "Fraktur",
+      "url": "https://99percentinvisible.org/episode/fraktur/",
+      "source": "99% Invisible",
+      "medium": "podcast"
+    },
+    {
+      "title": "Jessica Hische (Design Matters with Debbie Millman)",
+      "url": "https://open.spotify.com/episode/26t7WUu1XinMouVoW33vzb",
+      "source": "Design Matters",
+      "medium": "podcast"
+    }
+  ]
+}

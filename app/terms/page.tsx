@@ -21,7 +21,7 @@ export default function TermsPage() {
           </h1>
           <div className="space-y-8 text-[17px] leading-[1.7] text-muted-foreground">
             <p>
-              By joining the Layrrrd waitlist or using Layrrrd, you agree to
+              By creating a Layrrrd account or using Layrrrd, you agree to
               these terms. Layrrrd is provided to help you organize and
               revisit content you save; you are responsible for the content
               you submit.

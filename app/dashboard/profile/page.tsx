@@ -39,7 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { INTEREST_GROUPS } from "@/lib/constants";
+import { INTEREST_GROUPS, isTopicAvailable } from "@/lib/constants";
 
 type DeliveryMethod = "email" | "telegram";
 
@@ -143,11 +143,20 @@ function RecommendationPreferencesCard() {
               <div className="grid gap-3 sm:grid-cols-2">
                 {group.topics.map((option) => {
                   const id = `interest-${option}`;
+                  const available = isTopicAvailable(option);
                   return (
-                    <div key={option} className="flex items-center gap-2">
+                    <div
+                      key={option}
+                      className={
+                        "flex items-center gap-2" +
+                        (available ? "" : " cursor-default opacity-50")
+                      }
+                      title={available ? undefined : "Coming soon"}
+                    >
                       <Checkbox
                         id={id}
                         checked={selected.has(option)}
+                        disabled={!available}
                         onCheckedChange={(checked) =>
                           toggle(option, checked === true)
                         }
@@ -186,19 +195,22 @@ function NewsletterDeliveryCard() {
   const { prefs, loaded, save, reload } = usePreferences();
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("email");
   const [day, setDay] = useState("Monday");
+  const [nudgesOn, setNudgesOn] = useState(true);
   const { saved, flash } = useSavedFlash();
 
   useEffect(() => {
     if (loaded) {
       setDeliveryMethod(prefs.notificationPreference);
       setDay(prefs.notificationDay);
+      setNudgesOn(prefs.botNudges !== "off");
     }
-  }, [loaded, prefs.notificationPreference, prefs.notificationDay]);
+  }, [loaded, prefs.notificationPreference, prefs.notificationDay, prefs.botNudges]);
 
   async function handleSave() {
     await save({
       notificationPreference: deliveryMethod,
       notificationDay: day,
+      botNudges: nudgesOn ? "on" : "off",
     });
     flash();
   }
@@ -227,11 +239,28 @@ function NewsletterDeliveryCard() {
         {deliveryMethod === "email" ? (
           <p className="text-sm text-muted-foreground">{user?.email}</p>
         ) : (
-          <TelegramConnect
-            chatId={prefs.telegramChatId}
-            refresh={reload}
-            onDisconnect={() => void save({ telegramChatId: "" })}
-          />
+          <div className="space-y-4">
+            <TelegramConnect
+              chatId={prefs.telegramChatId}
+              refresh={reload}
+              onDisconnect={() => void save({ telegramChatId: "" })}
+            />
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="rudolf-nudges"
+                className="mt-0.5"
+                checked={nudgesOn}
+                onCheckedChange={(checked) => setNudgesOn(checked === true)}
+              />
+              <div>
+                <Label htmlFor="rudolf-nudges">Rudolf&apos;s picks</Label>
+                <p className="text-sm text-muted-foreground">
+                  Let Rudolf text you a couple of fresh picks between digests.
+                  You can also send /mute or /unmute in the chat.
+                </p>
+              </div>
+            </div>
+          </div>
         )}
 
         <div className="space-y-2">

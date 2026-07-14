@@ -15,7 +15,7 @@ introducing separate styling approaches (see the enforcement rule in
 | Icon library            | `lucide-react`                                  |
 | Class merging           | `cn()` in [lib/utils.ts](../lib/utils.ts) (clsx + tailwind-merge) |
 | Font                    | `Inter Tight` (loaded in [app/layout.tsx](../app/layout.tsx)) |
-| Motion                  | `framer-motion`, via the [FadeUp](../components/FadeUp.tsx) primitive and the waitlist modal |
+| Motion                  | `framer-motion`, via the [FadeUp](../components/FadeUp.tsx) primitive |
 
 Brand: **Layrrrd.** - an editorial, high-contrast landing page with a warm
 off-white background, no rounded corners (`--radius: 0`), and hairline rules
@@ -54,8 +54,8 @@ directly - there's no black-box package to configure.
 
 - `components/ui/button.tsx`
 - `components/ui/card.tsx`
-- `components/ui/dialog.tsx` - powers the waitlist modal
-- `components/ui/input.tsx` - powers the waitlist email field
+- `components/ui/dialog.tsx` - powers the auth modal and dashboard dialogs
+- `components/ui/input.tsx` - powers the auth and dashboard form fields
 - `components/ui/sheet.tsx` - powers the mobile nav menu
 
 ## Theme tokens

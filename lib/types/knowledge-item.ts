@@ -5,6 +5,14 @@ import { z } from "zod";
  * Designed generically so we can grow beyond articles without a data migration.
  */
 
+/**
+ * What kind of content an item is. Legacy docs may hold other free-form
+ * strings (everything was "article" in V1), so treat unknown values as
+ * "article" when reading.
+ */
+export const ITEM_MEDIUMS = ["article", "video", "podcast"] as const;
+export type ItemMedium = (typeof ITEM_MEDIUMS)[number];
+
 export const PROCESSING_STATUSES = [
   "pending",
   "processing",
@@ -86,6 +94,8 @@ export interface KnowledgeItem {
   retryCount: number;
   ai: AiFields | null;
   error: string | null;
+  /** User's own comment on the save (e.g. sent alongside a link in Telegram). */
+  note?: string;
 }
 
 /** Payload the extension / web app sends to save a page. */
@@ -93,5 +103,6 @@ export const SaveItemInputSchema = z.object({
   url: z.string().url(),
   title: z.string().optional(),
   favicon: z.string().optional(),
+  note: z.string().max(2000).optional(),
 });
 export type SaveItemInput = z.infer<typeof SaveItemInputSchema>;
