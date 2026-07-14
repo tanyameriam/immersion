@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, waitForPendingWrites } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/components/AuthContext";
 import { LoadingDog } from "@/components/LoadingDog";
@@ -29,7 +29,15 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        const snap = await getDoc(doc(db, "users", user.uid));
+        const ref = doc(db, "users", user.uid);
+        let snap = await getDoc(ref);
+        // The sign-in profile upsert may still be in flight; while a write is
+        // pending, the SDK's local view of the doc can hide server-only fields
+        // like onboardedAt. Wait for writes to settle and read the real doc.
+        if (snap.metadata.hasPendingWrites) {
+          await waitForPendingWrites(db);
+          snap = await getDoc(ref);
+        }
         if (!cancelled) setOnboarded(Boolean(snap.data()?.onboardedAt));
       } catch {
         // If we can't read the profile (e.g. the client-only test session has

@@ -28,7 +28,7 @@ async function deleteWhere(
 
 /**
  * Permanently delete the signed-in user: all their bookmarks, digest history,
- * pending Telegram link codes, their profile doc, and finally the auth user
+ * pending Telegram/WhatsApp link codes, their profile doc, and finally the auth user
  * itself. Irreversible — the client gates this behind an explicit confirmation.
  */
 export async function DELETE(req: Request) {
@@ -37,6 +37,7 @@ export async function DELETE(req: Request) {
     await deleteWhere("knowledgeItems", "userId", user.uid);
     await deleteWhere("weeklyDigests", "userId", user.uid);
     await deleteWhere("telegramLinkCodes", "userId", user.uid);
+    await deleteWhere("whatsappLinkCodes", "userId", user.uid);
     await adminDb().collection("users").doc(user.uid).delete();
     await adminAuth().deleteUser(user.uid);
     return NextResponse.json({ ok: true });

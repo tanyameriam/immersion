@@ -9,7 +9,7 @@ import {
 import { sendEmail } from "@/lib/email/resend";
 import { sendTelegramMessage } from "@/lib/telegram/send";
 import { sendDueNudges } from "@/lib/telegram/nudge";
-import { rememberMentions } from "@/lib/telegram/memory";
+import { rememberMentions } from "@/lib/rudolf/memory";
 import { buildRecommendations } from "@/lib/recommendations/generate";
 
 export const runtime = "nodejs";

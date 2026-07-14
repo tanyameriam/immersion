@@ -94,7 +94,7 @@ export interface KnowledgeItem {
   retryCount: number;
   ai: AiFields | null;
   error: string | null;
-  /** User's own comment on the save (e.g. sent alongside a link in Telegram). */
+  /** User's own comment on the save (e.g. sent alongside a link in Telegram or WhatsApp). */
   note?: string;
 }
 

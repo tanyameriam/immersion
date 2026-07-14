@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+  waitForPendingWrites,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { track } from "@/lib/analytics";
 import { useAuth } from "@/components/AuthContext";
@@ -21,6 +27,8 @@ export interface Preferences {
   starterPicks: StarterPick[];
   notificationPreference: NotificationPreference;
   telegramChatId: string;
+  /** WhatsApp sender id (phone-shaped) captured when the user links Rudolf. */
+  whatsappWaId: string;
   notificationDay: string; // "Monday" … "Sunday"
   /** Whether Rudolf may send fresh picks between digests on Telegram. */
   botNudges: "on" | "off";
@@ -35,6 +43,7 @@ const DEFAULTS: Preferences = {
   starterPicks: [],
   notificationPreference: "email",
   telegramChatId: "",
+  whatsappWaId: "",
   notificationDay: "Monday",
   botNudges: "on",
 };
@@ -54,7 +63,15 @@ export function usePreferences() {
    * writes like Telegram linking, which happen outside this hook. */
   const reload = useCallback(async () => {
     if (!user) return;
-    const snap = await getDoc(doc(db, "users", user.uid));
+    const ref = doc(db, "users", user.uid);
+    let snap = await getDoc(ref);
+    // While a write is pending (e.g. the sign-in profile upsert), the SDK's
+    // local view of the doc can hide server-only fields like onboardedAt.
+    // Wait for writes to settle so we read the full profile.
+    if (snap.metadata.hasPendingWrites) {
+      await waitForPendingWrites(db);
+      snap = await getDoc(ref);
+    }
     const data = snap.data() ?? {};
     setPrefs({
       name: data.name ?? user.name ?? "",
@@ -66,6 +83,7 @@ export function usePreferences() {
       notificationPreference:
         (data.notificationPreference as NotificationPreference) ?? "email",
       telegramChatId: data.telegramChatId ?? "",
+      whatsappWaId: data.whatsappWaId ?? "",
       notificationDay: data.notificationDay ?? "Monday",
       botNudges: data.botNudges === "off" ? "off" : "on",
     });
