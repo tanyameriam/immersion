@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  AnimatePresence,
   motion,
   useMotionValue,
   useReducedMotion,
@@ -13,10 +14,23 @@ import { Button } from "@/components/ui/button";
 import { FadeUp } from "@/components/FadeUp";
 import { useAuth } from "@/components/AuthContext";
 
+const TAGLINES = [
+  ["Good things, saved.", "Better things, fetched."],
+  ["Articles. Videos. Podcasts. Papers.", "Just ask Rudolf."],
+];
+
 export default function Hero() {
   const { user, openAuth } = useAuth();
   const router = useRouter();
   const reduceMotion = useReducedMotion();
+  const [taglineIndex, setTaglineIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTaglineIndex((i) => (i + 1) % TAGLINES.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Normalized cursor position relative to the viewport center (-0.5 .. 0.5).
   const px = useMotionValue(0);
@@ -41,7 +55,7 @@ export default function Hero() {
 
   return (
     <section className="flex h-screen flex-col pt-[72px]">
-      <div className="mx-auto flex w-full max-w-[1280px] min-h-0 flex-1 items-stretch overflow-hidden">
+      <div className="mx-auto flex w-full max-w-[1280px] min-h-0 flex-1 flex-col overflow-hidden lg:flex-row lg:items-stretch">
         <div className="flex flex-1 flex-col justify-center px-6 md:px-10 xl:px-20">
           <FadeUp>
             <p
@@ -53,25 +67,36 @@ export default function Hero() {
           </FadeUp>
 
           <FadeUp delay={0.08}>
-            <h1
-              className="mt-4 font-bold tracking-[-0.04em] text-foreground md:mt-6"
+            <div
+              className="mt-4 md:mt-6"
               style={{
                 fontSize: "clamp(2.25rem, 5.5vw, 4.75rem)",
                 lineHeight: 0.98,
               }}
             >
-              Keep up,
-              <br />
-              without keeping
-              <br />
-              track.
-            </h1>
+              <AnimatePresence mode="wait">
+                <motion.h1
+                  key={taglineIndex}
+                  initial={
+                    reduceMotion ? false : { opacity: 0, y: 16 }
+                  }
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduceMotion ? undefined : { opacity: 0, y: -16 }}
+                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                  className="font-bold tracking-[-0.04em] text-foreground"
+                >
+                  {TAGLINES[taglineIndex][0]}
+                  <br />
+                  {TAGLINES[taglineIndex][1]}
+                </motion.h1>
+              </AnimatePresence>
+            </div>
           </FadeUp>
         </div>
 
         <FadeUp
           delay={0.1}
-          className="hidden shrink-0 items-center justify-center pr-6 lg:flex xl:pr-20"
+          className="flex shrink-0 items-center justify-center pb-6 lg:pb-0 lg:pr-6 xl:pr-20"
         >
           <motion.video
             autoPlay
@@ -79,7 +104,7 @@ export default function Hero() {
             muted
             playsInline
             poster="/hero-dog-poster.jpg"
-            className="h-full w-auto max-w-[280px] object-contain xl:max-w-[340px]"
+            className="h-56 w-auto object-contain sm:h-64 lg:h-full lg:max-w-[280px] xl:max-w-[340px]"
             aria-label="Illustrated dog mascot that follows your cursor"
             style={
               reduceMotion
@@ -96,20 +121,7 @@ export default function Hero() {
       <div className="border-t border-border">
         <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-6 py-6 md:flex-row md:items-center md:justify-between md:px-10 xl:px-20">
           <FadeUp delay={0.06}>
-            <div className="max-w-xl">
-              <p className="text-lg font-bold text-foreground">
-                You save knowledge. Then you lose access to it.
-              </p>
-              <p className="mt-2 text-[15px] leading-[1.65] text-muted-foreground md:text-base">
-                Articles. Videos. Podcasts. Research papers. Save everything
-                in one place, discover what matters, and retrieve it
-                instantly through natural conversation.
-              </p>
-            </div>
-          </FadeUp>
-
-          <FadeUp delay={0.12}>
-            <div className="flex flex-col items-start gap-2 md:items-end">
+            <div className="flex flex-col items-start gap-2">
               <Button
                 size="lg"
                 onClick={() =>
@@ -121,6 +133,18 @@ export default function Hero() {
               <span className="text-xs text-muted-foreground">
                 Free during early access
               </span>
+            </div>
+          </FadeUp>
+
+          <FadeUp delay={0.12}>
+            <div className="max-w-xl">
+              <p className="text-lg font-bold text-foreground">
+                Just ask Rudolf.
+              </p>
+              <p className="mt-2 text-[15px] leading-[1.65] text-muted-foreground md:text-base">
+                Articles, videos, podcasts, papers. Save everything in one
+                place, and Rudolf brings it back the moment you ask.
+              </p>
             </div>
           </FadeUp>
         </div>

@@ -6,6 +6,7 @@ import { satoshi, sardin } from "@/design-system/fonts";
 import AuthProvider from "@/components/AuthContext";
 import { Analytics } from "@/components/Analytics";
 import { Toaster } from "@/components/ui/sonner";
+import TestingBanner from "@/components/TestingBanner";
 
 const interTight = Inter_Tight({
   subsets: ["latin"],
@@ -34,15 +35,17 @@ export default function RootLayout({
         satoshi.variable,
         sardin.variable
       )}
+      suppressHydrationWarning
     >
       <body
-        className="bg-background text-foreground antialiased"
+        className="bg-background pb-9 text-foreground antialiased"
         suppressHydrationWarning
       >
         <AuthProvider>
           <Analytics />
           {children}
           <Toaster position="bottom-right" />
+          <TestingBanner />
         </AuthProvider>
       </body>
     </html>

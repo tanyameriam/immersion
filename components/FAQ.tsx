@@ -97,9 +97,25 @@ export default function FAQ() {
       <div className="mx-auto max-w-[1280px] px-6 md:px-10 xl:px-20">
         <div className="md:grid md:grid-cols-[320px_1fr] md:gap-16">
           <FadeUp>
-            <h2 className="text-5xl font-bold tracking-[-0.03em] text-foreground">
-              Questions.
-            </h2>
+            <div id="contact">
+              <h2
+                className="font-bold tracking-[-0.04em] text-foreground"
+                style={{
+                  fontSize: "clamp(2.5rem, 6vw, 3.75rem)",
+                  lineHeight: 1.05,
+                }}
+              >
+                Questions?
+                <br />
+                Let&apos;s talk.
+              </h2>
+              <a
+                href="mailto:layrrrd@gmail.com"
+                className="mt-6 inline-block text-[17px] text-foreground underline underline-offset-4 transition-colors hover:text-muted-foreground"
+              >
+                layrrrd@gmail.com
+              </a>
+            </div>
           </FadeUp>
 
           <FadeUp delay={0.06}>
