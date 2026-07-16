@@ -163,9 +163,15 @@ async function save() {
       const body = await res.text().catch(() => "");
       throw new Error(`Save API ${res.status}: ${body.slice(0, 120)}`);
     }
-    setStatus("Saved! Layrrrd is reading it now.", "ok");
-    // Show the fresh save in the list right away.
+    // The API says whether this was a fresh save or an existing bookmark
+    // (201/created:true vs 200/created:false) — tell the user the truth.
     const data = await res.json().catch(() => null);
+    if (data && data.created === false) {
+      setStatus("Already in your library.", "info");
+    } else {
+      setStatus("Saved! Layrrrd is reading it now.", "ok");
+    }
+    // Show the save in the list right away.
     if (data?.item) {
       allItems = [data.item, ...allItems.filter((i) => i.id !== data.item.id)];
       render(searchEl.value);
@@ -270,6 +276,11 @@ async function loadLibrary(interactive) {
     const data = await res.json();
     allItems = Array.isArray(data.items) ? data.items : [];
     render(searchEl.value);
+    // Exact-URL match means this page is already saved; variant URLs are
+    // still resolved by the save API itself.
+    if (currentTab?.url && allItems.some((i) => i.url === currentTab.url)) {
+      setStatus("This page is already in your library.", "info");
+    }
   } catch (err) {
     console.error(err);
     if (interactive) {

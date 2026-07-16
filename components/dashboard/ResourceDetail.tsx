@@ -56,6 +56,14 @@ export function ResourceDetail({ resource }: { resource: Resource }) {
     );
   }
 
+  const degradedNote =
+    resource.degraded && resource.status === "completed" ? (
+      <p className="text-sm text-muted-foreground">
+        Saved with limited info. This site would not let Layrrrd read the full
+        content, so the summary is built from what it could see.
+      </p>
+    ) : null;
+
   if (isUnsummarizedPick && webState === "loading") {
     const verb =
       resource.medium === "video"
@@ -104,6 +112,7 @@ export function ResourceDetail({ resource }: { resource: Resource }) {
 
   return (
     <div className="mt-4 space-y-4 border-t border-border pt-4">
+      {degradedNote}
       {r.note && (
         <div className="space-y-2">
           <p className="text-sm font-bold text-foreground">Your note</p>

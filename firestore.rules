@@ -34,7 +34,8 @@ service cloud.firestore {
       allow update: if owns(resource.data)
         && !request.resource.data.diff(resource.data).affectedKeys()
             .hasAny(['ai', 'status', 'userId', 'processingStartedAt',
-                     'retryCount', 'error', 'createdAt']);
+                     'retryCount', 'error', 'createdAt',
+                     'keywords', 'topics']);
     }
 
     // Backend-generated; clients may read their own but never write.

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAweR5N6iYU8IP+ki1pXDKJhgSLlTwZ0kFU/vdsfyZHVvqTHc+LcEeeLtQRufODYxpqYnN0PaBOvWkWZBa55xkqHkz+wCUgbbs+iZrVyphmmIT42j3JjaMmx2l4+R2VsMsXSz2Iy/g4t+CngqJLq6Rn2eNtK3F29nuWT8EIcCzXQMUgpydHPZdmsS+hB7ttkaF1kAkc9/2wgjk1cTUjD5/Sd8WmT9dW80Wu09XzPpa+iOeXQfcyaGl4IePkyQOs6aGGrBxZzLPiUT/LvQtihymHN5sNlvg2h2BFOamL6wdkJWy3OPxT6Spj0voXgqEhK5k30OdFymcCT8qTAy+fN8HqQIDAQAB",
   "name": "Layrrrd: Save to your knowledge layer",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Save any page to Layrrrd in one click. AI reads and summarizes it for you.",
   "action": {
     "default_popup": "popup.html",

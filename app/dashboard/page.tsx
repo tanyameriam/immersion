@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Navigation from "@/components/Navigation";
 import { RequireAuth } from "@/components/dashboard/RequireAuth";
+import { ChannelConnectCard } from "@/components/dashboard/ChannelConnectCard";
+import { InterestsPicker } from "@/components/dashboard/InterestsPicker";
 import { BookmarksTab } from "@/components/dashboard/BookmarksTab";
 import { SaveLinkBar } from "@/components/dashboard/SaveLinkBar";
 import { RecommendedTab } from "@/components/dashboard/RecommendedTab";
@@ -18,7 +20,16 @@ import { toast } from "sonner";
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { resources, loading, remove, save, markRead } = useKnowledgeItems();
+  const {
+    resources,
+    loading,
+    loadingMore: bookmarksLoadingMore,
+    hasMore: bookmarksHasMore,
+    loadMore: loadMoreBookmarks,
+    remove,
+    save,
+    markRead,
+  } = useKnowledgeItems();
   const {
     recommendations,
     discover,
@@ -29,9 +40,15 @@ export default function DashboardPage() {
     loadMore,
     refetch,
   } = useRecommendations();
-  const { prefs, save: savePrefs } = usePreferences();
+  const { prefs, loaded: prefsLoaded, save: savePrefs } = usePreferences();
   // The personalized feed is the product's front door, so it's the default tab.
   const [tab, setTab] = useState("recommended");
+
+  // Greet by the profile name (editable in Profile Settings), falling back to
+  // the auth display name. Accounts with neither fall back to the email in
+  // AuthContext - never greet with that, just drop the name.
+  const greetName = (prefs.name || user?.name || "").split(" ")[0];
+  const firstName = greetName.includes("@") ? "" : greetName;
   const [bookmarks, setBookmarks] = useState<Resource[]>([]);
 
   // Server (Firestore) is the source of truth; sync in real saved items as
@@ -150,8 +167,12 @@ export default function DashboardPage() {
             Dashboard
           </p>
           <h1 className="mt-6 text-4xl font-bold tracking-[-0.03em] text-foreground">
-            Welcome back{user ? `, ${user.name.split(" ")[0]}` : ""}.
+            Welcome back{firstName ? `, ${firstName}` : ""}.
           </h1>
+        </div>
+
+        <div className="mt-8">
+          <ChannelConnectCard />
         </div>
 
         <Tabs
@@ -169,19 +190,30 @@ export default function DashboardPage() {
           </TabsList>
 
           <TabsContent value="recommended" className="mt-8">
-            <RecommendedTab
-              items={visible.recommendations}
-              discover={visible.discover}
-              web={visible.web}
-              loading={recommendationsLoading}
-              loadingMore={loadingMore}
-              hasMore={webHasMore}
-              onLoadMore={loadMore}
-              onBookmark={handleBookmarkFromRecommendations}
-              onLike={handleLikeRecommendation}
-              onDismiss={handleDismissRecommendation}
-              onMuteTopic={handleMuteTopic}
-            />
+            {prefsLoaded && prefs.preferredTopics.length === 0 ? (
+              // Fresh users land here straight from the one-screen onboarding:
+              // pick topics in place, and the feed builds without a detour.
+              <InterestsPicker
+                onSave={async (topics) => {
+                  await savePrefs({ preferredTopics: topics });
+                  refetch();
+                }}
+              />
+            ) : (
+              <RecommendedTab
+                items={visible.recommendations}
+                discover={visible.discover}
+                web={visible.web}
+                loading={recommendationsLoading}
+                loadingMore={loadingMore}
+                hasMore={webHasMore}
+                onLoadMore={loadMore}
+                onBookmark={handleBookmarkFromRecommendations}
+                onLike={handleLikeRecommendation}
+                onDismiss={handleDismissRecommendation}
+                onMuteTopic={handleMuteTopic}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="bookmarks" className="mt-8 space-y-8">
@@ -195,6 +227,9 @@ export default function DashboardPage() {
                 onExploreRecommendations={() => setTab("recommended")}
                 onRemovePersist={(ids) => ids.forEach((id) => remove(id))}
                 onMarkReadPersist={(ids) => ids.forEach((id) => markRead(id))}
+                hasMore={bookmarksHasMore}
+                loadingMore={bookmarksLoadingMore}
+                onLoadMore={loadMoreBookmarks}
               />
             )}
           </TabsContent>

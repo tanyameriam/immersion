@@ -65,6 +65,14 @@ export async function processItem(id: string): Promise<void> {
       title: content.title,
       description: content.description,
       image: content.image,
+      // Recognized videos/podcasts update the saved type so the dashboard's
+      // Medium filter actually matches them (items are created as "article").
+      ...(content.medium ? { type: content.medium } : {}),
+      // Denormalized lowercase copies of ai.topics/ai.keywords: the composite
+      // indexes in firestore.indexes.json point at these top-level fields, so
+      // search and the bot's retrieval can array-contains-any against them.
+      topics: (analysis.topics ?? []).map((t) => t.toLowerCase().trim()),
+      keywords: (analysis.keywords ?? []).map((k) => k.toLowerCase().trim()),
       status: "completed",
       ai,
       error: null,
