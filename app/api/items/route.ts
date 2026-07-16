@@ -52,12 +52,22 @@ export async function POST(req: Request) {
   }
 }
 
-/** List the current user's saved items (web app + extension popup). */
+/** List the current user's saved items (extension popup + API consumers),
+ * newest first, paginated: ?limit= (default 100, max 200) and ?cursor= (the
+ * createdAt ISO of the last item from the previous page). */
 export async function GET(req: Request) {
   try {
     const user = await getAuthedUser(req);
-    const items = await listItems(user.uid);
-    return jsonWithCors(req, { items });
+    const params = new URL(req.url).searchParams;
+    const limit = Math.min(
+      Math.max(Number(params.get("limit")) || 100, 1),
+      200,
+    );
+    const cursor = params.get("cursor") ?? undefined;
+    const items = await listItems(user.uid, { limit, cursor });
+    const nextCursor =
+      items.length === limit ? items[items.length - 1]?.createdAt : undefined;
+    return jsonWithCors(req, { items, nextCursor });
   } catch (err) {
     if (err instanceof UnauthorizedError) {
       return jsonWithCors(req, { error: "Unauthorized" }, 401);

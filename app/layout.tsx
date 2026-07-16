@@ -4,7 +4,9 @@ import { Inter_Tight } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { satoshi, sardin } from "@/design-system/fonts";
 import AuthProvider from "@/components/AuthContext";
+import { PreferencesProvider } from "@/hooks/use-preferences";
 import { Analytics } from "@/components/Analytics";
+import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { Toaster } from "@/components/ui/sonner";
 
 const interTight = Inter_Tight({
@@ -40,9 +42,12 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AuthProvider>
-          <Analytics />
-          {children}
-          <Toaster position="bottom-right" />
+          <PreferencesProvider>
+            <Analytics />
+            {children}
+            <FeedbackWidget />
+            <Toaster position="bottom-right" />
+          </PreferencesProvider>
         </AuthProvider>
       </body>
     </html>

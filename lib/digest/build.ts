@@ -13,6 +13,10 @@ export interface UserDigest {
   telegramChatId: string | null;
   notificationDay: string;
   notificationPreference: string;
+  /** "weekly" | "biweekly" | "off"; docs without the field mean weekly. */
+  notificationFrequency: string;
+  /** ISO timestamp of the last digest actually delivered; "" if never. */
+  lastDigestSentAt: string;
   byTopic: [string, KnowledgeItem[]][]; // top topics → items saved this week
   unread: KnowledgeItem[]; // completed but not read
   /** Fresh picks (community + web), each carrying its `reason`. Attached by
@@ -102,7 +106,7 @@ export async function buildWeeklyDigests(sinceMs = WEEK_MS): Promise<UserDigest[
         if (ap !== bp) return bp - ap;
         return a.createdAt < b.createdAt ? 1 : -1;
       })
-      .slice(0, 8);
+      .slice(0, 5);
 
     if (weekItems.length === 0 && unread.length === 0) continue;
 
@@ -112,7 +116,7 @@ export async function buildWeeklyDigests(sinceMs = WEEK_MS): Promise<UserDigest[
       for (const topic of item.ai?.topics ?? []) {
         if (muted.has(norm(topic))) continue;
         const list = topicMap.get(topic) ?? [];
-        if (list.length < 5) list.push(item);
+        if (list.length < 3) list.push(item);
         topicMap.set(topic, list);
       }
     }
@@ -123,7 +127,7 @@ export async function buildWeeklyDigests(sinceMs = WEEK_MS): Promise<UserDigest[
         if (ap !== bp) return bp - ap;
         return b[1].length - a[1].length;
       })
-      .slice(0, 6);
+      .slice(0, 3);
 
     digests.push({
       userId: uid,
@@ -132,6 +136,8 @@ export async function buildWeeklyDigests(sinceMs = WEEK_MS): Promise<UserDigest[
       telegramChatId: profile.telegramChatId ?? null,
       notificationDay: profile.notificationDay ?? "Monday",
       notificationPreference: profile.notificationPreference ?? "email",
+      notificationFrequency: profile.notificationFrequency ?? "weekly",
+      lastDigestSentAt: profile.lastDigestSentAt ?? "",
       byTopic,
       unread,
       savedThisWeek: weekItems.length,
@@ -164,10 +170,22 @@ function totalUnreadMinutes(d: UserDigest): number {
   return d.unread.reduce((sum, it) => sum + (it.ai?.readingTime ?? 0), 0);
 }
 
-/** Plain-text digest (Telegram). */
+/** Plain-text digest (Telegram). Leads with a few picks, never a long list. */
 export function digestText(d: UserDigest): string {
   const name = d.name?.split(" ")[0] || "there";
   const lines = [`<b>Your Layrrrd week, ${name}</b>`, peerLine(d), ""];
+
+  const picks = (d.recommendations ?? []).slice(0, 3);
+  if (picks.length) {
+    lines.push(`<b>Picked for you</b>`);
+    for (const r of picks) {
+      lines.push(
+        `• <a href="${r.url}">${r.title}</a>${r.readingTime > 0 ? ` · ${r.readingTime} min` : ""}`,
+      );
+      if (r.reason) lines.push(`<i>${r.reason}</i>`);
+    }
+    lines.push("");
+  }
 
   for (const [topic, items] of d.byTopic) {
     lines.push(`<b>${topic}</b>`);
@@ -183,17 +201,6 @@ export function digestText(d: UserDigest): string {
     );
     for (const it of d.unread)
       lines.push(`• <a href="${it.url}">${it.title}</a>${minutesLabel(it)}`);
-    lines.push("");
-  }
-
-  if (d.recommendations?.length) {
-    lines.push(`<b>Picked for you</b>`);
-    for (const r of d.recommendations) {
-      lines.push(
-        `• <a href="${r.url}">${r.title}</a>${r.readingTime > 0 ? ` · ${r.readingTime} min` : ""}`,
-      );
-      if (r.reason) lines.push(`<i>${r.reason}</i>`);
-    }
     lines.push("");
   }
 
@@ -227,6 +234,7 @@ export function digestHtml(d: UserDigest): string {
     ? `<div style="margin-top:28px;">
         <p style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#9a9a9a;margin:0 0 8px;">Picked for you</p>
         ${d.recommendations
+          .slice(0, 3)
           .map(
             (r) => `<div style="padding:8px 0;border-bottom:1px solid #eee;">
               <a href="${r.url}" style="color:#1a1a1a;text-decoration:none;">${r.title}</a>
@@ -259,9 +267,9 @@ export function digestHtml(d: UserDigest): string {
       <h1 style="font-size:24px;margin:16px 0 6px;">Your week, ${name}.</h1>
       <p style="color:#1a1a1a;font-weight:600;margin:0;">${peerLine(d)}</p>
       <p style="color:#6b6b6b;margin:6px 0 0;font-size:14px;">${d.savedThisWeek} saved this week.</p>
+      ${recsBlock}
       ${topicBlocks}
       ${unreadBlock}
-      ${recsBlock}
       <a href="${appUrl}/dashboard" style="display:inline-block;margin-top:28px;background:#1a1a1a;color:#f4f1ea;padding:12px 20px;text-decoration:none;font-weight:600;">Open your dashboard</a>
     </div>
   </div>`;

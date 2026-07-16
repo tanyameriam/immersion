@@ -38,19 +38,30 @@ async function run(req: Request) {
     let messaged = 0;
     let considered = 0;
 
+    const BIWEEKLY_MIN_MS = 13 * 24 * 60 * 60 * 1000; // 13 days tolerates cron jitter
+
     for (const digest of digests) {
+      // Paused users get nothing, even under force=1, so pause is testable.
+      if (digest.notificationFrequency === "off") continue;
       if (!force && digest.notificationDay !== today) continue;
+      if (!force && digest.notificationFrequency === "biweekly") {
+        const last = Date.parse(digest.lastDigestSentAt);
+        // An unparseable/missing timestamp means never sent: send now.
+        if (Number.isFinite(last) && Date.now() - last < BIWEEKLY_MIN_MS) {
+          continue;
+        }
+      }
       considered++;
 
-      // A "Picked for you" section: same engine as the Recommended tab, so
-      // the digest carries community matches, a discover nudge, and the web
-      // picks, each with its reason. Never let it block the digest itself.
+      // A "Picked for you" section: same engine as the Recommended tab. Kept
+      // to 3 picks total, the digest leads with them instead of a list dump.
+      // Never let it block the digest itself.
       try {
         const recs = await buildRecommendations(digest.userId);
         digest.recommendations = [
-          ...recs.matched.slice(0, 2),
+          ...recs.matched.slice(0, 1),
           ...recs.discover.slice(0, 1),
-          ...recs.web.slice(0, 3),
+          ...recs.web.slice(0, 1),
         ];
       } catch (err) {
         console.error("weekly-digest recommendations failed", digest.userId, err);
@@ -83,6 +94,14 @@ async function run(req: Request) {
 
       if (emailOk) emailed++;
       if (tgOk) messaged++;
+
+      // Delivery timestamp drives the biweekly gate; harmless for weekly.
+      if (emailOk || tgOk) {
+        await adminDb()
+          .collection("users")
+          .doc(digest.userId)
+          .set({ lastDigestSentAt: new Date().toISOString() }, { merge: true });
+      }
 
       await adminDb().collection("weeklyDigests").add({
         userId: digest.userId,

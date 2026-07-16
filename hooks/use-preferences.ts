@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   doc,
   getDoc,
@@ -15,8 +23,14 @@ import type { StarterPick } from "@/lib/types/starter-list";
 
 export type NotificationPreference = "email" | "telegram";
 
+/** How often the digest goes out. Weekly is the maximum; there is
+ * deliberately no daily option (testers were clear: low volume or uninstall). */
+export type NotificationFrequency = "weekly" | "biweekly" | "off";
+
 export interface Preferences {
   name: string;
+  /** What the user does, free text (asked during onboarding). */
+  profession: string;
   profilePhoto: string;
   preferredTopics: string[];
   /** Recommendation feedback: links marked "Not interested" (never suggested
@@ -30,12 +44,14 @@ export interface Preferences {
   /** WhatsApp sender id (phone-shaped) captured when the user links Rudolf. */
   whatsappWaId: string;
   notificationDay: string; // "Monday" … "Sunday"
+  notificationFrequency: NotificationFrequency;
   /** Whether Rudolf may send fresh picks between digests on Telegram. */
   botNudges: "on" | "off";
 }
 
 const DEFAULTS: Preferences = {
   name: "",
+  profession: "",
   profilePhoto: "",
   preferredTopics: [],
   dismissedUrls: [],
@@ -45,15 +61,26 @@ const DEFAULTS: Preferences = {
   telegramChatId: "",
   whatsappWaId: "",
   notificationDay: "Monday",
+  notificationFrequency: "weekly",
   botNudges: "on",
 };
 
+type PreferencesValue = {
+  prefs: Preferences;
+  loaded: boolean;
+  onboarded: boolean;
+  save: (partial: Partial<Preferences>) => Promise<void>;
+  markOnboarded: () => Promise<void>;
+  reload: () => Promise<void>;
+};
+
 /**
- * Read/write the current user's profile preferences on `users/{uid}`. Security
- * rules allow a user to write their own profile, so this persists directly from
- * the client - the same fields the weekly-digest job reads server-side.
+ * One profile read shared by every consumer. Preferences used to be fetched
+ * per-component (dashboard, connect card, profile cards, auth gate), which
+ * cost a full Firestore round trip each; the provider fetches once per
+ * sign-in and everyone reads the same state.
  */
-export function usePreferences() {
+function usePreferencesState(): PreferencesValue {
   const { user, hydrated } = useAuth();
   const [prefs, setPrefs] = useState<Preferences>(DEFAULTS);
   const [loaded, setLoaded] = useState(false);
@@ -63,31 +90,46 @@ export function usePreferences() {
    * writes like Telegram linking, which happen outside this hook. */
   const reload = useCallback(async () => {
     if (!user) return;
-    const ref = doc(db, "users", user.uid);
-    let snap = await getDoc(ref);
-    // While a write is pending (e.g. the sign-in profile upsert), the SDK's
-    // local view of the doc can hide server-only fields like onboardedAt.
-    // Wait for writes to settle so we read the full profile.
-    if (snap.metadata.hasPendingWrites) {
-      await waitForPendingWrites(db);
-      snap = await getDoc(ref);
+    try {
+      const ref = doc(db, "users", user.uid);
+      let snap = await getDoc(ref);
+      // While a write is pending (e.g. the sign-in profile upsert), the SDK's
+      // local view of the doc can hide server-only fields like onboardedAt.
+      // Wait for writes to settle so we read the full profile.
+      if (snap.metadata.hasPendingWrites) {
+        await waitForPendingWrites(db);
+        snap = await getDoc(ref);
+      }
+      const data = snap.data() ?? {};
+      setPrefs({
+        name: data.name ?? user.name ?? "",
+        profession: data.profession ?? "",
+        profilePhoto: data.profilePhoto ?? user.photoURL ?? "",
+        preferredTopics: data.preferredTopics ?? [],
+        dismissedUrls: data.dismissedUrls ?? [],
+        mutedTopics: data.mutedTopics ?? [],
+        starterPicks: data.starterPicks ?? [],
+        notificationPreference:
+          (data.notificationPreference as NotificationPreference) ?? "email",
+        telegramChatId: data.telegramChatId ?? "",
+        whatsappWaId: data.whatsappWaId ?? "",
+        notificationDay: data.notificationDay ?? "Monday",
+        // Docs written before this field existed default to weekly.
+        notificationFrequency:
+          data.notificationFrequency === "biweekly" ||
+          data.notificationFrequency === "off"
+            ? data.notificationFrequency
+            : "weekly",
+        botNudges: data.botNudges === "off" ? "off" : "on",
+      });
+      setOnboarded(Boolean(data.onboardedAt));
+    } catch (err) {
+      // If the profile can't be read (e.g. the client-only test session has
+      // no Firestore access), don't trap the user behind loading screens or
+      // onboarding — fall back to defaults and let them through.
+      console.error("Failed to load preferences", err);
+      setOnboarded(true);
     }
-    const data = snap.data() ?? {};
-    setPrefs({
-      name: data.name ?? user.name ?? "",
-      profilePhoto: data.profilePhoto ?? user.photoURL ?? "",
-      preferredTopics: data.preferredTopics ?? [],
-      dismissedUrls: data.dismissedUrls ?? [],
-      mutedTopics: data.mutedTopics ?? [],
-      starterPicks: data.starterPicks ?? [],
-      notificationPreference:
-        (data.notificationPreference as NotificationPreference) ?? "email",
-      telegramChatId: data.telegramChatId ?? "",
-      whatsappWaId: data.whatsappWaId ?? "",
-      notificationDay: data.notificationDay ?? "Monday",
-      botNudges: data.botNudges === "off" ? "off" : "on",
-    });
-    setOnboarded(Boolean(data.onboardedAt));
     setLoaded(true);
   }, [user]);
 
@@ -142,4 +184,20 @@ export function usePreferences() {
   }, [user]);
 
   return { prefs, loaded, onboarded, save, markOnboarded, reload };
+}
+
+const PreferencesContext = createContext<PreferencesValue | null>(null);
+
+export function PreferencesProvider({ children }: { children: ReactNode }) {
+  const value = usePreferencesState();
+  return createElement(PreferencesContext.Provider, { value }, children);
+}
+
+/** Read/write the current user's profile preferences on `users/{uid}`. */
+export function usePreferences(): PreferencesValue {
+  const ctx = useContext(PreferencesContext);
+  if (!ctx) {
+    throw new Error("usePreferences must be used within a PreferencesProvider");
+  }
+  return ctx;
 }

@@ -13,21 +13,28 @@ import { Button } from "@/components/ui/button";
 export function SaveLinkBar({
   onSave,
 }: {
-  onSave: (url: string) => Promise<{ ok: boolean; error?: string }>;
+  onSave: (
+    url: string,
+  ) => Promise<{ ok: boolean; created?: boolean; error?: string }>;
 }) {
   const [url, setUrl] = useState("");
   const [status, setStatus] = useState<"idle" | "saving">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function handleSave() {
     const trimmed = url.trim();
     if (!trimmed) return;
     setStatus("saving");
     setError(null);
+    setNotice(null);
     const res = await onSave(trimmed);
     setStatus("idle");
     if (res.ok) {
       setUrl("");
+      if (res.created === false) {
+        setNotice("Already in your library, no duplicate created.");
+      }
     } else {
       setError(res.error ?? "Couldn't save the link.");
     }
@@ -52,6 +59,7 @@ export function SaveLinkBar({
         </Button>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
+      {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
     </div>
   );
 }

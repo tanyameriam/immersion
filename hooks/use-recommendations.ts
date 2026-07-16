@@ -5,9 +5,30 @@ import { useAuth } from "@/components/AuthContext";
 import { apiFetch } from "@/lib/api-client";
 import type { Resource } from "@/lib/dashboard-data";
 
+type FeedSnapshot = {
+  recommendations: Resource[];
+  discover: Resource[];
+  web: Resource[];
+  webHasMore: boolean;
+};
+
+const cacheKey = (uid: string) => `layrrrd-recs-${uid}`;
+
+/** Last feed this browser session saw, for instant paint while refreshing. */
+function readCachedFeed(uid: string): FeedSnapshot | null {
+  try {
+    const raw = window.sessionStorage.getItem(cacheKey(uid));
+    return raw ? (JSON.parse(raw) as FeedSnapshot) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Loads community recommendations (topic overlap with other users), a small
  * "discover" set nudging the user toward new topics, and the mixed-medium
- * web feed matched to their taste. The web feed pages for infinite scroll. */
+ * web feed matched to their taste. The web feed pages for infinite scroll.
+ * The last response is kept in sessionStorage so returning to the dashboard
+ * paints instantly while a fresh feed loads behind it. */
 export function useRecommendations() {
   const { user, hydrated } = useAuth();
   const [recommendations, setRecommendations] = useState<Resource[]>([]);
@@ -17,6 +38,7 @@ export function useRecommendations() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const loadingMoreRef = useRef(false);
+  const uid = user?.uid ?? "";
 
   const refetch = useCallback(async () => {
     const res = await apiFetch("/api/recommendations");
@@ -33,11 +55,24 @@ export function useRecommendations() {
       web?: Resource[];
       webHasMore?: boolean;
     };
-    setRecommendations(data.recommendations ?? []);
-    setDiscover(data.discover ?? []);
-    setWeb(data.web ?? []);
-    setWebHasMore(data.webHasMore ?? false);
-  }, []);
+    const snapshot: FeedSnapshot = {
+      recommendations: data.recommendations ?? [],
+      discover: data.discover ?? [],
+      web: data.web ?? [],
+      webHasMore: data.webHasMore ?? false,
+    };
+    setRecommendations(snapshot.recommendations);
+    setDiscover(snapshot.discover);
+    setWeb(snapshot.web);
+    setWebHasMore(snapshot.webHasMore);
+    if (uid) {
+      try {
+        window.sessionStorage.setItem(cacheKey(uid), JSON.stringify(snapshot));
+      } catch {
+        // storage full/unavailable - the feed still works, just no fast paint
+      }
+    }
+  }, [uid]);
 
   // Offset for the next page = how many web items we already show.
   const webRef = useRef<Resource[]>([]);
@@ -71,8 +106,17 @@ export function useRecommendations() {
   useEffect(() => {
     if (!hydrated || !user) return;
     let cancelled = false;
+    // Paint the session's last feed immediately; refresh quietly behind it.
+    const cached = readCachedFeed(user.uid);
+    if (cached) {
+      setRecommendations(cached.recommendations);
+      setDiscover(cached.discover);
+      setWeb(cached.web);
+      setWebHasMore(cached.webHasMore);
+      setLoading(false);
+    }
     (async () => {
-      setLoading(true);
+      if (!cached) setLoading(true);
       await refetch();
       if (!cancelled) setLoading(false);
     })();

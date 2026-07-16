@@ -52,6 +52,7 @@ export function toResource(item: KnowledgeItem): Resource {
     difficulty: item.ai?.difficulty,
     sentiment: item.ai?.sentiment,
     status: item.status,
+    degraded: item.ai?.degraded ?? false,
     note: item.note,
   };
 }

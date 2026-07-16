@@ -1,6 +1,11 @@
 import { adminDb } from "@/lib/firebase/admin";
 import { AI_MODEL, claude } from "@/lib/ai/claude";
-import { createPendingItem, getItem, listItems } from "@/lib/firestore/items";
+import {
+  createPendingItem,
+  getItem,
+  listItems,
+  searchItems,
+} from "@/lib/firestore/items";
 import { processItems } from "@/lib/items/process-item";
 import { getCachedFeed, type FeedEntry } from "@/lib/rudolf/feed";
 import {
@@ -22,9 +27,12 @@ import type { KnowledgeItem } from "@/lib/types/knowledge-item";
 export const URL_RE = /https?:\/\/[^\s<>"')\]]+/g;
 const MAX_LINKS_PER_MESSAGE = 3; // keeps webhook work within function limits
 export const MAX_REPLY_PARTS = 4;
-/** Context caps: full summaries for recent saves, one-liners for the rest. */
-const MAX_CONTEXT_ITEMS = 150;
+/** Context caps: full summaries for the most relevant saves, one-liners for
+ * the rest. Keyword-matched items fill the context first, so a question about
+ * an old save is answerable even in a multi-thousand-item library. */
+const MAX_CONTEXT_ITEMS = 100;
 const FULL_SUMMARY_ITEMS = 25;
+const RECENCY_ITEMS = 100;
 const MAX_NOTE_LENGTH = 500;
 
 /** How a channel delivers Rudolf's replies and identifies the conversation. */
@@ -137,7 +145,14 @@ async function ingestLinks(
   const gists: string[] = [];
   for (const r of created) {
     const fresh = await getItem(userId, r.item.id);
-    if (fresh?.status === "completed") {
+    if (fresh?.status === "completed" && fresh.ai?.degraded) {
+      // Saved, but the site only let us read the basics - be honest about it.
+      gists.push(
+        `Saved it 📚\n${fresh.url}\n\n` +
+          `I could only read the basics, the site keeps the full content behind a login or paywall. ` +
+          `Here is what I got: ${fresh.ai?.tldr ?? fresh.title}`,
+      );
+    } else if (fresh?.status === "completed") {
       const mins = fresh.ai?.readingTime;
       const nudge = mins
         ? `About a ${mins} minute read when you're ready 🙂`
@@ -188,21 +203,98 @@ function mentionLine(m: Mention): string {
   return `- "${m.title}" ${m.url} (sent ${m.at.slice(0, 10)})`;
 }
 
+/** Words too generic to be worth an indexed lookup. */
+const STOPWORDS = new Set([
+  "the",
+  "and",
+  "that",
+  "this",
+  "what",
+  "when",
+  "where",
+  "which",
+  "about",
+  "from",
+  "have",
+  "with",
+  "was",
+  "you",
+  "did",
+  "saved",
+  "save",
+  "read",
+  "watch",
+  "listen",
+  "something",
+  "anything",
+]);
+
+/**
+ * Pull search terms out of the user's question with one cheap Claude call
+ * (synonyms included, so "feeling stuck at work" can match "career" saves).
+ * Falls back to naive tokenization if the call fails, and to nothing when the
+ * message has no usable content words.
+ */
+async function extractQueryTerms(question: string): Promise<string[]> {
+  const naive = () =>
+    question
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}-]+/u)
+      .filter((t) => t.length >= 3 && !STOPWORDS.has(t))
+      .slice(0, 8);
+  try {
+    const message = await claude().messages.create({
+      model: AI_MODEL,
+      max_tokens: 150,
+      system:
+        "Extract search keywords from the user's message about their saved bookmarks. " +
+        'Reply with ONLY a JSON object like {"terms": ["keyword", ...]}: up to 8 lowercase ' +
+        "single words or short phrases, including close synonyms of the main concepts. " +
+        "Reply with {\"terms\": []} if the message is small talk with no searchable topic.",
+      messages: [{ role: "user", content: question }],
+    });
+    const text = message.content
+      .filter((b) => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+    const parsed = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
+    const terms = Array.isArray(parsed.terms)
+      ? parsed.terms.map((t: unknown) => String(t).toLowerCase().trim()).filter(Boolean)
+      : [];
+    return terms.length > 0 ? terms.slice(0, 8) : naive();
+  } catch {
+    return naive();
+  }
+}
+
 /** Answer a question / briefing request from the user's saves and their feed. */
 async function answerQuestion(
   userId: string,
   channel: RudolfChannel,
   question: string,
 ): Promise<void> {
-  // Feed and recent-mention context are always optional — failures fall back
-  // to a bookmarks-only answer rather than blocking the reply.
-  const [items, feed, mentions] = await Promise.all([
-    listItems(userId, { limit: 400 }).then((list) =>
-      list.filter((i) => i.status === "completed").slice(0, MAX_CONTEXT_ITEMS),
-    ),
+  const terms = await extractQueryTerms(question);
+
+  // Keyword/topic matches first (reaches saves of any age), recency for
+  // conversational context. Feed and recent-mention context are always
+  // optional — failures fall back to a bookmarks-only answer.
+  const [matched, recent, feed, mentions] = await Promise.all([
+    terms.length > 0
+      ? searchItems(userId, terms, { limitPerField: 60 }).catch(() => [])
+      : Promise.resolve([]),
+    listItems(userId, { limit: RECENCY_ITEMS }),
     getCachedFeed(userId).catch(() => []),
     getRecentMentions(channel.memoryKey).catch(() => []),
   ]);
+
+  const seen = new Set<string>();
+  const items: KnowledgeItem[] = [];
+  for (const item of [...matched, ...recent]) {
+    if (item.status !== "completed" || seen.has(item.id)) continue;
+    seen.add(item.id);
+    items.push(item);
+    if (items.length >= MAX_CONTEXT_ITEMS) break;
+  }
 
   if (items.length === 0 && feed.length === 0) {
     await channel.sendMessages([
@@ -268,7 +360,7 @@ async function answerQuestion(
       `- Topics they chose to hide: ${mutedTopics.join(", ") || "none"}\n` +
       `Lean toward their interests when suggesting what to read or building a briefing. ` +
       `Never surface a hidden topic unless they ask for it by name.\n\n` +
-      `THEIR LIBRARY (things they saved, newest first):\n${context || "nothing saved yet"}\n\n` +
+      `THEIR LIBRARY (things they saved, most relevant to this message first, then newest):\n${context || "nothing saved yet"}\n\n` +
       `THEIR FEED (recommended for them, NOT saved yet):\n${feedContext || "nothing right now"}\n\n` +
       `LINKS YOU (RUDOLF) SENT THEM RECENTLY:\n${mentionsContext || "none"}`,
     messages: [{ role: "user", content: question }],

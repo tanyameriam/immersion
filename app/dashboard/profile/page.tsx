@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { Blocks, MessagesSquare, Bell } from "lucide-react";
+import { Blocks, MessagesSquare, Bell, Upload } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import { RequireAuth } from "@/components/dashboard/RequireAuth";
 import { TelegramConnect } from "@/components/TelegramConnect";
 import { WhatsAppConnect } from "@/components/WhatsAppConnect";
 import { useAuth } from "@/components/AuthContext";
-import { usePreferences } from "@/hooks/use-preferences";
+import {
+  usePreferences,
+  type NotificationFrequency,
+} from "@/hooks/use-preferences";
 import { apiFetch } from "@/lib/api-client";
 import { auth } from "@/lib/firebase/client";
 import {
@@ -40,7 +43,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { INTEREST_GROUPS, isTopicAvailable } from "@/lib/constants";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DESIGN_ROLES, INTEREST_GROUPS, isTopicAvailable } from "@/lib/constants";
+import { fileToAvatarDataUrl } from "@/lib/avatar";
 
 type DeliveryMethod = "email" | "telegram";
 
@@ -56,16 +61,51 @@ function useSavedFlash() {
 function PersonalInformationCard() {
   const { user } = useAuth();
   const { prefs, loaded, save } = usePreferences();
-  const [fullName, setFullName] = useState(user?.name ?? "");
-  const [profession, setProfession] = useState("designer");
+  // Accounts without a display name fall back to the email in AuthContext;
+  // never prefill the name field with an email address.
+  const [fullName, setFullName] = useState(() => {
+    const n = user?.name ?? "";
+    return n.includes("@") ? "" : n;
+  });
+  // The avatar to save: the stored profile photo, the Google account photo,
+  // an uploaded image (as a data URL), or null to fall back to initials.
+  const [photo, setPhoto] = useState<string | null>(null);
+  const photoLoaded = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [profession, setProfession] = useState("");
   const { saved, flash } = useSavedFlash();
 
   useEffect(() => {
     if (loaded && prefs.name) setFullName(prefs.name);
   }, [loaded, prefs.name]);
 
+  useEffect(() => {
+    if (loaded && prefs.profession) setProfession(prefs.profession);
+  }, [loaded, prefs.profession]);
+
+  useEffect(() => {
+    if (!loaded || photoLoaded.current) return;
+    photoLoaded.current = true;
+    setPhoto(prefs.profilePhoto || user?.photoURL || null);
+  }, [loaded, prefs.profilePhoto, user?.photoURL]);
+
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file
+    if (!file || !file.type.startsWith("image/")) return;
+    try {
+      setPhoto(await fileToAvatarDataUrl(file));
+    } catch (err) {
+      console.error("Failed to read uploaded photo", err);
+    }
+  }
+
   async function handleSave() {
-    await save({ name: fullName });
+    await save({
+      name: fullName,
+      profession: profession.trim(),
+      profilePhoto: photo ?? "",
+    });
     flash();
   }
 
@@ -76,6 +116,57 @@ function PersonalInformationCard() {
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
+          <Label>Profile photo</Label>
+          <div className="flex items-center gap-6">
+            <Avatar size="lg" className="size-20">
+              {photo ? <AvatarImage src={photo} alt={fullName} /> : null}
+              <AvatarFallback className="text-lg">
+                {(fullName || user?.email || "?").slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {photo === null
+                  ? "No photo, we'll show your initials."
+                  : photo === user?.photoURL
+                    ? "From your Google account."
+                    : "Your uploaded photo."}
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload data-icon="inline-start" />
+                  Upload photo
+                </Button>
+                {user?.photoURL && photo !== user.photoURL && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPhoto(user.photoURL)}
+                  >
+                    Use Google photo
+                  </Button>
+                )}
+                {photo && (
+                  <Button size="sm" variant="ghost" onClick={() => setPhoto(null)}>
+                    Remove
+                  </Button>
+                )}
+              </div>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePhotoUpload}
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
           <Label htmlFor="profile-name">Full Name</Label>
           <Input
             id="profile-name"
@@ -84,13 +175,17 @@ function PersonalInformationCard() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="profile-profession">Profession</Label>
-          <Select value={profession} onValueChange={(v) => setProfession(v ?? "")}>
+          <Label htmlFor="profile-profession">What do you do?</Label>
+          <Select value={profession} onValueChange={(v) => v && setProfession(v)}>
             <SelectTrigger id="profile-profession" className="w-full">
-              <SelectValue placeholder="Select your profession" />
+              <SelectValue placeholder="Pick your role" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="designer">Designer</SelectItem>
+              {DESIGN_ROLES.map((r) => (
+                <SelectItem key={r} value={r}>
+                  {r}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -196,6 +291,7 @@ function NewsletterDeliveryCard() {
   const { prefs, loaded, save, reload } = usePreferences();
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("email");
   const [day, setDay] = useState("Monday");
+  const [frequency, setFrequency] = useState<NotificationFrequency>("weekly");
   const [nudgesOn, setNudgesOn] = useState(true);
   const { saved, flash } = useSavedFlash();
 
@@ -203,14 +299,22 @@ function NewsletterDeliveryCard() {
     if (loaded) {
       setDeliveryMethod(prefs.notificationPreference);
       setDay(prefs.notificationDay);
+      setFrequency(prefs.notificationFrequency);
       setNudgesOn(prefs.botNudges !== "off");
     }
-  }, [loaded, prefs.notificationPreference, prefs.notificationDay, prefs.botNudges]);
+  }, [
+    loaded,
+    prefs.notificationPreference,
+    prefs.notificationDay,
+    prefs.notificationFrequency,
+    prefs.botNudges,
+  ]);
 
   async function handleSave() {
     await save({
       notificationPreference: deliveryMethod,
       notificationDay: day,
+      notificationFrequency: frequency,
       botNudges: nudgesOn ? "on" : "off",
     });
     flash();
@@ -263,6 +367,28 @@ function NewsletterDeliveryCard() {
             </div>
           </div>
         )}
+
+        <div className="space-y-2">
+          <Label htmlFor="delivery-frequency">Frequency</Label>
+          <Select
+            value={frequency}
+            onValueChange={(v) => v && setFrequency(v as NotificationFrequency)}
+          >
+            <SelectTrigger id="delivery-frequency" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="weekly">Weekly</SelectItem>
+              <SelectItem value="biweekly">Every two weeks</SelectItem>
+              <SelectItem value="off">Paused</SelectItem>
+            </SelectContent>
+          </Select>
+          {frequency === "off" && (
+            <p className="text-sm text-muted-foreground">
+              No digests or Rudolf&apos;s picks until you switch back.
+            </p>
+          )}
+        </div>
 
         <div className="space-y-2">
           <Label htmlFor="delivery-day">Delivery day</Label>
