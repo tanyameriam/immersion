@@ -50,7 +50,9 @@ export function track(
     | "topic_muted"
     | "interests_updated"
     | "starter_picks_selected"
-    | "tab_viewed",
+    | "onboarding_skipped"
+    | "tab_viewed"
+    | "feedback_submitted",
   props?: Record<string, unknown>,
 ) {
   if (!enabled()) return;

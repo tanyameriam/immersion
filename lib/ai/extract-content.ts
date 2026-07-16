@@ -1,5 +1,7 @@
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
+import { spotifyEpisodeId } from "@/lib/ai/media-content";
+import { fetchSpotifyEpisode } from "@/lib/recommendations/sources/spotify";
 
 const MAX_CHARS = 14_000; // token/cost guard before sending to Claude
 const WORDS_PER_MIN = 225;
@@ -18,6 +20,9 @@ export interface ExtractedContent {
   readingTime: number; // minutes
   /** True when readable article extraction failed and we used meta fallbacks. */
   degraded: boolean;
+  /** Set when the URL is recognizably a video or podcast, so the saved item's
+   * `type` (and the dashboard's Medium filter) can reflect it. */
+  medium?: "article" | "video" | "podcast";
 }
 
 function metaTag(doc: Document, selectors: string[]): string {
@@ -71,6 +76,61 @@ async function youTubeOEmbed(
   }
 }
 
+function isSpotify(url: string): boolean {
+  try {
+    const host = new URL(url).hostname;
+    return host === "spotify.com" || host.endsWith(".spotify.com");
+  } catch {
+    return false;
+  }
+}
+
+function isLinkedIn(url: string): boolean {
+  try {
+    const host = new URL(url).hostname;
+    return host === "linkedin.com" || host.endsWith(".linkedin.com");
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Spotify's public oEmbed endpoint - title and cover art for any Spotify URL
+ * (episode, show, track, album, playlist) without API keys.
+ */
+async function spotifyOEmbed(
+  url: string,
+): Promise<{ title: string; thumbnail: string } | null> {
+  try {
+    const res = await fetch(
+      `https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`,
+      { headers: { "User-Agent": UA } },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { title?: string; thumbnail_url?: string };
+    return { title: data.title ?? "", thumbnail: data.thumbnail_url ?? "" };
+  } catch {
+    return null;
+  }
+}
+
+/** A readable title derived from a LinkedIn URL when the authwall blocks
+ * everything else, e.g. /posts/jane-doe_design-systems-... → "jane doe". */
+function linkedInFallbackTitle(url: string): string {
+  try {
+    const path = new URL(url).pathname;
+    const post = path.match(/^\/posts\/([^_/]+)/);
+    if (post) return `LinkedIn post by ${post[1].replace(/-/g, " ")}`;
+    const profile = path.match(/^\/in\/([^/]+)/);
+    if (profile) return `LinkedIn profile: ${profile[1].replace(/-/g, " ")}`;
+    const pulse = path.match(/^\/pulse\/([^/]+)/);
+    if (pulse) return pulse[1].replace(/-/g, " ");
+    return "LinkedIn post";
+  } catch {
+    return "LinkedIn post";
+  }
+}
+
 async function fetchHtml(url: string): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -119,11 +179,21 @@ export async function extractContent(url: string): Promise<ExtractedContent> {
   if (isYouTube(url)) {
     const yt = await youTubeOEmbed(url);
     const title = yt?.title || metaTitle || url;
-    const text = [
-      `Video title: ${title}`,
-      yt?.author ? `Channel: ${yt.author}` : "",
-      description ? `Description: ${description}` : "",
-    ]
+    // oEmbed failing for a YouTube URL usually means the video is private,
+    // members-only, or removed - say so instead of leaving a blank summary.
+    const text = (
+      yt
+        ? [
+            `Video title: ${title}`,
+            yt.author ? `Channel: ${yt.author}` : "",
+            description ? `Description: ${description}` : "",
+          ]
+        : [
+            `Video title: ${title}`,
+            "This YouTube video could not be read. It may be private, members only, or removed.",
+            description ? `Description: ${description}` : "",
+          ]
+    )
       .filter(Boolean)
       .join("\n")
       .slice(0, MAX_CHARS);
@@ -136,6 +206,81 @@ export async function extractContent(url: string): Promise<ExtractedContent> {
       wordCount,
       readingTime,
       degraded: !yt, // degraded only if oEmbed failed
+      medium: "video",
+    };
+  }
+
+  // ── Spotify: episodes get real metadata via the Web API when keys exist;
+  // everything Spotify falls back to keyless oEmbed (title + cover art). ──
+  if (isSpotify(url)) {
+    const episodeId = spotifyEpisodeId(url);
+    if (episodeId) {
+      const ep = await fetchSpotifyEpisode(episodeId);
+      if (ep?.name) {
+        const text = [
+          `Podcast episode: ${ep.name}`,
+          ep.description ? `Description: ${ep.description}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n")
+          .slice(0, MAX_CHARS);
+        const { wordCount } = readingTimeOf(text);
+        return {
+          title: ep.name,
+          description: ep.description.slice(0, 500),
+          image: ep.image || image,
+          text,
+          wordCount,
+          readingTime: Math.max(1, Math.round(ep.durationMs / 60_000)),
+          // The description is not the audio itself, so summaries stay honest.
+          degraded: true,
+          medium: "podcast",
+        };
+      }
+    }
+    const oe = await spotifyOEmbed(url);
+    const title = oe?.title || metaTitle || url;
+    const text = [
+      `Spotify: ${title}`,
+      description ? `Description: ${description}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n")
+      .slice(0, MAX_CHARS);
+    const { wordCount, readingTime } = readingTimeOf(text);
+    const isPodcast = /\/(episode|show)\//.test(url);
+    return {
+      title,
+      description,
+      image: oe?.thumbnail || image,
+      text,
+      wordCount,
+      readingTime,
+      degraded: true,
+      ...(isPodcast ? { medium: "podcast" as const } : {}),
+    };
+  }
+
+  // ── LinkedIn: anonymous fetches hit an authwall; use OG tags when present,
+  // else derive a readable title from the URL. Always honest about it. ──
+  if (isLinkedIn(url)) {
+    const title = metaTitle || linkedInFallbackTitle(url);
+    const text = [
+      `LinkedIn: ${title}`,
+      description ? `Description: ${description}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n")
+      .slice(0, MAX_CHARS);
+    const { wordCount, readingTime } = readingTimeOf(text);
+    return {
+      title,
+      description,
+      image,
+      text,
+      wordCount,
+      readingTime,
+      degraded: true,
     };
   }
 

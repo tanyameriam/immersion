@@ -6,6 +6,10 @@ import { adminDb } from "@/lib/firebase/admin";
  * nudges, or digests). The bot is otherwise stateless, so this is what lets
  * "save that one you sent me this morning" resolve even after the item has
  * rotated out of the live feed snapshot.
+ *
+ * Keyed per conversation: Telegram uses the numeric chat id, WhatsApp uses
+ * "wa:<waId>". The collection keeps its original name so Telegram memories
+ * written before WhatsApp existed survive; it now holds both channels.
  */
 
 const COLLECTION = "telegramChats";

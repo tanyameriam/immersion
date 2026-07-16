@@ -2,6 +2,9 @@
 
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { Search, BookmarkX } from "lucide-react";
+import { apiFetch } from "@/lib/api-client";
+import { toResource } from "@/lib/map-item";
+import type { KnowledgeItem } from "@/lib/types/knowledge-item";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,6 +73,9 @@ export function BookmarksTab({
   onExploreRecommendations,
   onRemovePersist,
   onMarkReadPersist,
+  hasMore,
+  loadingMore,
+  onLoadMore,
 }: {
   items: Resource[];
   setItems: Dispatch<SetStateAction<Resource[]>>;
@@ -78,16 +84,54 @@ export function BookmarksTab({
   onRemovePersist?: (ids: string[]) => void;
   /** Persist read status to the backend. Optional for mock usage. */
   onMarkReadPersist?: (ids: string[]) => void;
+  /** True when older bookmarks exist beyond the loaded window. */
+  hasMore?: boolean;
+  /** True while the next page of older bookmarks is loading. */
+  loadingMore?: boolean;
+  /** Fetch and append the next page of older bookmarks. */
+  onLoadMore?: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("Recently Saved");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [view, setView] = useState<ResourceView>("list");
+  // Server-side keyword search over the WHOLE library (the search box itself
+  // only filters what's loaded). Keyed by the query it was run for, so stale
+  // results never leak into a different search.
+  const [serverResults, setServerResults] = useState<{
+    query: string;
+    resources: Resource[];
+  } | null>(null);
+  const [serverSearching, setServerSearching] = useState(false);
+
+  async function searchAllBookmarks() {
+    const q = search.trim();
+    if (!q || serverSearching) return;
+    setServerSearching(true);
+    try {
+      const res = await apiFetch(`/api/items/search?q=${encodeURIComponent(q)}`);
+      if (!res.ok) throw new Error(`search ${res.status}`);
+      const data = (await res.json()) as { items: KnowledgeItem[] };
+      setServerResults({ query: q, resources: (data.items ?? []).map(toResource) });
+    } catch (err) {
+      console.error("Search all bookmarks failed", err);
+      setServerResults({ query: q, resources: [] });
+    } finally {
+      setServerSearching(false);
+    }
+  }
+
+  // Loaded items plus any server matches for the current query (deduped).
+  const searchable = useMemo(() => {
+    if (!serverResults || serverResults.query !== search.trim()) return items;
+    const seen = new Set(items.map((i) => i.id));
+    return [...items, ...serverResults.resources.filter((r) => !seen.has(r.id))];
+  }, [items, serverResults, search]);
 
   const sources = useMemo(
-    () => Array.from(new Set(items.map((item) => item.source))).sort(),
-    [items]
+    () => Array.from(new Set(searchable.map((item) => item.source))).sort(),
+    [searchable]
   );
 
   const filterGroups: FilterGroup[] = [
@@ -98,11 +142,20 @@ export function BookmarksTab({
     { key: "source", label: "Source", options: sources },
   ];
 
+  // Server matches hit on AI keywords/topics, not necessarily the visible
+  // text, so they skip the substring test (other filters still apply).
+  const serverMatchedIds = useMemo(() => {
+    if (!serverResults || serverResults.query !== search.trim())
+      return new Set<string>();
+    return new Set(serverResults.resources.map((r) => r.id));
+  }, [serverResults, search]);
+
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return items.filter((item) => {
+    return searchable.filter((item) => {
       if (
         query &&
+        !serverMatchedIds.has(item.id) &&
         !item.title.toLowerCase().includes(query) &&
         !item.description.toLowerCase().includes(query) &&
         !item.source.toLowerCase().includes(query)
@@ -142,7 +195,7 @@ export function BookmarksTab({
       }
       return true;
     });
-  }, [items, search, filters]);
+  }, [searchable, search, filters, serverMatchedIds]);
 
   const sorted = useMemo(() => sortResources(filtered, sort), [filtered, sort]);
 
@@ -263,6 +316,23 @@ export function BookmarksTab({
         </div>
       )}
 
+      {search.trim() && hasMore && (
+        <div className="flex items-center gap-3">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={searchAllBookmarks}
+            disabled={serverSearching}
+          >
+            {serverSearching ? "Searching…" : "Search all bookmarks"}
+          </Button>
+          <p className="text-sm text-muted-foreground">
+            The box above filters what&apos;s loaded. This searches your whole
+            library by topic and keyword.
+          </p>
+        </div>
+      )}
+
       {sorted.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted-foreground">
           No bookmarks match your search and filters.
@@ -298,6 +368,22 @@ export function BookmarksTab({
               onReport={() => {}}
             />
           ))}
+        </div>
+      )}
+
+      {(hasMore || loadingMore) && (
+        <div className="flex flex-col items-center gap-2 pb-4">
+          <p className="text-sm text-muted-foreground">
+            Showing your latest {items.length} saves.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onLoadMore?.()}
+            disabled={loadingMore}
+          >
+            {loadingMore ? "Loading…" : "Load more"}
+          </Button>
         </div>
       )}
     </div>

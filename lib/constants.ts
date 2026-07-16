@@ -1,5 +1,3 @@
-export const PROFESSIONS = ["Designer"];
-
 export const DESIGN_ROLES = [
   "Product Designer",
   "UX Designer",
@@ -9,6 +7,7 @@ export const DESIGN_ROLES = [
   "Brand Designer",
   "Motion Designer",
   "Interaction Designer",
+  "Researcher",
   "Design Student",
   "Other",
 ];
@@ -75,11 +74,10 @@ export const RECOMMENDATION_INTERESTS = INTEREST_GROUPS.flatMap(
 );
 
 /**
- * Groups whose topics are currently selectable. Layrrrd is design-first for
- * now: other groups render greyed out with a "Coming soon" tooltip until
- * their starter lists and feed sources are curated.
+ * Groups whose topics are currently selectable. All groups are open; remove
+ * one from this list to grey its topics out with a "Coming soon" tooltip.
  */
-export const AVAILABLE_TOPIC_GROUPS = ["Design"];
+export const AVAILABLE_TOPIC_GROUPS = INTEREST_GROUPS.map((g) => g.label);
 
 const AVAILABLE_TOPICS = new Set(
   INTEREST_GROUPS.filter((g) => AVAILABLE_TOPIC_GROUPS.includes(g.label)).flatMap(

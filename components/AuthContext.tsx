@@ -17,7 +17,7 @@ import {
   updateProfile,
   type User,
 } from "firebase/auth";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db, googleProvider } from "@/lib/firebase/client";
 import { resetAnalytics } from "@/lib/analytics";
 import { AuthModal } from "@/components/AuthModal";
@@ -85,18 +85,27 @@ function toAuthUser(u: User): AuthUser {
   };
 }
 
-/** Create/refresh the user's `users/{uid}` profile on sign-in. */
+/** Create/refresh the user's `users/{uid}` profile on sign-in. Name and photo
+ * are seeded only on first creation; after that the profile page owns them, so
+ * a re-login must not clobber the user's edits. */
 async function upsertUserProfile(u: User): Promise<void> {
+  const ref = doc(db, "users", u.uid);
+  const snap = await getDoc(ref);
+  const base = {
+    email: u.email ?? "",
+    provider: u.providerData[0]?.providerId ?? "password",
+    lastLogin: serverTimestamp(),
+  };
   await setDoc(
-    doc(db, "users", u.uid),
-    {
-      name: u.displayName ?? "",
-      email: u.email ?? "",
-      profilePhoto: u.photoURL ?? "",
-      provider: u.providerData[0]?.providerId ?? "password",
-      lastLogin: serverTimestamp(),
-      createdAt: serverTimestamp(), // merge keeps the first-write value
-    },
+    ref,
+    snap.exists()
+      ? base
+      : {
+          ...base,
+          name: u.displayName ?? "",
+          profilePhoto: u.photoURL ?? "",
+          createdAt: serverTimestamp(),
+        },
     { merge: true },
   );
 }

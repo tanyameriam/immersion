@@ -94,15 +94,23 @@ export interface KnowledgeItem {
   retryCount: number;
   ai: AiFields | null;
   error: string | null;
-  /** User's own comment on the save (e.g. sent alongside a link in Telegram). */
+  /** User's own comment on the save (e.g. sent alongside a link in Telegram or WhatsApp). */
   note?: string;
 }
 
-/** Payload the extension / web app sends to save a page. */
+/** Payload the extension / web app sends to save a page. Oversized title and
+ * favicon values are trimmed or dropped rather than rejected: a page with a
+ * huge document.title or a giant data-URI favicon should never fail a save. */
 export const SaveItemInputSchema = z.object({
-  url: z.string().url(),
-  title: z.string().optional(),
-  favicon: z.string().optional(),
+  url: z.string().url().max(2048),
+  title: z
+    .string()
+    .optional()
+    .transform((s) => (s ? s.slice(0, 500) : s)),
+  favicon: z
+    .string()
+    .optional()
+    .transform((s) => (s && s.length <= 2048 ? s : undefined)),
   note: z.string().max(2000).optional(),
 });
 export type SaveItemInput = z.infer<typeof SaveItemInputSchema>;

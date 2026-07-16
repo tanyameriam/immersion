@@ -1,19 +1,17 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/components/AuthContext";
+import { usePreferences } from "@/hooks/use-preferences";
 import { LoadingDog } from "@/components/LoadingDog";
-
-/** null = not yet checked, true/false = whether the user finished onboarding. */
-type OnboardStatus = boolean | null;
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, hydrated, openAuth } = useAuth();
+  // Onboarding state rides the shared preferences read - no extra Firestore
+  // round trip just for the gate (this used to re-fetch the same doc).
+  const { loaded, onboarded } = usePreferences();
   const router = useRouter();
-  const [onboarded, setOnboarded] = useState<OnboardStatus>(null);
 
   useEffect(() => {
     if (hydrated && !user) {
@@ -22,29 +20,11 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     }
   }, [hydrated, user, openAuth, router]);
 
-  // First-time users haven't captured their interests yet — send them through
+  // First-time users haven't finished setup yet — send them through
   // onboarding before they reach the dashboard.
   useEffect(() => {
-    if (!hydrated || !user) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const snap = await getDoc(doc(db, "users", user.uid));
-        if (!cancelled) setOnboarded(Boolean(snap.data()?.onboardedAt));
-      } catch {
-        // If we can't read the profile (e.g. the client-only test session has
-        // no Firestore access), don't trap the user — let them through.
-        if (!cancelled) setOnboarded(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [hydrated, user]);
-
-  useEffect(() => {
-    if (onboarded === false) router.replace("/onboarding");
-  }, [onboarded, router]);
+    if (loaded && !onboarded) router.replace("/onboarding");
+  }, [loaded, onboarded, router]);
 
   if (!hydrated || !user) {
     return (
@@ -54,7 +34,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     );
   }
 
-  if (onboarded !== true) {
+  if (!loaded || !onboarded) {
     return (
       <div className="flex min-h-screen items-center justify-center pt-[72px]">
         <LoadingDog label="Loading Layrrrd…" />

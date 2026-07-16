@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
-import { getCachedFeed, type FeedEntry } from "@/lib/telegram/feed";
-import { getRecentMentions, rememberMentions } from "@/lib/telegram/memory";
+import { getCachedFeed, type FeedEntry } from "@/lib/rudolf/feed";
+import { getRecentMentions, rememberMentions } from "@/lib/rudolf/memory";
 import { sendMessages } from "@/lib/telegram/chat";
 
 /**
@@ -77,6 +77,8 @@ export async function sendDueNudges(
     const chatId: string = user.telegramChatId ?? "";
     if (!chatId) continue;
     if (user.botNudges === "off") continue;
+    // A paused digest means full quiet: no between-digest picks either.
+    if (user.notificationFrequency === "off") continue;
     const notificationDay: string = user.notificationDay ?? "Monday";
     if (!force && !isNudgeDay(notificationDay, today)) continue;
     // Idempotence: a cron re-run (or manual trigger) the same day won't

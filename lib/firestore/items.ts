@@ -1,13 +1,19 @@
 import { createHash } from "crypto";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
+import { canonicalizeUrl } from "@/lib/items/canonical-url";
 import type { KnowledgeItem, ProcessingStatus } from "@/lib/types/knowledge-item";
 
 const COLLECTION = "knowledgeItems";
 
-/** Deterministic doc id so the same (user, url) dedupes to one document. */
-export function itemId(userId: string, url: string): string {
+function hashId(userId: string, url: string): string {
   return createHash("sha256").update(`${userId}::${url}`).digest("hex").slice(0, 24);
+}
+
+/** Deterministic doc id so the same (user, url) dedupes to one document,
+ * including share-link variants of the same page (see canonicalizeUrl). */
+export function itemId(userId: string, url: string): string {
+  return hashId(userId, canonicalizeUrl(url));
 }
 
 function domainOf(url: string): string {
@@ -68,26 +74,39 @@ export async function createPendingItem(input: {
   favicon?: string;
   note?: string;
 }): Promise<{ item: KnowledgeItem; created: boolean }> {
-  const id = itemId(input.userId, input.url);
+  const canonicalUrl = canonicalizeUrl(input.url);
+  const id = hashId(input.userId, canonicalUrl);
   const ref = adminDb().collection(COLLECTION).doc(id);
-  const existing = await ref.get();
+  let existing = await ref.get();
+  // Items saved before URL canonicalization existed live under the raw-URL
+  // hash; treat those as the same bookmark instead of creating a sibling.
+  if (!existing.exists && canonicalUrl !== input.url) {
+    const legacy = await adminDb()
+      .collection(COLLECTION)
+      .doc(hashId(input.userId, input.url))
+      .get();
+    if (legacy.exists) existing = legacy;
+  }
   if (existing.exists) {
     // Re-saving with a comment still attaches it to the existing bookmark.
     if (input.note) {
-      await ref.update({ note: input.note, updatedAt: FieldValue.serverTimestamp() });
+      await existing.ref.update({
+        note: input.note,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
     }
     const data = { ...existing.data()!, ...(input.note ? { note: input.note } : {}) };
-    return { item: toKnowledgeItem(id, data), created: false };
+    return { item: toKnowledgeItem(existing.id, data), created: false };
   }
 
   await ref.set({
     userId: input.userId,
-    url: input.url,
-    title: input.title ?? input.url,
+    url: canonicalUrl,
+    title: input.title ?? canonicalUrl,
     description: "",
     image: "",
     favicon: input.favicon ?? "",
-    domain: domainOf(input.url),
+    domain: domainOf(canonicalUrl),
     type: "article",
     status: "pending",
     isFavorite: false,
@@ -107,22 +126,70 @@ export async function createPendingItem(input: {
   return { item: toKnowledgeItem(id, saved.data()!), created: true };
 }
 
-/** List a user's items, newest first. */
+/**
+ * List a user's items, newest first, via the (userId, createdAt DESC)
+ * composite index - bounded and cursorable so a 10k-item library never gets
+ * pulled whole. `cursor` is the createdAt ISO of the last item already seen.
+ */
 export async function listItems(
   userId: string,
-  opts: { includeArchived?: boolean; limit?: number } = {},
+  opts: { includeArchived?: boolean; limit?: number; cursor?: string } = {},
 ): Promise<KnowledgeItem[]> {
-  // No orderBy in the query (avoids requiring a composite index for first-run
-  // setup); sort newest-first in memory - fine at personal scale.
-  const snap = await adminDb()
+  let query = adminDb()
     .collection(COLLECTION)
     .where("userId", "==", userId)
-    .limit(opts.limit ?? 500)
-    .get();
-  const items = snap.docs
-    .map((d) => toKnowledgeItem(d.id, d.data()))
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    .orderBy("createdAt", "desc")
+    .limit(opts.limit ?? 100);
+  if (opts.cursor) {
+    const cursorDate = new Date(opts.cursor);
+    if (!Number.isNaN(cursorDate.getTime())) {
+      query = query.startAfter(Timestamp.fromDate(cursorDate));
+    }
+  }
+  const snap = await query.get();
+  const items = snap.docs.map((d) => toKnowledgeItem(d.id, d.data()));
   return opts.includeArchived ? items : items.filter((i) => !i.isArchived);
+}
+
+/**
+ * Keyword/topic token search over the denormalized `keywords` / `topics`
+ * arrays (lowercased at processing time). Firestore has no substring search;
+ * this is exact-token matching via array-contains-any, which the declared
+ * composite indexes cover. Items processed before the denormalization exist
+ * only via recency until scripts/backfill-search-fields.mjs runs.
+ */
+export async function searchItems(
+  userId: string,
+  tokens: string[],
+  opts: { limitPerField?: number } = {},
+): Promise<KnowledgeItem[]> {
+  const terms = [...new Set(tokens.map((t) => t.toLowerCase().trim()))]
+    .filter(Boolean)
+    .slice(0, 10); // array-contains-any cap
+  if (terms.length === 0) return [];
+
+  const base = adminDb().collection(COLLECTION).where("userId", "==", userId);
+  const limitPerField = opts.limitPerField ?? 50;
+  const [byKeyword, byTopic] = await Promise.all([
+    base
+      .where("keywords", "array-contains-any", terms)
+      .orderBy("createdAt", "desc")
+      .limit(limitPerField)
+      .get(),
+    base
+      .where("topics", "array-contains-any", terms)
+      .orderBy("createdAt", "desc")
+      .limit(limitPerField)
+      .get(),
+  ]);
+
+  const byId = new Map<string, KnowledgeItem>();
+  for (const doc of [...byKeyword.docs, ...byTopic.docs]) {
+    if (!byId.has(doc.id)) byId.set(doc.id, toKnowledgeItem(doc.id, doc.data()));
+  }
+  return [...byId.values()]
+    .filter((i) => !i.isArchived)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
 export async function getItem(

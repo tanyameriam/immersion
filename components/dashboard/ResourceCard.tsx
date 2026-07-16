@@ -270,6 +270,14 @@ export function ResourceCard({
               </div>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 <MediumBadge label={resource.contentType} />
+                {resource.degraded && resource.status === "completed" && (
+                  <Badge
+                    variant="outline"
+                    title="This site would not let Layrrrd read the full content."
+                  >
+                    Limited info
+                  </Badge>
+                )}
                 {topicPills.map((cat) => (
                   <Badge key={cat} variant="secondary">
                     {cat}
@@ -405,6 +413,14 @@ export function ResourceCard({
         )}
         <div className="flex flex-wrap items-center gap-2">
           <MediumBadge label={resource.contentType} />
+          {resource.degraded && resource.status === "completed" && (
+            <Badge
+              variant="outline"
+              title="This site would not let Layrrrd read the full content."
+            >
+              Limited info
+            </Badge>
+          )}
           {topicPills.map((cat) => (
             <Badge key={cat} variant="secondary">
               {cat}

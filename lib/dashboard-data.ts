@@ -24,6 +24,9 @@ export type Resource = {
   difficulty?: string;
   sentiment?: string;
   status?: "pending" | "processing" | "completed" | "failed";
+  /** True when the source blocked full extraction (paywall, authwall, audio)
+   * and the summary is built from limited metadata. */
+  degraded?: boolean;
   // Recommendation-only: why it's suggested + how many people saved it.
   reason?: string;
   savers?: number;

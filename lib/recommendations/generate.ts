@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { adminDb } from "@/lib/firebase/admin";
 import { toKnowledgeItem } from "@/lib/firestore/items";
 import { toResource } from "@/lib/map-item";
@@ -16,6 +17,25 @@ const MAX_DISCOVER = 6;
 const MAX_TOPIC_QUERIES = 6;
 /** A starter pick is a weaker signal than actually saving something. */
 const STARTER_PICK_WEIGHT = 0.5;
+
+/**
+ * Everyone's completed items - the community pool both recommendation buckets
+ * draw from. User-agnostic, so one short-lived cache entry serves every
+ * user's request; per-user exclusions and dismissals filter AFTER this, so
+ * feedback stays instant. New saves take up to 5 minutes to reach OTHER
+ * users' feeds, which is fine.
+ */
+const loadCommunityPool = unstable_cache(
+  async (): Promise<KnowledgeItem[]> => {
+    const snap = await adminDb()
+      .collection("knowledgeItems")
+      .where("status", "==", "completed")
+      .get();
+    return snap.docs.map((d) => toKnowledgeItem(d.id, d.data()));
+  },
+  ["community-pool"],
+  { revalidate: 300 },
+);
 
 /** Topics come from different sources (AI analysis vs. onboarding checkboxes),
  * so compare them case-insensitively. */
@@ -63,10 +83,12 @@ export type TasteProfile = {
 };
 
 export async function loadTasteProfile(userId: string): Promise<TasteProfile> {
-  const mineSnap = await adminDb()
-    .collection("knowledgeItems")
-    .where("userId", "==", userId)
-    .get();
+  // Both reads are independent; run them together (each is a full network
+  // round trip to Firestore, so sequencing them doubles the latency).
+  const [mineSnap, profileSnap] = await Promise.all([
+    adminDb().collection("knowledgeItems").where("userId", "==", userId).get(),
+    adminDb().collection("users").doc(userId).get(),
+  ]);
   const mine = mineSnap.docs.map((d) => toKnowledgeItem(d.id, d.data()));
   const myUrls = new Set(mine.map((i) => i.url));
   const myTopics = new Set<string>();
@@ -82,7 +104,6 @@ export async function loadTasteProfile(userId: string): Promise<TasteProfile> {
 
   // Onboarding-selected interests seed recommendations for users who haven't
   // saved anything yet, so a brand-new account still has a basis to match on.
-  const profileSnap = await adminDb().collection("users").doc(userId).get();
   const profile = profileSnap.data() ?? {};
   const preferredTopics: string[] = profile.preferredTopics ?? [];
   const preferredNorm = preferredTopics.map(norm);
@@ -208,9 +229,14 @@ function toSuggestion(g: Group, reason: string): Resource {
 export async function buildRecommendations(
   userId: string,
 ): Promise<Recommendations> {
+  // The community pool is user-agnostic and the scan is the app's most
+  // expensive Firestore call - start it immediately, in parallel with the
+  // per-user taste profile.
+  const poolPromise = loadCommunityPool();
   const profile = await loadTasteProfile(userId);
   const { excludedUrls, basis, knownTopics, basisLabels } = profile;
   if (basis.size === 0 && knownTopics.size === 0) {
+    void poolPromise.catch(() => {}); // still warms the cache; never unhandled
     return { matched: [], discover: [], web: [], webHasMore: false }; // no basis yet
   }
 
@@ -218,13 +244,9 @@ export async function buildRecommendations(
   const webPromise = buildWebFeed(profile);
 
   // Everyone else's completed items — one scan, reused for both buckets.
-  const allSnap = await adminDb()
-    .collection("knowledgeItems")
-    .where("status", "==", "completed")
-    .get();
-  const others = allSnap.docs
-    .map((d) => toKnowledgeItem(d.id, d.data()))
-    .filter((i) => i.userId !== userId && !excludedUrls.has(i.url));
+  const others = (await poolPromise).filter(
+    (i) => i.userId !== userId && !excludedUrls.has(i.url),
+  );
 
   // What each other user saves (normalized), so a discover item can explain
   // itself through savers who share the user's tastes.
