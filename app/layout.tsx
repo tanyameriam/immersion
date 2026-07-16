@@ -8,6 +8,7 @@ import { PreferencesProvider } from "@/hooks/use-preferences";
 import { Analytics } from "@/components/Analytics";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { Toaster } from "@/components/ui/sonner";
+import TestingBanner from "@/components/TestingBanner";
 
 const interTight = Inter_Tight({
   subsets: ["latin"],
@@ -36,9 +37,10 @@ export default function RootLayout({
         satoshi.variable,
         sardin.variable
       )}
+      suppressHydrationWarning
     >
       <body
-        className="bg-background text-foreground antialiased"
+        className="bg-background pb-9 text-foreground antialiased"
         suppressHydrationWarning
       >
         <AuthProvider>
@@ -47,6 +49,7 @@ export default function RootLayout({
             {children}
             <FeedbackWidget />
             <Toaster position="bottom-right" />
+            <TestingBanner />
           </PreferencesProvider>
         </AuthProvider>
       </body>

@@ -1,11 +1,11 @@
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
-import WhyLayrd from "@/components/WhyLayrd";
-import WhatsInside from "@/components/WhatsInside";
+import TalkToRudolf from "@/components/TalkToRudolf";
+import ContentTypes from "@/components/ContentTypes";
+import AskRudolf from "@/components/AskRudolf";
 import HowItWorks from "@/components/HowItWorks";
 import Pricing from "@/components/Pricing";
 import FAQ from "@/components/FAQ";
-import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
 
 export default function Home() {
@@ -14,12 +14,12 @@ export default function Home() {
       <Navigation />
       <main>
         <Hero />
-        <WhyLayrd />
-        <WhatsInside />
+        <TalkToRudolf />
+        <ContentTypes />
         <HowItWorks />
+        <AskRudolf />
         <Pricing />
         <FAQ />
-        <Contact />
       </main>
       <Footer />
     </>

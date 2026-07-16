@@ -25,8 +25,7 @@ import {
 import { useAuth } from "@/components/AuthContext";
 
 const navLinks = [
-  { label: "Why", href: "/#why" },
-  { label: "What's Inside", href: "/#inside" },
+  { label: "Why", href: "/#talk-to-rudolf" },
   { label: "Membership", href: "/#pricing" },
   { label: "FAQ", href: "/#faq" },
 ];

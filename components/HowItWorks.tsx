@@ -37,7 +37,10 @@ function stepBorderClasses(i: number, total: number) {
 
 export default function HowItWorks() {
   return (
-    <section className="border-t border-border py-[120px] md:py-[160px]">
+    <section
+      id="how-it-works"
+      className="border-t border-border py-[120px] md:py-[160px]"
+    >
       <div className="mx-auto max-w-[1280px] px-6 md:px-10 xl:px-20">
         <FadeUp>
           <h2 className="text-5xl font-bold leading-[1.05] tracking-[-0.03em] text-foreground md:text-6xl">
