@@ -1,11 +1,37 @@
-import { FileText, Play, Podcast, type LucideIcon } from "lucide-react";
+import {
+  BookOpen,
+  Calendar,
+  ClipboardList,
+  FileText,
+  GraduationCap,
+  Link as LinkIcon,
+  MessagesSquare,
+  Play,
+  Podcast,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const ICONS: Record<string, LucideIcon> = {
   Article: FileText,
   Video: Play,
   Podcast: Podcast,
+  Book: BookOpen,
+  Event: Calendar,
+  Course: GraduationCap,
+  Thread: MessagesSquare,
+  Tool: Wrench,
+  "Case Study": ClipboardList,
+  Resource: BookOpen,
 };
+
+/** Icon representing a content type, for the medium badge and the 64px
+ * icon container that stands in for a thumbnail. Falls back to a generic
+ * link icon for legacy/unrecognized labels. */
+export function getContentTypeIcon(label: string): LucideIcon {
+  return ICONS[label] ?? LinkIcon;
+}
 
 /**
  * Small outline badge naming an item's medium (Article / Video / Podcast).

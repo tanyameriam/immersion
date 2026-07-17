@@ -5,19 +5,19 @@ import {
   BookmarkPlus,
   ExternalLink,
   MoreVertical,
+  Sparkles,
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
 import { ResourceDetail } from "@/components/dashboard/ResourceDetail";
 import { MediumBadge } from "@/components/dashboard/MediumBadge";
+import { MediaThumbnail } from "@/components/dashboard/MediaThumbnail";
 import {
   Card,
   CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
-  CardDescription,
-  CardAction,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -162,11 +162,22 @@ function RecommendationActions({
   );
 }
 
-function OpenLinkButton({ resource, size = "sm" as const }: { resource: Resource; size?: "sm" }) {
+function OpenLinkButton({
+  resource,
+  size = "sm" as const,
+  variant = "default" as const,
+  className,
+}: {
+  resource: Resource;
+  size?: "sm";
+  variant?: "default" | "outline";
+  className?: string;
+}) {
   return (
     <Button
       size={size}
-      variant="outline"
+      variant={variant}
+      className={className}
       nativeButton={false}
       render={<a href={resource.url} target="_blank" rel="noreferrer" />}
     >
@@ -208,6 +219,13 @@ export function ResourceCard({
         .filter(Boolean)
         .join(" · ")
     : `Published ${formatDate(resource.publishedDate)}`;
+  // Single-line metadata for the list card: source + read time only.
+  // Bookmarks also carry saved/published date (genuinely useful — when did
+  // I save this); recommendations hide it, since it's rarely time-sensitive
+  // and the recommendation badge already covers the "why now" context.
+  const metaCombined = isBookmark
+    ? [metaLine, dateLine].filter(Boolean).join(" · ")
+    : metaLine;
 
   // The AI summary opens in a modal (portal) so it reads the same from either
   // view; clicking the title, the image, or the Summary button opens it.
@@ -228,47 +246,36 @@ export function ResourceCard({
     </Dialog>
   );
 
-  // List view: a full-width horizontal card — thumbnail left, content and
-  // actions right — stacked vertically by the parent with gaps.
+  // List view: an editorial horizontal card — a 320px media frame that
+  // bleeds flush to the card's left/top/bottom edges (so it's pixel-identical
+  // whether it's a real thumbnail or the icon fallback) and stretches to
+  // match the row's full height, with a content column vertically centered
+  // alongside it. Content (not artwork) is the hero, but every thumbnail
+  // still gets cropped into the same frame so the media never falls short
+  // of (or overflows past) the card.
   if (view === "list") {
     return (
-      <Card size="sm" className="flex-row gap-0 py-0">
-        {resource.image && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={resource.image}
-            alt=""
-            loading="lazy"
+      <Card size="sm" className="border border-border py-0">
+        <div className="flex h-[236px] min-h-0 min-w-0 items-center gap-6 overflow-hidden">
+          {isBookmark && onToggleSelect && (
+            <Checkbox
+              className="ml-5"
+              checked={selected}
+              onCheckedChange={() => onToggleSelect(resource.id)}
+              aria-label={`Select ${resource.title}`}
+            />
+          )}
+
+          <MediaThumbnail
+            image={resource.image}
+            contentType={resource.contentType}
+            title={resource.title}
             onClick={toggleDetail}
-            className="hidden w-44 shrink-0 cursor-pointer border-r border-border object-cover sm:block md:w-56"
           />
-        )}
-        <div className="flex min-w-0 flex-1 flex-col gap-2 p-5">
-          <div className="flex items-start gap-3">
-            {isBookmark && onToggleSelect && (
-              <Checkbox
-                className="mt-1"
-                checked={selected}
-                onCheckedChange={() => onToggleSelect(resource.id)}
-                aria-label={`Select ${resource.title}`}
-              />
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={toggleDetail}
-                  className="text-left text-base font-bold text-foreground hover:underline"
-                >
-                  {resource.title}
-                </button>
-                {isBookmark && resource.read && (
-                  <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Read
-                  </span>
-                )}
-              </div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+
+          <div className="flex min-w-0 flex-1 flex-col py-5 pr-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-nowrap items-center gap-2 overflow-hidden">
                 <MediumBadge label={resource.contentType} />
                 {resource.degraded && resource.status === "completed" && (
                   <Badge
@@ -284,54 +291,74 @@ export function ResourceCard({
                   </Badge>
                 ))}
                 {moreTopics > 0 && (
-                  <span className="text-xs text-muted-foreground">
+                  <span className="shrink-0 text-xs text-muted-foreground">
                     +{moreTopics} more
                   </span>
                 )}
               </div>
-              {!isBookmark && resource.reason && (
-                <p className="mt-1 text-sm font-bold text-foreground">
-                  {resource.reason}
-                </p>
-              )}
-              {resource.description && (
-                <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
-                  {resource.description}
-                </p>
-              )}
-              <p className="mt-1 text-sm text-muted-foreground">
-                {metaLine} · {dateLine}
-              </p>
+              {/* Feedback actions (like/dislike/more) stay top-right; Save
+                  lives in the button row below instead. */}
+              <div className="flex shrink-0 items-center gap-1">
+                {variant === "recommendation" ? (
+                  <RecommendationActions
+                    resource={resource}
+                    onLike={onLike}
+                    onDismiss={onDismiss}
+                    onMuteTopic={onMuteTopic}
+                  />
+                ) : (
+                  <OverflowMenu
+                    resource={resource}
+                    onRemove={onRemove}
+                    onMarkRead={onMarkRead}
+                    onReport={onReport}
+                  />
+                )}
+              </div>
             </div>
-            <div className="shrink-0">
-              {variant === "recommendation" ? (
-                <RecommendationActions
-                  resource={resource}
-                  onLike={onLike}
-                  onDismiss={onDismiss}
-                  onMuteTopic={onMuteTopic}
-                />
-              ) : (
-                <OverflowMenu
-                  resource={resource}
-                  onRemove={onRemove}
-                  onMarkRead={onMarkRead}
-                  onReport={onReport}
-                />
-              )}
-            </div>
-          </div>
-          <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
-            <Button size="sm" variant="ghost" onClick={toggleDetail}>
-              Summary
-            </Button>
-            <OpenLinkButton resource={resource} />
-            {variant === "recommendation" && (
-              <Button size="sm" onClick={() => onBookmark?.(resource.id)}>
-                <BookmarkPlus data-icon="inline-start" />
-                Bookmark
-              </Button>
+
+            {!isBookmark && resource.reason && (
+              <span className="mt-2 inline-flex w-fit items-center gap-1.5 bg-muted px-2.5 py-1 text-xs font-medium normal-case tracking-normal text-foreground">
+                <Sparkles className="size-3" />
+                {resource.reason}
+              </span>
             )}
+
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleDetail}
+                className="line-clamp-1 text-left text-lg font-bold tracking-[-0.01em] text-foreground hover:underline"
+              >
+                {resource.title}
+              </button>
+              {isBookmark && resource.read && (
+                <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Read
+                </span>
+              )}
+            </div>
+
+            <p className="mt-1 text-sm text-muted-foreground">{metaCombined}</p>
+
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              <Button size="sm" onClick={toggleDetail}>
+                <Sparkles data-icon="inline-start" />
+                Key Insights
+              </Button>
+              <OpenLinkButton resource={resource} variant="outline" />
+              {variant === "recommendation" && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Save"
+                  title="Save"
+                  onClick={() => onBookmark?.(resource.id)}
+                >
+                  <BookmarkPlus />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
         {detailDialog}
@@ -340,18 +367,33 @@ export function ResourceCard({
   }
 
   return (
-    <Card size="sm">
-      {resource.image && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={resource.image}
-          alt=""
-          loading="lazy"
-          onClick={toggleDetail}
-          className="aspect-video w-full cursor-pointer border-b border-border object-cover"
-        />
-      )}
+    <Card size="sm" className="pt-0">
+      <MediaThumbnail
+        image={resource.image}
+        contentType={resource.contentType}
+        title={resource.title}
+        onClick={toggleDetail}
+        variant="grid"
+      />
       <CardHeader>
+        <div className="flex items-center justify-end gap-1">
+          {isBookmark ? (
+            <OverflowMenu
+              resource={resource}
+              onRemove={onRemove}
+              onMarkRead={onMarkRead}
+              onReport={onReport}
+            />
+          ) : (
+            <RecommendationActions
+              resource={resource}
+              onLike={onLike}
+              onDismiss={onDismiss}
+              onMuteTopic={onMuteTopic}
+            />
+          )}
+        </div>
+
         <div className="flex items-start gap-3">
           {isBookmark && onToggleSelect && (
             <Checkbox
@@ -367,7 +409,7 @@ export function ResourceCard({
                 <button
                   type="button"
                   onClick={toggleDetail}
-                  className="text-left hover:underline"
+                  className="line-clamp-2 text-left hover:underline"
                 >
                   {resource.title}
                 </button>
@@ -378,34 +420,11 @@ export function ResourceCard({
                 </span>
               )}
             </div>
-            <CardDescription className="mt-1 line-clamp-2">
-              {resource.description}
-            </CardDescription>
           </div>
         </div>
-
-        {isBookmark ? (
-          <CardAction>
-            <OverflowMenu
-              resource={resource}
-              onRemove={onRemove}
-              onMarkRead={onMarkRead}
-              onReport={onReport}
-            />
-          </CardAction>
-        ) : (
-          <CardAction>
-            <RecommendationActions
-              resource={resource}
-              onLike={onLike}
-              onDismiss={onDismiss}
-              onMuteTopic={onMuteTopic}
-            />
-          </CardAction>
-        )}
       </CardHeader>
 
-      <CardContent className="space-y-2">
+      <CardContent className="flex-1 space-y-2">
         {!isBookmark && resource.reason && (
           <p className="text-sm font-bold text-foreground">
             {resource.reason}
@@ -436,13 +455,13 @@ export function ResourceCard({
         <p className="text-sm text-muted-foreground">{dateLine}</p>
       </CardContent>
 
-      <CardFooter className="gap-2">
-        <Button size="sm" variant="ghost" onClick={toggleDetail}>
+      <CardFooter className="flex-col gap-2">
+        <Button size="sm" className="w-full" onClick={toggleDetail}>
           Summary
         </Button>
-        <OpenLinkButton resource={resource} />
+        <OpenLinkButton resource={resource} variant="outline" className="w-full" />
         {variant === "recommendation" && (
-          <Button size="sm" onClick={() => onBookmark?.(resource.id)}>
+          <Button size="sm" className="w-full" onClick={() => onBookmark?.(resource.id)}>
             <BookmarkPlus data-icon="inline-start" />
             Bookmark
           </Button>
