@@ -7,6 +7,7 @@ import { Blocks, MessagesSquare, Bell, Upload } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import { PlanCard } from "@/components/dashboard/PlanCard";
 import { RequireAuth } from "@/components/dashboard/RequireAuth";
+import { ReferralCard } from "@/components/referrals/ReferralCard";
 import { TelegramConnect } from "@/components/TelegramConnect";
 import { WhatsAppConnect } from "@/components/WhatsAppConnect";
 import { useAuth } from "@/components/AuthContext";
@@ -600,6 +601,7 @@ export default function ProfileSettingsPage() {
 
         <div className="mt-10 space-y-8">
           <PersonalInformationCard />
+          <ReferralCard />
           <RecommendationPreferencesCard />
           <NewsletterDeliveryCard />
           <PlanCard />
