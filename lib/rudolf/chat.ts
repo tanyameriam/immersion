@@ -2,6 +2,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { AI_MODEL, claude } from "@/lib/ai/claude";
 import { limitsFor } from "@/lib/billing/config";
 import { getUserPlan } from "@/lib/billing/plan";
+import { meterQuestion } from "@/lib/billing/playtime";
 import {
   countItems,
   createPendingItem,
@@ -86,6 +87,24 @@ export function extractUrlsAndNote(
 }
 
 const upgradeUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.layrrrd.com"}/dashboard/profile`;
+const foundingUrl = "https://layrrrd.com/founding-membership";
+
+function sleepyWarning(remainingMs: number): string {
+  const mins = Math.max(1, Math.round(remainingMs / 60000));
+  return (
+    `Quick woof from me: I'm getting a little sleepy, about ${mins} ` +
+    `minutes of play left today. A biscuit keeps me going for 15 more ` +
+    `minutes if you want to keep chatting: ${upgradeUrl}`
+  );
+}
+
+const SLEEP_MESSAGES = [
+  "I'm all played out for today, so I'm curling up for a nap 😴",
+  `Your saves are safe and you can keep sending me links, I'll tuck them ` +
+    `into your library while I snooze. To wake me up, grab me a biscuit ` +
+    `here: ${upgradeUrl}. Or join as a founding member for unlimited play, ` +
+    `forever: ${foundingUrl}`,
+];
 
 /** Route one chat message from a linked user. */
 export async function handleRudolfMessage(
@@ -94,18 +113,12 @@ export async function handleRudolfMessage(
   text: string,
   entities: LinkEntity[] = [],
 ): Promise<void> {
-  // Billing gate: with the default config every plan passes, so this is a
-  // no-op until free-tier limits are switched on in lib/billing/config.ts.
   const limits = limitsFor(await getUserPlan(userId));
-  if (!limits.rudolfChat) {
-    await channel.sendMessages([
-      `Chatting with me is a Layrrrd Pro thing 🐾 Upgrade here and I'm all yours: ${upgradeUrl}`,
-    ]);
-    return;
-  }
 
   const { urls, note } = extractUrlsAndNote(text, entities);
   if (urls.length > 0) {
+    // Saving links is never metered: the library keeps working even while
+    // Rudolf is out of play time.
     if (
       limits.maxItems !== null &&
       (await countItems(userId)) >= limits.maxItems
@@ -116,9 +129,27 @@ export async function handleRudolfMessage(
       return;
     }
     await ingestLinks(userId, channel, urls, note);
-  } else {
-    await answerQuestion(userId, channel, text);
+    return;
   }
+
+  // Questions are Rudolf's "play time". Paid members play unlimited; the
+  // free plan gets a daily allowance topped up by purchased biscuits.
+  if (limits.rudolfPlaytime === "metered") {
+    const meter = await meterQuestion(userId);
+    if (!meter.allowed) {
+      if (meter.shouldSendSleepMessage) {
+        await channel.sendMessages(SLEEP_MESSAGES);
+      }
+      return; // already said goodnight today: stay asleep quietly
+    }
+    await answerQuestion(userId, channel, text);
+    if (meter.shouldWarn) {
+      await channel.sendMessages([sleepyWarning(meter.remainingMs)]);
+    }
+    return;
+  }
+
+  await answerQuestion(userId, channel, text);
 }
 
 /** Save pasted links through the normal pipeline, then report the gists. */

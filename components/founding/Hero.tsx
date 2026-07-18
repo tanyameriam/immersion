@@ -5,18 +5,25 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { FadeUp } from "@/components/FadeUp";
-import { useJoinCta } from "@/hooks/use-join-cta";
+import { useFoundingCta } from "@/hooks/use-founding-cta";
+import { useFoundingStatus } from "@/hooks/use-founding-status";
 import {
-  FOUNDING_CLAIMED_SPOTS,
   FOUNDING_TOTAL_SPOTS,
   FOUNDING_TIER1_CAP,
   FOUNDING_TIER1_PRICE,
-  FOUNDING_TIER1_REMAINING,
   FOUNDING_TIER2_PRICE,
 } from "@/lib/founding-membership";
 
 export function FoundingHero() {
-  const joinCta = useJoinCta();
+  const { join, busy, error } = useFoundingCta();
+  const { status, soldOut } = useFoundingStatus();
+
+  // Live counter once the status fetch lands; a fresh launch (0 claimed)
+  // renders identically to the static fallback.
+  const claimed = status?.claimedSpots ?? 0;
+  const tier1Active = claimed < FOUNDING_TIER1_CAP;
+  const tierCap = tier1Active ? FOUNDING_TIER1_CAP : FOUNDING_TOTAL_SPOTS;
+  const spotsLeft = Math.max(0, tierCap - claimed);
 
   return (
     <section id="pricing" className="py-[120px] md:py-[160px]">
@@ -50,7 +57,9 @@ export function FoundingHero() {
             <Card>
               <CardHeader>
                 <Badge variant="secondary">
-                  🍪 First {FOUNDING_TIER1_CAP} members
+                  {tier1Active
+                    ? `🍪 First ${FOUNDING_TIER1_CAP} members`
+                    : `🍪 Members ${FOUNDING_TIER1_CAP + 1}-${FOUNDING_TOTAL_SPOTS}`}
                 </Badge>
                 <CardTitle className="mt-2 normal-case tracking-normal">
                   Lifetime Membership
@@ -59,11 +68,13 @@ export function FoundingHero() {
               <CardContent className="space-y-6">
                 <div>
                   <div className="flex items-baseline gap-3">
-                    <span className="text-4xl font-bold text-muted-foreground/50 line-through">
-                      {FOUNDING_TIER2_PRICE}
-                    </span>
+                    {tier1Active && (
+                      <span className="text-4xl font-bold text-muted-foreground/50 line-through">
+                        {FOUNDING_TIER2_PRICE}
+                      </span>
+                    )}
                     <span className="text-5xl font-bold tracking-[-0.03em] text-foreground">
-                      {FOUNDING_TIER1_PRICE}
+                      {tier1Active ? FOUNDING_TIER1_PRICE : FOUNDING_TIER2_PRICE}
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -73,37 +84,47 @@ export function FoundingHero() {
                   </p>
                 </div>
 
-                <div className="border border-dashed border-border p-4">
-                  <Badge variant="secondary">Not yet open</Badge>
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    Then{" "}
-                    <span className="font-semibold text-foreground">
-                      {FOUNDING_TIER2_PRICE}
-                    </span>{" "}
-                    for members {FOUNDING_TIER1_CAP + 1}–{FOUNDING_TOTAL_SPOTS}
-                  </p>
-                </div>
+                {tier1Active && (
+                  <div className="border border-dashed border-border p-4">
+                    <Badge variant="secondary">Not yet open</Badge>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      Then{" "}
+                      <span className="font-semibold text-foreground">
+                        {FOUNDING_TIER2_PRICE}
+                      </span>{" "}
+                      for members {FOUNDING_TIER1_CAP + 1}–{FOUNDING_TOTAL_SPOTS}
+                    </p>
+                  </div>
+                )}
 
                 <div className="border-t border-dashed border-border pt-6">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-foreground">
-                      {FOUNDING_CLAIMED_SPOTS} / {FOUNDING_TIER1_CAP} claimed
+                      {claimed} / {tierCap} claimed
                     </span>
                     <span className="text-muted-foreground">
-                      {FOUNDING_TIER1_REMAINING} spots left
+                      {soldOut ? "Sold out" : `${spotsLeft} spots left`}
                     </span>
                   </div>
-                  <Progress
-                    value={FOUNDING_CLAIMED_SPOTS}
-                    max={FOUNDING_TIER1_CAP}
-                    className="mt-2"
-                  />
+                  <Progress value={claimed} max={tierCap} className="mt-2" />
                 </div>
               </CardContent>
-              <CardFooter>
-                <Button size="lg" className="w-full" onClick={joinCta}>
-                  Become a Founding Member
+              <CardFooter className="flex-col items-stretch gap-2">
+                <Button
+                  size="lg"
+                  className="w-full"
+                  onClick={join}
+                  disabled={busy || soldOut}
+                >
+                  {soldOut
+                    ? "All memberships claimed"
+                    : busy
+                      ? "Opening checkout…"
+                      : "Become a Founding Member"}
                 </Button>
+                {error && (
+                  <p className="text-sm text-muted-foreground">{error}</p>
+                )}
               </CardFooter>
             </Card>
 

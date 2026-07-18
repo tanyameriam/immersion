@@ -16,7 +16,7 @@ const rows: { feature: string; free: Cell; founding: Cell }[] = [
   { feature: "AI summaries", free: "Unlimited", founding: "Unlimited" },
   { feature: "Weekly digest", free: true, founding: true },
   { feature: "Smart search", free: true, founding: true },
-  { feature: "Rudolf usage", free: "30 biscuits / month", founding: "Unlimited" },
+  { feature: "Rudolf play time", free: "2 hours / day", founding: "Unlimited" },
   { feature: "Collections", free: "Basic", founding: "Unlimited" },
   { feature: "New features", free: "Standard rollout", founding: "Early access" },
   { feature: "Product roadmap", free: false, founding: true },
