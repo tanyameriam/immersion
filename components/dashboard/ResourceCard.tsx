@@ -346,16 +346,14 @@ export function ResourceCard({
                 <Sparkles data-icon="inline-start" />
                 Key Insights
               </Button>
-              <OpenLinkButton resource={resource} variant="outline" />
               {variant === "recommendation" && (
                 <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Save"
-                  title="Save"
+                  variant="outline"
+                  size="sm"
                   onClick={() => onBookmark?.(resource.id)}
                 >
-                  <BookmarkPlus />
+                  <BookmarkPlus data-icon="inline-start" />
+                  Bookmark
                 </Button>
               )}
             </div>
@@ -459,9 +457,13 @@ export function ResourceCard({
         <Button size="sm" className="w-full" onClick={toggleDetail}>
           Summary
         </Button>
-        <OpenLinkButton resource={resource} variant="outline" className="w-full" />
         {variant === "recommendation" && (
-          <Button size="sm" className="w-full" onClick={() => onBookmark?.(resource.id)}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => onBookmark?.(resource.id)}
+          >
             <BookmarkPlus data-icon="inline-start" />
             Bookmark
           </Button>
