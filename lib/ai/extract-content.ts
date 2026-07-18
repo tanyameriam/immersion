@@ -1,6 +1,10 @@
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
-import { spotifyEpisodeId } from "@/lib/ai/media-content";
+import {
+  fetchYouTubeDescription,
+  spotifyEpisodeId,
+  youTubeVideoId,
+} from "@/lib/ai/media-content";
 import { fetchSpotifyEpisode } from "@/lib/recommendations/sources/spotify";
 
 const MAX_CHARS = 14_000; // token/cost guard before sending to Claude
@@ -87,6 +91,26 @@ async function youTubeOEmbed(
     };
   } catch {
     return null;
+  }
+}
+
+/** Video platforms beyond YouTube whose pages carry no readable article text.
+ * We can't get their runtime without per-site APIs, so saves from these hosts
+ * are typed "video" with no time estimate rather than a fake "read". */
+const VIDEO_HOSTS = [
+  "vimeo.com",
+  "tiktok.com",
+  "loom.com",
+  "twitch.tv",
+  "dailymotion.com",
+];
+
+function isVideoHost(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    return VIDEO_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+  } catch {
+    return false;
   }
 }
 
@@ -209,6 +233,7 @@ export async function extractContent(
   // and Spotify still go through oEmbed, where page text is chrome, not content. ──
   const clientText = client?.text?.replace(/\s+/g, " ").trim() ?? "";
   if (clientText.length > 400 && !isYouTube(url) && !isSpotify(url)) {
+    const video = isVideoHost(url);
     const text = clientText.slice(0, MAX_CHARS);
     const { wordCount, readingTime } = readingTimeOf(text);
     return {
@@ -217,8 +242,11 @@ export async function extractContent(
       image: client?.image ?? "",
       text,
       wordCount,
-      readingTime,
+      // Page text on a video host is chrome and comments, not the video, so
+      // its word count says nothing about how long the video runs.
+      readingTime: video ? 0 : readingTime,
       degraded: false,
+      ...(video ? { medium: "video" as const } : {}),
     };
   }
 
@@ -242,9 +270,15 @@ export async function extractContent(
     'meta[name="twitter:image"]',
   ]);
 
-  // ── YouTube: use oEmbed for a real title + thumbnail. ──
+  // ── YouTube: use oEmbed for a real title + thumbnail, and the Data API
+  // (when YOUTUBE_API_KEY is set) for the real runtime, so the saved item can
+  // say "12 min watch" instead of a reading time of its description text. ──
   if (isYouTube(url)) {
-    const yt = await youTubeOEmbed(url);
+    const videoId = youTubeVideoId(url);
+    const [yt, detail] = await Promise.all([
+      youTubeOEmbed(url),
+      videoId ? fetchYouTubeDescription(videoId) : Promise.resolve(null),
+    ]);
     const title = yt?.title || metaTitle || url;
     // oEmbed failing for a YouTube URL usually means the video is private,
     // members-only, or removed - say so instead of leaving a blank summary.
@@ -264,14 +298,17 @@ export async function extractContent(
       .filter(Boolean)
       .join("\n")
       .slice(0, MAX_CHARS);
-    const { wordCount, readingTime } = readingTimeOf(text);
+    const { wordCount } = readingTimeOf(text);
     return {
       title,
       description,
       image: yt?.thumbnail || image,
       text,
       wordCount,
-      readingTime,
+      // The real runtime, or 0 when unavailable: a description-word-count
+      // "reading time" is meaningless for a video, so displays should omit
+      // the minutes rather than show a wrong number.
+      readingTime: detail?.durationMinutes ?? 0,
       degraded: !yt, // degraded only if oEmbed failed
       medium: "video",
     };
@@ -389,13 +426,15 @@ export async function extractContent(
   if (text.length > MAX_CHARS) text = text.slice(0, MAX_CHARS);
 
   const { wordCount, readingTime } = readingTimeOf(text);
+  const video = isVideoHost(url);
   return {
     title: title || url,
     description,
     image,
     text,
     wordCount,
-    readingTime,
+    readingTime: video ? 0 : readingTime,
     degraded,
+    ...(video ? { medium: "video" as const } : {}),
   };
 }

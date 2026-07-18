@@ -1,5 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
+import { durationLabel } from "@/lib/medium-label";
 import { getCachedFeed, type FeedEntry } from "@/lib/rudolf/feed";
 import { getRecentMentions, rememberMentions } from "@/lib/rudolf/memory";
 import { sendMessages } from "@/lib/telegram/chat";
@@ -51,7 +52,8 @@ function pickForNudge(feed: FeedEntry[], skip: Set<string>): FeedEntry[] {
 function nudgeMessages(picks: FeedEntry[]): string[] {
   const parts = ["Woof, went fetching and found something for you 🐕"];
   for (const p of picks) {
-    const mins = p.readingTime ? `, ${p.readingTime} min` : "";
+    const label = durationLabel(p.contentType, p.readingTime);
+    const mins = label ? `, ${label}` : "";
     parts.push(
       `${p.title} (${p.source}${mins})\n${p.url}\nWhy you: ${p.reason}`,
     );
