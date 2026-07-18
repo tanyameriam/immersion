@@ -156,14 +156,14 @@ export async function fetchYouTubeDescription(
       }[];
     };
     const item = data.items?.[0];
-    if (!item?.snippet?.description) return null;
+    if (!item) return null;
     const d = item.contentDetails?.duration?.match(
       /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/,
     );
     const durationMinutes = d
       ? Math.max(1, Math.round(Number(d[1] ?? 0) * 60 + Number(d[2] ?? 0) + Number(d[3] ?? 0) / 60))
       : 0;
-    return { description: item.snippet.description, durationMinutes };
+    return { description: item.snippet?.description ?? "", durationMinutes };
   } catch (err) {
     console.error(`YouTube description lookup failed for ${videoId}`, err);
     return null;

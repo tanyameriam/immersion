@@ -208,7 +208,11 @@ export function ResourceCard({
   const topicPills = resource.category.slice(0, 3);
   const moreTopics = resource.category.length - topicPills.length;
   // Medium is shown as a badge, so the meta line only carries source + time.
-  const metaLine = [resource.source, `${resource.readingTime} min`]
+  // Videos without a known runtime store 0 minutes; show nothing over "0 min".
+  const metaLine = [
+    resource.source,
+    resource.readingTime > 0 ? `${resource.readingTime} min` : "",
+  ]
     .filter(Boolean)
     .join(" · ");
   const dateLine = isBookmark
