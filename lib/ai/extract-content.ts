@@ -20,9 +20,23 @@ export interface ExtractedContent {
   readingTime: number; // minutes
   /** True when readable article extraction failed and we used meta fallbacks. */
   degraded: boolean;
+  /** True when the site served a bot challenge (Cloudflare "Just a moment…"
+   * etc.) instead of the page. There is nothing honest to summarize: callers
+   * should skip AI analysis and keep whatever title the save already carried. */
+  blocked?: boolean;
   /** Set when the URL is recognizably a video or podcast, so the saved item's
    * `type` (and the dashboard's Medium filter) can reflect it. */
   medium?: "article" | "video" | "podcast";
+}
+
+/** Page content captured in the saver's own browser (extension). It has
+ * passed bot checks, logins, and JS rendering, so when present and
+ * substantial it beats anything we can fetch server-side. */
+export interface ClientCapture {
+  title?: string;
+  text?: string;
+  description?: string;
+  image?: string;
 }
 
 function metaTag(doc: Document, selectors: string[]): string {
@@ -131,7 +145,9 @@ function linkedInFallbackTitle(url: string): string {
   }
 }
 
-async function fetchHtml(url: string): Promise<string> {
+async function fetchHtml(
+  url: string,
+): Promise<{ html: string; challenged: boolean }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -140,10 +156,34 @@ async function fetchHtml(url: string): Promise<string> {
       signal: controller.signal,
       redirect: "follow",
     });
-    return await res.text();
+    // Cloudflare's documented signal that it served a challenge, not the page.
+    const challenged = res.headers.get("cf-mitigated") === "challenge";
+    return { html: await res.text(), challenged };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Bot-challenge interstitials (Cloudflare and friends) have a title and a bit
+ * of text, so without this check they'd flow through the degraded-meta path
+ * and we'd store "Just a moment…" as the article and pay to summarize it.
+ */
+function looksLikeBotChallenge(title: string, html: string): boolean {
+  const t = title.trim().toLowerCase();
+  if (
+    /^just a moment/.test(t) ||
+    t.includes("attention required") ||
+    t.startsWith("access denied") ||
+    t.includes("verify you are human") ||
+    t.includes("verifying you are human") ||
+    t.includes("checking your browser") ||
+    t.includes("are you a robot")
+  ) {
+    return true;
+  }
+  // Markers that only appear in Cloudflare challenge pages, never in articles.
+  return /cf_chl_|cf-browser-verification|challenge-error-text/.test(html);
 }
 
 function readingTimeOf(text: string): { wordCount: number; readingTime: number } {
@@ -156,9 +196,36 @@ function readingTimeOf(text: string): { wordCount: number; readingTime: number }
  * degrades to meta tags on JS-heavy / paywalled pages. Handles YouTube videos
  * specially via oEmbed so they get their real title, thumbnail, and a
  * description-based summary instead of a generic "YouTube" blurb.
+ *
+ * When `client` carries substantial text captured in the saver's browser, it
+ * is used directly and no server-side fetch happens: the browser has already
+ * passed bot checks, paywalls, and JS rendering that a datacenter fetch can't.
  */
-export async function extractContent(url: string): Promise<ExtractedContent> {
-  const html = await fetchHtml(url).catch(() => "");
+export async function extractContent(
+  url: string,
+  client?: ClientCapture,
+): Promise<ExtractedContent> {
+  // ── Client capture: trust the saver's own browser over our fetch. YouTube
+  // and Spotify still go through oEmbed, where page text is chrome, not content. ──
+  const clientText = client?.text?.replace(/\s+/g, " ").trim() ?? "";
+  if (clientText.length > 400 && !isYouTube(url) && !isSpotify(url)) {
+    const text = clientText.slice(0, MAX_CHARS);
+    const { wordCount, readingTime } = readingTimeOf(text);
+    return {
+      title: client?.title?.trim() ?? "",
+      description: client?.description?.trim().slice(0, 500) ?? "",
+      image: client?.image ?? "",
+      text,
+      wordCount,
+      readingTime,
+      degraded: false,
+    };
+  }
+
+  const { html, challenged } = await fetchHtml(url).catch(() => ({
+    html: "",
+    challenged: false,
+  }));
   const { document } = parseHTML(html || "<html></html>");
 
   const metaTitle =
@@ -281,6 +348,22 @@ export async function extractContent(url: string): Promise<ExtractedContent> {
       wordCount,
       readingTime,
       degraded: true,
+    };
+  }
+
+  // ── Bot challenge: the "page" is Cloudflare's interstitial, not content.
+  // Return empty fields (blocked) so the caller keeps the save's own title
+  // and skips AI analysis instead of summarizing a loading screen. ──
+  if (challenged || looksLikeBotChallenge(metaTitle, html)) {
+    return {
+      title: "",
+      description: "",
+      image: "",
+      text: "",
+      wordCount: 0,
+      readingTime: 0,
+      degraded: true,
+      blocked: true,
     };
   }
 

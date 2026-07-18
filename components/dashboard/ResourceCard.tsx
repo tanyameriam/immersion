@@ -270,6 +270,14 @@ export function ResourceCard({
               </div>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 <MediumBadge label={resource.contentType} />
+                {resource.blocked && resource.status === "completed" && (
+                  <Badge
+                    variant="outline"
+                    title="This site blocks automated readers, so there is no summary."
+                  >
+                    Couldn&apos;t read
+                  </Badge>
+                )}
                 {resource.degraded && resource.status === "completed" && (
                   <Badge
                     variant="outline"
@@ -413,6 +421,14 @@ export function ResourceCard({
         )}
         <div className="flex flex-wrap items-center gap-2">
           <MediumBadge label={resource.contentType} />
+          {resource.blocked && resource.status === "completed" && (
+            <Badge
+              variant="outline"
+              title="This site blocks automated readers, so there is no summary."
+            >
+              Couldn&apos;t read
+            </Badge>
+          )}
           {resource.degraded && resource.status === "completed" && (
             <Badge
               variant="outline"

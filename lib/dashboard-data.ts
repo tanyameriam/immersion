@@ -27,6 +27,9 @@ export type Resource = {
   /** True when the source blocked full extraction (paywall, authwall, audio)
    * and the summary is built from limited metadata. */
   degraded?: boolean;
+  /** True when the site served a bot challenge instead of the page: the item
+   * is a plain bookmark with no summary at all. */
+  blocked?: boolean;
   // Recommendation-only: why it's suggested + how many people saved it.
   reason?: string;
   savers?: number;

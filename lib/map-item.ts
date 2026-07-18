@@ -28,7 +28,9 @@ export function toResource(item: KnowledgeItem): Resource {
       ? "Summarizing with AI…"
       : failed
         ? "Couldn't read this link. It may be paywalled or private."
-        : "");
+        : item.blocked
+          ? "This site blocks automated readers, so there is no summary. Open the link to read it."
+          : "");
 
   return {
     id: item.id,
@@ -53,6 +55,7 @@ export function toResource(item: KnowledgeItem): Resource {
     sentiment: item.ai?.sentiment,
     status: item.status,
     degraded: item.ai?.degraded ?? false,
+    blocked: item.blocked ?? false,
     note: item.note,
   };
 }
