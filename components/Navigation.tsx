@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -25,8 +25,11 @@ import {
 import { useAuth } from "@/components/AuthContext";
 
 const navLinks = [
-  { label: "Why", href: "/#talk-to-rudolf" },
-  { label: "Membership", href: "/#pricing" },
+  { label: "Ask", href: "/#talk-to-rudolf" },
+  { label: "Save", href: "/#content-types" },
+  { label: "Capture", href: "/#chrome-extension" },
+  { label: "Retrieve", href: "/#ask-rudolf" },
+  { label: "Join", href: "/#pricing" },
   { label: "FAQ", href: "/#faq" },
 ];
 
@@ -38,8 +41,18 @@ function initials(name: string) {
 export default function Navigation() {
   const { user, openAuth, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  function handleNavClick(href: string) {
+    return (e: React.MouseEvent<HTMLAnchorElement>) => {
+      if (pathname !== "/") return;
+      e.preventDefault();
+      const id = href.split("#")[1];
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    };
+  }
 
   useEffect(() => {
     function onScroll() {
@@ -71,6 +84,7 @@ export default function Navigation() {
             <Link
               key={link.href}
               href={link.href}
+              onClick={handleNavClick(link.href)}
               className="transition-colors hover:text-foreground"
             >
               {link.label}
@@ -144,7 +158,10 @@ export default function Navigation() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  onClick={() => setMenuOpen(false)}
+                  onClick={(e) => {
+                    setMenuOpen(false);
+                    handleNavClick(link.href)(e);
+                  }}
                   className="transition-colors hover:text-foreground"
                 >
                   {link.label}
