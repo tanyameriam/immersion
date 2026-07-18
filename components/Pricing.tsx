@@ -4,18 +4,16 @@ import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FadeUp } from "@/components/FadeUp";
-import { useAuth } from "@/components/AuthContext";
 
 const included = [
-  "Unlimited saves from anywhere",
-  "Personalized recommendations",
-  "Conversational retrieval",
-  "Smart summaries with source references",
+  "Lifetime founding membership",
+  "Unlimited saves & AI summaries",
+  "Extended Rudolf usage",
   "Early access to every new feature",
+  "Help shape the product roadmap",
 ];
 
 export default function Pricing() {
-  const { user, openAuth } = useAuth();
   const router = useRouter();
 
   return (
@@ -28,23 +26,22 @@ export default function Pricing() {
           <FadeUp delay={0.06}>
             <div>
               <h2 className="text-5xl font-bold leading-[1.05] tracking-[-0.03em] text-foreground md:text-6xl">
-                Be one of the first to use Layrrrd.
+                Become one of the first 100 to shape Layrrrd.
               </h2>
               <p className="mt-5 text-2xl font-medium tracking-[-0.02em] text-muted-foreground">
-                Early access · Free to join
+                Founding Membership · Lifetime Access
               </p>
               <p className="mt-3 max-w-sm text-[17px] leading-[1.65] text-muted-foreground">
-                Create your account, start saving, and help shape Layrrrd
-                before public launch.
+                Join a small community of early believers helping build
+                Layrrrd from day one. Get lifetime access, early features,
+                and a direct voice in what we build next.
               </p>
               <div className="mt-8">
                 <Button
                   size="lg"
-                  onClick={() =>
-                    user ? router.push("/dashboard") : openAuth("sign-up")
-                  }
+                  onClick={() => router.push("/founding-membership")}
                 >
-                  {user ? "Go to Dashboard" : "Get Started"}
+                  Become a Founding Member
                 </Button>
               </div>
             </div>
