@@ -6,6 +6,7 @@ import { sendPasswordResetEmail } from "firebase/auth";
 import { Blocks, MessagesSquare, Bell, Upload } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import { PlanCard } from "@/components/dashboard/PlanCard";
+import { RudolfPlaytimeCard } from "@/components/dashboard/RudolfPlaytimeCard";
 import { RequireAuth } from "@/components/dashboard/RequireAuth";
 import { ReferralCard } from "@/components/referrals/ReferralCard";
 import { TelegramConnect } from "@/components/TelegramConnect";
@@ -605,6 +606,7 @@ export default function ProfileSettingsPage() {
           <RecommendationPreferencesCard />
           <NewsletterDeliveryCard />
           <PlanCard />
+          <RudolfPlaytimeCard />
           <AccountCard />
         </div>
       </main>

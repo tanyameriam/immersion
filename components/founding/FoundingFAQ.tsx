@@ -13,12 +13,12 @@ const faqs = [
   {
     question: "What are Rudolf's biscuits?",
     answer:
-      "Biscuits are how the free plan measures Rudolf usage - each question you ask costs one, and the jar refills every month. Founding members skip this entirely with unlimited usage.",
+      "On the free plan, Rudolf plays with you for 2 hours every day. When his daily play time runs out, a biscuit keeps him going: each one is ₹50 and buys 15 more minutes. Biscuits never expire, they sit in the jar until Rudolf needs them. Founding members skip this entirely with unlimited play time.",
   },
   {
-    question: "What happens when Rudolf runs out of biscuits?",
+    question: "What happens when Rudolf runs out of play time?",
     answer:
-      "On the free plan, once the month's biscuits are used, Rudolf pauses conversational retrieval until the jar refills - saving and browsing your library keep working as normal.",
+      "He gets sleepy and curls up for a nap until the next day, or until you give him a biscuit. Saving links and browsing your library keep working as normal, only chatting with Rudolf pauses.",
   },
   {
     question: "Why only 100 members?",

@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { markUserPro } from "@/lib/billing/plan";
+import { adminDb } from "@/lib/firebase/admin";
+import { fulfillPayment, type PaidProduct } from "@/lib/billing/plan";
 import { verifyWebhookSignature } from "@/lib/billing/razorpay";
 import { notifyPaidUpgrade } from "@/lib/notifications/admin";
 
 export const runtime = "nodejs";
 
 /**
- * Razorpay webhook - the payment backstop. Upgrades the user on
- * payment.captured even if they closed the tab before the browser-side
+ * Razorpay webhook - the payment backstop. Grants the purchase on
+ * payment.captured even if the buyer closed the tab before the browser-side
  * verify call. Authenticated by the webhook signature, not Firebase.
  */
 export async function POST(req: Request) {
@@ -24,13 +25,49 @@ export async function POST(req: Request) {
     if (event?.event === "payment.captured") {
       const payment = event.payload?.payment?.entity;
       const uid = payment?.notes?.uid;
-      if (typeof uid === "string" && uid && typeof payment?.id === "string") {
-        const paid = {
+      const orderId = payment?.order_id;
+      if (
+        typeof uid === "string" &&
+        uid &&
+        typeof payment?.id === "string" &&
+        typeof orderId === "string"
+      ) {
+        // paymentOrders/{orderId} is authoritative; the order notes are the
+        // fallback if the doc write somehow never happened.
+        const orderSnap = await adminDb()
+          .collection("paymentOrders")
+          .doc(orderId)
+          .get();
+        const order = orderSnap.data();
+        const product = (order?.product ?? payment?.notes?.product) as
+          | PaidProduct
+          | undefined;
+        if (product !== "founding" && product !== "biscuits") {
+          console.error("payment.captured with unknown product", payment?.id);
+          return NextResponse.json({ ok: true });
+        }
+        const quantity =
+          typeof order?.quantity === "number"
+            ? order.quantity
+            : Number(payment?.notes?.quantity) || 1;
+        const amountPaise =
+          typeof order?.amountPaise === "number"
+            ? order.amountPaise
+            : typeof payment?.amount === "number"
+              ? payment.amount
+              : 0;
+
+        const result = await fulfillPayment({
           paymentId: payment.id,
-          orderId: payment.order_id,
-        };
-        await markUserPro(uid, paid);
-        await notifyPaidUpgrade(uid, paid);
+          orderId,
+          uid,
+          product,
+          quantity,
+          amountPaise,
+        });
+        if (result.fulfilled && result.product === "founding") {
+          await notifyPaidUpgrade(uid, { paymentId: payment.id, orderId });
+        }
       } else {
         console.error("payment.captured without notes.uid", payment?.id);
       }
