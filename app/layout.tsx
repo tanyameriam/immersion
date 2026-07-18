@@ -7,6 +7,7 @@ import AuthProvider from "@/components/AuthContext";
 import { PreferencesProvider } from "@/hooks/use-preferences";
 import { Analytics } from "@/components/Analytics";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
+import { ReferralCapture } from "@/components/referrals/ReferralCapture";
 import { Toaster } from "@/components/ui/sonner";
 import TestingBanner from "@/components/TestingBanner";
 
@@ -46,6 +47,7 @@ export default function RootLayout({
         <AuthProvider>
           <PreferencesProvider>
             <Analytics />
+            <ReferralCapture />
             {children}
             <FeedbackWidget />
             <Toaster position="bottom-right" />
