@@ -96,6 +96,9 @@ export interface KnowledgeItem {
   error: string | null;
   /** User's own comment on the save (e.g. sent alongside a link in Telegram or WhatsApp). */
   note?: string;
+  /** True when the site served a bot challenge instead of the page, so the
+   * item was saved as a plain bookmark with no AI summary. */
+  blocked?: boolean;
 }
 
 /** Payload the extension / web app sends to save a page. Oversized title and
@@ -112,5 +115,29 @@ export const SaveItemInputSchema = z.object({
     .optional()
     .transform((s) => (s && s.length <= 2048 ? s : undefined)),
   note: z.string().max(2000).optional(),
+  /** Page content captured in the saver's own browser (extension). Oversized
+   * values are trimmed, not rejected, same as title/favicon above. */
+  content: z
+    .object({
+      title: z
+        .string()
+        .optional()
+        .transform((s) => (s ? s.slice(0, 500) : undefined)),
+      text: z
+        .string()
+        .optional()
+        .transform((s) => (s ? s.slice(0, 20_000) : undefined)),
+      description: z
+        .string()
+        .optional()
+        .transform((s) => (s ? s.slice(0, 1000) : undefined)),
+      image: z
+        .string()
+        .optional()
+        .transform((s) =>
+          s && s.length <= 2048 && /^https?:\/\//.test(s) ? s : undefined,
+        ),
+    })
+    .optional(),
 });
 export type SaveItemInput = z.infer<typeof SaveItemInputSchema>;

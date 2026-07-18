@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { Blocks, MessagesSquare, Bell, Upload } from "lucide-react";
 import Navigation from "@/components/Navigation";
+import { PlanCard } from "@/components/dashboard/PlanCard";
 import { RequireAuth } from "@/components/dashboard/RequireAuth";
 import { TelegramConnect } from "@/components/TelegramConnect";
 import { WhatsAppConnect } from "@/components/WhatsAppConnect";
@@ -601,6 +602,7 @@ export default function ProfileSettingsPage() {
           <PersonalInformationCard />
           <RecommendationPreferencesCard />
           <NewsletterDeliveryCard />
+          <PlanCard />
           <AccountCard />
         </div>
       </main>

@@ -57,7 +57,13 @@ export function ResourceDetail({ resource }: { resource: Resource }) {
   }
 
   const degradedNote =
-    resource.degraded && resource.status === "completed" ? (
+    resource.blocked && resource.status === "completed" ? (
+      <p className="text-sm text-muted-foreground">
+        This site blocks automated readers, so Layrrrd saved the link without
+        a summary. Open the link to read it, then save again from the
+        extension and Layrrrd will read the page your browser sees.
+      </p>
+    ) : resource.degraded && resource.status === "completed" ? (
       <p className="text-sm text-muted-foreground">
         Saved with limited info. This site would not let Layrrrd read the full
         content, so the summary is built from what it could see.

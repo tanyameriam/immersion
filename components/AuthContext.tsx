@@ -104,6 +104,8 @@ async function upsertUserProfile(u: User): Promise<void> {
           ...base,
           name: u.displayName ?? "",
           profilePhoto: u.photoURL ?? "",
+          // Billing default; only ever upgraded server-side (Admin SDK).
+          plan: "free",
           createdAt: serverTimestamp(),
         },
     { merge: true },

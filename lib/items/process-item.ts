@@ -1,6 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
-import { extractContent } from "@/lib/ai/extract-content";
+import { extractContent, type ClientCapture } from "@/lib/ai/extract-content";
 import { analyzeContent } from "@/lib/ai/analyze";
 import { AI_MODEL } from "@/lib/ai/claude";
 import type { AiFields } from "@/lib/types/knowledge-item";
@@ -39,7 +39,11 @@ export async function processItem(id: string): Promise<void> {
       processingStartedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    return { url: data.url as string };
+    return {
+      url: data.url as string,
+      // Page content captured in the saver's browser (extension), if any.
+      clientContent: (data.clientContent ?? null) as ClientCapture | null,
+    };
   });
 
   if (!claimed) return; // not ours to process
@@ -47,7 +51,23 @@ export async function processItem(id: string): Promise<void> {
   // 2. Extract + analyze (outside the transaction - these are slow/networked).
   let content: Awaited<ReturnType<typeof extractContent>> | null = null;
   try {
-    content = await extractContent(claimed.url);
+    content = await extractContent(claimed.url, claimed.clientContent ?? undefined);
+
+    // Bot-challenge page: there is no real content and nothing honest to
+    // summarize. Keep the title the save came with (the extension sends the
+    // real tab title), skip Claude entirely, and mark the item blocked so the
+    // dashboard says so instead of showing a summary of a loading screen.
+    if (content.blocked) {
+      await ref.update({
+        status: "completed",
+        blocked: true,
+        ai: null,
+        error: null,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return;
+    }
+
     const analysis = await analyzeContent({
       title: content.title,
       text: content.text,
@@ -62,9 +82,12 @@ export async function processItem(id: string): Promise<void> {
     };
 
     await ref.update({
-      title: content.title,
+      // The client-capture path returns an empty title when the page had no
+      // og:title; keep the tab title the save already carries in that case.
+      ...(content.title ? { title: content.title } : {}),
       description: content.description,
       image: content.image,
+      blocked: false,
       // Recognized videos/podcasts update the saved type so the dashboard's
       // Medium filter actually matches them (items are created as "article").
       ...(content.medium ? { type: content.medium } : {}),
@@ -85,7 +108,7 @@ export async function processItem(id: string): Promise<void> {
       // the bookmark still shows a real title/description instead of its URL.
       ...(content
         ? {
-            title: content.title,
+            ...(content.title ? { title: content.title } : {}),
             description: content.description,
             image: content.image,
           }

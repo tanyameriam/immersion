@@ -137,12 +137,58 @@ async function switchAccount() {
 
 /* ---------- Save (input) ---------- */
 
+/**
+ * Capture the page content from the tab itself. The user's browser has
+ * already passed bot checks, logins, and JS rendering, so this succeeds on
+ * pages the server can't read (Cloudflare-protected journals, paywalls).
+ * Returns null where scripting isn't allowed (chrome://, Web Store, PDFs) -
+ * the save then falls back to server-side extraction as before.
+ */
+async function capturePage() {
+  if (!currentTab?.id) return null;
+  try {
+    const [injection] = await chrome.scripting.executeScript({
+      target: { tabId: currentTab.id },
+      func: () => {
+        const meta = (sel) =>
+          document.querySelector(sel)?.getAttribute("content")?.trim() || "";
+        // Prefer the article/main region; body as a last resort brings some
+        // nav noise, which the summarizer tolerates.
+        const root =
+          document.querySelector("article") ||
+          document.querySelector("main") ||
+          document.body;
+        const text = (root?.innerText || "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 20000);
+        return {
+          title: meta('meta[property="og:title"]') || document.title || "",
+          description:
+            meta('meta[property="og:description"]') ||
+            meta('meta[name="description"]') ||
+            "",
+          image: meta('meta[property="og:image"]') || "",
+          text,
+        };
+      },
+    });
+    const page = injection?.result;
+    return page && page.text ? page : null;
+  } catch {
+    return null;
+  }
+}
+
 async function save() {
   if (!currentTab?.url) return;
   saveBtn.disabled = true;
-  setStatus("Signing you in…");
+  setStatus("Reading the page…");
 
   try {
+    const content = await capturePage();
+
+    setStatus("Signing you in…");
     const idToken = await getIdToken(true);
 
     setStatus("Saving…");
@@ -156,6 +202,7 @@ async function save() {
         url: currentTab.url,
         title: currentTab.title || undefined,
         favicon: currentTab.favIconUrl || undefined,
+        content: content || undefined,
       }),
     });
 
@@ -166,7 +213,11 @@ async function save() {
     // The API says whether this was a fresh save or an existing bookmark
     // (201/created:true vs 200/created:false) — tell the user the truth.
     const data = await res.json().catch(() => null);
-    if (data && data.created === false) {
+    if (data && data.created === false && data.reprocess) {
+      // An earlier save couldn't be read (bot wall / paywall); this save
+      // brought the page content from the browser, so it's being re-read.
+      setStatus("Already saved. Layrrrd is re-reading it from this tab.", "ok");
+    } else if (data && data.created === false) {
       setStatus("Already in your library.", "info");
     } else {
       setStatus("Saved! Layrrrd is reading it now.", "ok");

@@ -60,6 +60,7 @@ export function toKnowledgeItem(
     ai: data.ai ?? null,
     error: data.error ?? null,
     note: data.note || undefined,
+    blocked: data.blocked ? true : undefined,
   };
 }
 
@@ -73,7 +74,14 @@ export async function createPendingItem(input: {
   title?: string;
   favicon?: string;
   note?: string;
-}): Promise<{ item: KnowledgeItem; created: boolean }> {
+  /** Page content captured in the saver's browser (extension saves only). */
+  clientContent?: {
+    title?: string;
+    text?: string;
+    description?: string;
+    image?: string;
+  };
+}): Promise<{ item: KnowledgeItem; created: boolean; reprocess: boolean }> {
   const canonicalUrl = canonicalizeUrl(input.url);
   const id = hashId(input.userId, canonicalUrl);
   const ref = adminDb().collection(COLLECTION).doc(id);
@@ -88,15 +96,28 @@ export async function createPendingItem(input: {
     if (legacy.exists) existing = legacy;
   }
   if (existing.exists) {
+    const existingData = existing.data()!;
+    const updates: Record<string, unknown> = {};
     // Re-saving with a comment still attaches it to the existing bookmark.
-    if (input.note) {
-      await existing.ref.update({
-        note: input.note,
-        updatedAt: FieldValue.serverTimestamp(),
-      });
+    if (input.note) updates.note = input.note;
+    // Re-saving from the extension a page that previously couldn't be read
+    // (bot challenge, paywall, failed fetch) now brings the content the
+    // user's own browser sees: attach it and queue a reprocess.
+    const unreadable =
+      existingData.blocked ||
+      existingData.status === "failed" ||
+      existingData.ai?.degraded;
+    const reprocess = Boolean(input.clientContent?.text && unreadable);
+    if (reprocess) {
+      updates.clientContent = input.clientContent;
+      updates.status = "pending" satisfies ProcessingStatus;
     }
-    const data = { ...existing.data()!, ...(input.note ? { note: input.note } : {}) };
-    return { item: toKnowledgeItem(existing.id, data), created: false };
+    if (Object.keys(updates).length > 0) {
+      updates.updatedAt = FieldValue.serverTimestamp();
+      await existing.ref.update(updates);
+    }
+    const data = { ...existingData, ...updates };
+    return { item: toKnowledgeItem(existing.id, data), created: false, reprocess };
   }
 
   await ref.set({
@@ -120,10 +141,11 @@ export async function createPendingItem(input: {
     ai: null,
     error: null,
     note: input.note ?? null,
+    clientContent: input.clientContent ?? null,
   });
 
   const saved = await ref.get();
-  return { item: toKnowledgeItem(id, saved.data()!), created: true };
+  return { item: toKnowledgeItem(id, saved.data()!), created: true, reprocess: false };
 }
 
 /**
@@ -149,6 +171,17 @@ export async function listItems(
   const snap = await query.get();
   const items = snap.docs.map((d) => toKnowledgeItem(d.id, d.data()));
   return opts.includeArchived ? items : items.filter((i) => !i.isArchived);
+}
+
+/** Count a user's saved items (free-plan cap checks). Firestore aggregate -
+ * no documents are read or billed beyond the single aggregation. */
+export async function countItems(userId: string): Promise<number> {
+  const snap = await adminDb()
+    .collection(COLLECTION)
+    .where("userId", "==", userId)
+    .count()
+    .get();
+  return snap.data().count;
 }
 
 /**
