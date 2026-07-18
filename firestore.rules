@@ -23,11 +23,22 @@ service cloud.firestore {
       allow create: if signedIn() && request.auth.uid == userId
         && request.resource.data.get('plan', 'free') == 'free'
         && !request.resource.data.keys().hasAny(
-             ['paidAt', 'razorpayPaymentId', 'razorpayOrderId']);
+             ['paidAt', 'razorpayPaymentId', 'razorpayOrderId',
+              'foundingMember', 'foundingSpot', 'biscuits', 'rudolf',
+              'referralCode', 'referralCodeCreatedAt', 'referredByUid',
+              'referredByCode', 'referredAt', 'signupAdminNotifiedAt',
+              'referralAdminNotifiedAt', 'referrerSignupThankYouSentAt',
+              'paidAdminNotifiedAt']);
       allow update: if signedIn() && request.auth.uid == userId
         && !request.resource.data.diff(resource.data).affectedKeys()
             .hasAny(['plan', 'paidAt', 'razorpayPaymentId',
-                     'razorpayOrderId']);
+                     'razorpayOrderId', 'foundingMember', 'foundingSpot',
+                     'biscuits', 'rudolf', 'referralCode',
+                     'referralCodeCreatedAt', 'referredByUid',
+                     'referredByCode', 'referredAt',
+                     'signupAdminNotifiedAt', 'referralAdminNotifiedAt',
+                     'referrerSignupThankYouSentAt',
+                     'paidAdminNotifiedAt']);
     }
 
     // Per-user preferences.
@@ -61,6 +72,26 @@ service cloud.firestore {
     match /notifications/{id} {
       allow read: if owns(resource.data);
       allow write: if false;
+    }
+
+    match /referrals/{id} {
+      allow read, write: if false;
+    }
+
+    match /referralCodes/{id} {
+      allow read, write: if false;
+    }
+
+    // Billing: founding-spot counter, payment ledger, and pending orders are
+    // written only by the payment routes via the Admin SDK.
+    match /billing/{id} {
+      allow read, write: if false;
+    }
+    match /payments/{id} {
+      allow read, write: if false;
+    }
+    match /paymentOrders/{id} {
+      allow read, write: if false;
     }
 
     // Backend-only, no client access at all.

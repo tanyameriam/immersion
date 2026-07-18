@@ -8,7 +8,7 @@ import { FadeUp } from "@/components/FadeUp";
 const included = [
   "Lifetime founding membership",
   "Unlimited saves & AI summaries",
-  "Extended Rudolf usage",
+  "Unlimited Rudolf play time",
   "Early access to every new feature",
   "Help shape the product roadmap",
 ];

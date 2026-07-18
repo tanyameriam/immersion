@@ -2,6 +2,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { AI_MODEL, claude } from "@/lib/ai/claude";
 import { limitsFor } from "@/lib/billing/config";
 import { getUserPlan } from "@/lib/billing/plan";
+import { meterQuestion } from "@/lib/billing/playtime";
 import {
   countItems,
   createPendingItem,
@@ -10,6 +11,7 @@ import {
   searchItems,
 } from "@/lib/firestore/items";
 import { processItems } from "@/lib/items/process-item";
+import { durationLabel, savedNudge, toMedium } from "@/lib/medium-label";
 import { getCachedFeed, type FeedEntry } from "@/lib/rudolf/feed";
 import {
   getRecentMentions,
@@ -86,6 +88,24 @@ export function extractUrlsAndNote(
 }
 
 const upgradeUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.layrrrd.com"}/dashboard/profile`;
+const foundingUrl = "https://layrrrd.com/founding-membership";
+
+function sleepyWarning(remainingMs: number): string {
+  const mins = Math.max(1, Math.round(remainingMs / 60000));
+  return (
+    `Quick woof from me: I'm getting a little sleepy, about ${mins} ` +
+    `minutes of play left today. A biscuit keeps me going for 15 more ` +
+    `minutes if you want to keep chatting: ${upgradeUrl}`
+  );
+}
+
+const SLEEP_MESSAGES = [
+  "I'm all played out for today, so I'm curling up for a nap 😴",
+  `Your saves are safe and you can keep sending me links, I'll tuck them ` +
+    `into your library while I snooze. To wake me up, grab me a biscuit ` +
+    `here: ${upgradeUrl}. Or join as a founding member for unlimited play, ` +
+    `forever: ${foundingUrl}`,
+];
 
 /** Route one chat message from a linked user. */
 export async function handleRudolfMessage(
@@ -94,18 +114,12 @@ export async function handleRudolfMessage(
   text: string,
   entities: LinkEntity[] = [],
 ): Promise<void> {
-  // Billing gate: with the default config every plan passes, so this is a
-  // no-op until free-tier limits are switched on in lib/billing/config.ts.
   const limits = limitsFor(await getUserPlan(userId));
-  if (!limits.rudolfChat) {
-    await channel.sendMessages([
-      `Chatting with me is a Layrrrd Pro thing 🐾 Upgrade here and I'm all yours: ${upgradeUrl}`,
-    ]);
-    return;
-  }
 
   const { urls, note } = extractUrlsAndNote(text, entities);
   if (urls.length > 0) {
+    // Saving links is never metered: the library keeps working even while
+    // Rudolf is out of play time.
     if (
       limits.maxItems !== null &&
       (await countItems(userId)) >= limits.maxItems
@@ -116,9 +130,27 @@ export async function handleRudolfMessage(
       return;
     }
     await ingestLinks(userId, channel, urls, note);
-  } else {
-    await answerQuestion(userId, channel, text);
+    return;
   }
+
+  // Questions are Rudolf's "play time". Paid members play unlimited; the
+  // free plan gets a daily allowance topped up by purchased biscuits.
+  if (limits.rudolfPlaytime === "metered") {
+    const meter = await meterQuestion(userId);
+    if (!meter.allowed) {
+      if (meter.shouldSendSleepMessage) {
+        await channel.sendMessages(SLEEP_MESSAGES);
+      }
+      return; // already said goodnight today: stay asleep quietly
+    }
+    await answerQuestion(userId, channel, text);
+    if (meter.shouldWarn) {
+      await channel.sendMessages([sleepyWarning(meter.remainingMs)]);
+    }
+    return;
+  }
+
+  await answerQuestion(userId, channel, text);
 }
 
 /** Save pasted links through the normal pipeline, then report the gists. */
@@ -177,10 +209,7 @@ async function ingestLinks(
           `Here is what I got: ${fresh.ai?.tldr ?? fresh.title}`,
       );
     } else if (fresh?.status === "completed") {
-      const mins = fresh.ai?.readingTime;
-      const nudge = mins
-        ? `About a ${mins} minute read when you're ready 🙂`
-        : "It's in your library whenever you're ready.";
+      const nudge = savedNudge(fresh.type, fresh.ai?.readingTime);
       gists.push(
         `Saved this one for you 📚\n${fresh.url}\n\n` +
           `The gist: ${fresh.ai?.tldr ?? fresh.title}\n\n${nudge}`,
@@ -204,10 +233,11 @@ async function ingestLinks(
 function contextLine(item: KnowledgeItem, withSummary: boolean): string {
   const saved = item.createdAt.slice(0, 10);
   const topics = (item.ai?.topics ?? []).join(", ");
-  const mins = item.ai?.readingTime ? `${item.ai.readingTime} min read` : "";
+  const medium = toMedium(item.type);
+  const mins = durationLabel(item.type, item.ai?.readingTime);
   const base =
-    `- "${item.title}" (${item.domain}) | saved ${saved} | ` +
-    `${item.read ? "read" : "unread"} | ${mins} | topics: ${topics}\n` +
+    `- "${item.title}" (${item.domain}, ${medium}) | saved ${saved} | ` +
+    `${item.read ? "finished" : "not finished"} | ${mins} | topics: ${topics}\n` +
     `  url: ${item.url}\n  tldr: ${item.ai?.tldr ?? ""}`;
   if (withSummary && item.ai?.summary) {
     return `${base}\n  summary: ${item.ai.summary}`;
@@ -216,7 +246,8 @@ function contextLine(item: KnowledgeItem, withSummary: boolean): string {
 }
 
 function feedLine(e: FeedEntry): string {
-  const mins = e.readingTime ? `, ${e.readingTime} min` : "";
+  const label = durationLabel(e.contentType, e.readingTime);
+  const mins = label ? `, ${label}` : "";
   return (
     `- "${e.title}" (${e.source}, ${e.contentType}${mins}) | why: ${e.reason}\n` +
     `  url: ${e.url}\n  tldr: ${e.tldr}`
@@ -362,9 +393,19 @@ async function answerQuestion(
       `- When you point at a bookmark or a feed pick, do it like you're handing it to them: a short lead-in like ` +
       `"This is the one:", then the url on its own line, then "The gist:" and one or two sentences. ` +
       `One item per message, at most two or three items in a whole reply.\n` +
-      `- Encourage reading, gently. If an unread save fits the conversation, point at one worth reading, ` +
-      `say why in a few words, and mention how long it takes. If they have been reading, notice it and ` +
-      `celebrate briefly. Never guilt trip, never lecture.\n` +
+      `- Every item is labeled with its medium: articles are read, videos are watched, podcasts are ` +
+      `listened to. Use the matching verb and time label, a video is "a 12 min watch", never "a read". ` +
+      `When an item has no minutes listed, don't guess a number.\n` +
+      `- Encourage them, gently. If an unfinished save fits the conversation, point at one worth picking ` +
+      `up, say why in a few words, and mention how long it takes to read, watch or listen. If they have ` +
+      `been finishing things, notice it and celebrate briefly. Never guilt trip, never lecture.\n` +
+      `- When suggesting what to pick up next, start with their own saves: an unfinished item from ` +
+      `THEIR LIBRARY that fits. Reach for THEIR FEED only when nothing saved fits, or when they ask for ` +
+      `something new. Always say where a pick comes from, "one of your saves" or "a fresh pick from ` +
+      `your feed".\n` +
+      `- If they ask for something without saying what kind ("give me something", "what should I check ` +
+      `out"), offer one fitting unfinished save and ask what they're in the mood for, like a save or a ` +
+      `fresh pick, or a quick read versus a video or podcast. One short question, not an interrogation.\n` +
       `- Where it feels natural, end your last message with one genuinely useful follow-up question, ` +
       `like offering the gist of a pick, asking which one to queue up, or offering to find more like ` +
       `something. Skip it when the conversation is clearly wrapping up. Never ask filler questions.\n` +
@@ -378,11 +419,11 @@ async function answerQuestion(
       `want a feed item saved or properly summarized, hand them its url on its own line and tell them: ` +
       `send that link back to me and I'll save it and read it for you.\n\n` +
       `Today is ${new Date().toISOString().slice(0, 10)}. ` +
-      `They have read ${readCount} of their ${items.length} processed saves.\n\n` +
+      `They have finished ${readCount} of their ${items.length} processed saves.\n\n` +
       `THEIR PREFERENCES:\n` +
       `- Interests they picked: ${preferredTopics.join(", ") || "none picked yet"}\n` +
       `- Topics they chose to hide: ${mutedTopics.join(", ") || "none"}\n` +
-      `Lean toward their interests when suggesting what to read or building a briefing. ` +
+      `Lean toward their interests when suggesting what to pick up or building a briefing. ` +
       `Never surface a hidden topic unless they ask for it by name.\n\n` +
       `THEIR LIBRARY (things they saved, most relevant to this message first, then newest):\n${context || "nothing saved yet"}\n\n` +
       `THEIR FEED (recommended for them, NOT saved yet):\n${feedContext || "nothing right now"}\n\n` +

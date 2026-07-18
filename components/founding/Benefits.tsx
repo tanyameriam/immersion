@@ -18,9 +18,9 @@ const benefits = [
   },
   {
     icon: MessageCircle,
-    title: "Extended Rudolf usage",
+    title: "Unlimited Rudolf play time",
     description:
-      "Ask Rudolf as much as you want, with no monthly caps on retrieval.",
+      "Ask Rudolf as much as you want, no daily play-time limits, ever.",
   },
   {
     icon: Rocket,

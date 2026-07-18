@@ -49,6 +49,14 @@ export interface Preferences {
   botNudges: "on" | "off";
   /** Billing plan. Read-only on the client; upgrades happen server-side. */
   plan: "free" | "pro";
+  /** Founding member spot number (1-based); null for free or legacy pro.
+   * Server-managed, read-only on the client. */
+  foundingSpot: number | null;
+  /** Purchased Rudolf biscuits not yet eaten. Server-managed, read-only. */
+  biscuitBalance: number;
+  /** Today's Rudolf play-time state (see lib/billing/playtime-math.ts);
+   * null until Rudolf has been talked to. Server-managed, read-only. */
+  rudolf: { dayKey: string; playMs: number; bonusMs: number } | null;
 }
 
 const DEFAULTS: Preferences = {
@@ -66,6 +74,9 @@ const DEFAULTS: Preferences = {
   notificationFrequency: "weekly",
   botNudges: "on",
   plan: "free",
+  foundingSpot: null,
+  biscuitBalance: 0,
+  rudolf: null,
 };
 
 type PreferencesValue = {
@@ -125,6 +136,18 @@ function usePreferencesState(): PreferencesValue {
             : "weekly",
         botNudges: data.botNudges === "off" ? "off" : "on",
         plan: data.plan === "pro" ? "pro" : "free",
+        foundingSpot:
+          typeof data.foundingSpot === "number" ? data.foundingSpot : null,
+        biscuitBalance:
+          typeof data.biscuits?.balance === "number" ? data.biscuits.balance : 0,
+        rudolf:
+          typeof data.rudolf?.dayKey === "string"
+            ? {
+                dayKey: data.rudolf.dayKey,
+                playMs: Number(data.rudolf.playMs) || 0,
+                bonusMs: Number(data.rudolf.bonusMs) || 0,
+              }
+            : null,
       });
       setOnboarded(Boolean(data.onboardedAt));
     } catch (err) {
@@ -145,10 +168,16 @@ function usePreferencesState(): PreferencesValue {
   const save = useCallback(
     async (partial: Partial<Preferences>) => {
       if (!user) return;
-      // plan is server-managed; Firestore rules reject any client write that
-      // touches it, so strip it before persisting.
-      const { plan: _plan, ...toWrite } = partial;
-      void _plan;
+      // Billing fields are server-managed; Firestore rules reject any client
+      // write that touches them, so strip them before persisting.
+      const {
+        plan: _plan,
+        foundingSpot: _spot,
+        biscuitBalance: _biscuits,
+        rudolf: _rudolf,
+        ...toWrite
+      } = partial;
+      void [_plan, _spot, _biscuits, _rudolf];
       setPrefs((prev) => ({ ...prev, ...partial }));
       // Every interests change funnels through here (onboarding, profile,
       // like/mute on recommendation cards), so this one event tracks how

@@ -1,12 +1,6 @@
-import { ITEM_MEDIUMS, type ItemMedium, type KnowledgeItem } from "@/lib/types/knowledge-item";
+import type { KnowledgeItem } from "@/lib/types/knowledge-item";
 import type { Resource } from "@/lib/dashboard-data";
-
-/** Legacy docs hold free-form type strings; anything unknown reads as article. */
-function toMedium(type: string): ItemMedium {
-  return (ITEM_MEDIUMS as readonly string[]).includes(type)
-    ? (type as ItemMedium)
-    : "article";
-}
+import { toMedium } from "@/lib/medium-label";
 
 function capitalize(s: string): string {
   return s ? s[0].toUpperCase() + s.slice(1) : s;

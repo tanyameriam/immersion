@@ -1,9 +1,10 @@
 /**
  * Billing configuration - the single source of truth for plans and limits.
  *
- * Pricing, billing type, and free-tier limits are still being finalized;
- * when they are, edit THIS FILE ONLY and redeploy. Nothing else in the
- * codebase hardcodes a price or a limit - every gate calls limitsFor().
+ * Pricing and allowances live HERE and nowhere else; when they change, edit
+ * this file only and redeploy. Nothing else in the codebase hardcodes a
+ * price or a limit - every gate calls limitsFor() and every price label is
+ * derived from these constants.
  *
  * Client-safe: imported by browser components for price display, so it must
  * never contain secrets.
@@ -11,39 +12,64 @@
 
 export type Plan = "free" | "pro";
 
-/** One-time for now; adding "subscription" later only touches lib/billing/*
- * and the payment routes - gates and limitsFor() stay unchanged. */
-export type BillingMode = "one_time";
-
-/** The single paid plan. PLACEHOLDER PRICE - finalize before going live. */
-export const PRO_PLAN = {
-  mode: "one_time" as BillingMode,
-  name: "Layrrrd Pro",
-  amountPaise: 49900, // ₹499 - placeholder, NOT final
+/**
+ * Founding Membership - the only paid plan. One-time payment, lifetime
+ * access. Sold in two price tiers as spots fill; hard cap of totalSpots,
+ * after which it is never offered again.
+ */
+export const FOUNDING = {
+  name: "Founding Membership",
+  totalSpots: 100,
+  /** Spots 1..tier1Cap sell at tier1Paise; the rest at tier2Paise. */
+  tier1Cap: 20,
+  tier1Paise: 79900, // ₹799
+  tier2Paise: 119900, // ₹1,199
   currency: "INR",
+};
+
+/**
+ * Biscuits - Rudolf play-time top-ups for the free plan. Each biscuit buys
+ * `minutes` of extra play time and is consumed only after the daily free
+ * allowance runs out. Purchased biscuits never expire.
+ */
+export const BISCUIT = {
+  pricePaise: 5000, // ₹50 each
+  minutes: 15,
+  maxPerOrder: 20,
+  currency: "INR",
+};
+
+/** Rudolf play-time metering for the free plan. */
+export const PLAYTIME = {
+  /** Daily free allowance, resets every day at midnight in `timeZone`. */
+  freeDailyMinutes: 120,
+  /** Gaps between messages up to this count as continuous play time. */
+  idleGraceMs: 5 * 60 * 1000,
+  /** Send the one daily "Rudolf is sleepy" warning at this remaining time. */
+  warnThresholdMs: 15 * 60 * 1000,
+  timeZone: "Asia/Kolkata",
 };
 
 export interface PlanLimits {
   /** Max saved items; null = unlimited. */
   maxItems: number | null;
-  /** Can this plan chat with Rudolf (Telegram/WhatsApp)? */
-  rudolfChat: boolean;
+  /** Rudolf chat: unlimited for paid, metered play time for free. */
+  rudolfPlaytime: "unlimited" | "metered";
   /** Does this plan receive the weekly digest? */
   digests: boolean;
 }
 
-// SAFE DEFAULTS: the free tier is currently unlimited/enabled, so deploying
-// this code changes nothing for existing users. Flip these values when the
-// free-tier shape is finalized (e.g. maxItems: 50, rudolfChat: false).
+// The free tier keeps unlimited saves and digests (the marketing pages
+// promise this); the only metered thing is Rudolf play time.
 const FREE_LIMITS: PlanLimits = {
   maxItems: null,
-  rudolfChat: true,
+  rudolfPlaytime: "metered",
   digests: true,
 };
 
 const PRO_LIMITS: PlanLimits = {
   maxItems: null,
-  rudolfChat: true,
+  rudolfPlaytime: "unlimited",
   digests: true,
 };
 
@@ -51,4 +77,9 @@ const PRO_LIMITS: PlanLimits = {
  * Unknown/missing plan values are treated as "free". */
 export function limitsFor(plan: string | undefined | null): PlanLimits {
   return plan === "pro" ? PRO_LIMITS : FREE_LIMITS;
+}
+
+/** "₹799" style label from a paise amount (client-safe). */
+export function formatInr(paise: number): string {
+  return `₹${(paise / 100).toLocaleString("en-IN")}`;
 }

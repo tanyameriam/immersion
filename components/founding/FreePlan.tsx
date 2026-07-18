@@ -2,8 +2,10 @@ import { Check, Cookie } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { FadeUp } from "@/components/FadeUp";
 import {
-  FREE_MONTHLY_BISCUITS,
-  FREE_BISCUITS_USED_SAMPLE,
+  BISCUIT_MINUTES,
+  BISCUIT_PRICE_LABEL,
+  FREE_DAILY_PLAY_HOURS,
+  FREE_DAILY_PLAY_MINUTES,
 } from "@/lib/founding-membership";
 
 const freeIncluded = [
@@ -14,8 +16,6 @@ const freeIncluded = [
 ];
 
 export function FoundingFreePlan() {
-  const remaining = FREE_MONTHLY_BISCUITS - FREE_BISCUITS_USED_SAMPLE;
-
   return (
     <section
       id="free-plan"
@@ -57,34 +57,36 @@ export function FoundingFreePlan() {
               <div className="flex items-center gap-3">
                 <Cookie className="size-5 text-foreground" strokeWidth={1.5} />
                 <h3 className="text-xl font-bold tracking-[-0.02em] text-foreground">
-                  Rudolf&apos;s Biscuit Jar
+                  Rudolf&apos;s Play Time
                 </h3>
               </div>
 
               <p className="mt-6 text-4xl font-bold tracking-[-0.03em] text-foreground">
-                {FREE_MONTHLY_BISCUITS}{" "}
+                {FREE_DAILY_PLAY_HOURS} hours{" "}
                 <span className="text-lg font-medium text-muted-foreground">
-                  biscuits / month
+                  every day
                 </span>
               </p>
 
               <Progress
-                value={remaining}
-                max={FREE_MONTHLY_BISCUITS}
+                value={FREE_DAILY_PLAY_MINUTES}
+                max={FREE_DAILY_PLAY_MINUTES}
                 className="mt-6 flex-col items-stretch gap-2"
               >
                 <div className="flex w-full items-center justify-between text-sm text-muted-foreground">
-                  <span>Remaining this month</span>
+                  <span>A fresh full tank daily</span>
                   <span className="tabular-nums">
-                    {remaining} / {FREE_MONTHLY_BISCUITS}
+                    {FREE_DAILY_PLAY_MINUTES} min
                   </span>
                 </div>
               </Progress>
 
               <p className="mt-6 text-[15px] leading-[1.65] text-muted-foreground">
-                Every question you ask Rudolf costs one biscuit. The jar
-                refills every month on the free plan - founding members get
-                unlimited biscuits, forever.
+                Rudolf plays with you for {FREE_DAILY_PLAY_HOURS} hours every
+                day on the free plan. When he gets tired, a biscuit (
+                {BISCUIT_PRICE_LABEL}) keeps him going for another{" "}
+                {BISCUIT_MINUTES} minutes, and biscuits never expire. Founding
+                members skip all of this: unlimited play time, forever.
               </p>
             </div>
           </FadeUp>

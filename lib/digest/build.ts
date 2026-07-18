@@ -1,5 +1,6 @@
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { toKnowledgeItem } from "@/lib/firestore/items";
+import { durationLabel } from "@/lib/medium-label";
 import type { KnowledgeItem } from "@/lib/types/knowledge-item";
 import type { Resource } from "@/lib/dashboard-data";
 
@@ -156,17 +157,17 @@ function peerLine(d: UserDigest): string {
   const avg = Math.round(d.communityAvgRead * 10) / 10;
   const diff = Math.round((d.readThisWeek - d.communityAvgRead) * 10) / 10;
   if (d.readThisWeek > d.communityAvgRead && diff >= 1) {
-    return `You read ${d.readThisWeek} articles this week, ${diff} more than the average reader (${avg}). Keep upskilling! 🎉`;
+    return `You finished ${d.readThisWeek} saves this week, ${diff} more than the community average (${avg}). Keep upskilling! 🎉`;
   }
   if (d.readThisWeek > 0) {
-    return `You read ${d.readThisWeek} article${d.readThisWeek === 1 ? "" : "s"} this week. The community averages ${avg}.`;
+    return `You finished ${d.readThisWeek} save${d.readThisWeek === 1 ? "" : "s"} this week. The community averages ${avg}.`;
   }
-  return `You haven't marked anything read yet. Your unread list is waiting below.`;
+  return `You haven't marked anything finished yet. Your shelf is waiting below.`;
 }
 
 function minutesLabel(it: KnowledgeItem): string {
-  const mins = it.ai?.readingTime ?? 0;
-  return mins > 0 ? ` · ${mins} min` : "";
+  const label = durationLabel(it.type, it.ai?.readingTime);
+  return label ? ` · ${label}` : "";
 }
 
 function totalUnreadMinutes(d: UserDigest): number {
@@ -182,9 +183,8 @@ export function digestText(d: UserDigest): string {
   if (picks.length) {
     lines.push(`<b>Picked for you</b>`);
     for (const r of picks) {
-      lines.push(
-        `• <a href="${r.url}">${r.title}</a>${r.readingTime > 0 ? ` · ${r.readingTime} min` : ""}`,
-      );
+      const label = durationLabel(r.contentType, r.readingTime);
+      lines.push(`• <a href="${r.url}">${r.title}</a>${label ? ` · ${label}` : ""}`);
       if (r.reason) lines.push(`<i>${r.reason}</i>`);
     }
     lines.push("");
@@ -200,7 +200,7 @@ export function digestText(d: UserDigest): string {
   if (d.unread.length) {
     const total = totalUnreadMinutes(d);
     lines.push(
-      `<b>Still to read</b>${total > 0 ? ` · about ${total} min in total, pick what fits` : ""}`,
+      `<b>Still on your shelf</b>${total > 0 ? ` · about ${total} min in total, pick what fits` : ""}`,
     );
     for (const it of d.unread)
       lines.push(`• <a href="${it.url}">${it.title}</a>${minutesLabel(it)}`);
@@ -238,25 +238,26 @@ export function digestHtml(d: UserDigest): string {
         <p style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#9a9a9a;margin:0 0 8px;">Picked for you</p>
         ${d.recommendations
           .slice(0, 3)
-          .map(
-            (r) => `<div style="padding:8px 0;border-bottom:1px solid #eee;">
+          .map((r) => {
+            const label = durationLabel(r.contentType, r.readingTime);
+            return `<div style="padding:8px 0;border-bottom:1px solid #eee;">
               <a href="${r.url}" style="color:#1a1a1a;text-decoration:none;">${r.title}</a>
-              ${r.readingTime > 0 ? `<span style="color:#9a9a9a;font-size:12px;"> · ${r.readingTime} min</span>` : ""}
+              ${label ? `<span style="color:#9a9a9a;font-size:12px;"> · ${label}</span>` : ""}
               ${r.reason ? `<div style="color:#6b6b6b;font-size:13px;font-style:italic;">${r.reason}</div>` : ""}
-            </div>`,
-          )
+            </div>`;
+          })
           .join("")}
       </div>`
     : "";
 
   const unreadBlock = d.unread.length
     ? `<div style="margin-top:28px;">
-        <p style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#9a9a9a;margin:0 0 8px;">Still to read · pick what fits your time</p>
+        <p style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#9a9a9a;margin:0 0 8px;">Still on your shelf · pick what fits your time</p>
         ${d.unread
           .map(
             (it) => `<div style="padding:8px 0;border-bottom:1px solid #eee;">
               <a href="${it.url}" style="color:#1a1a1a;text-decoration:none;">${it.title}</a>
-              <span style="color:#9a9a9a;font-size:12px;"> · ${it.ai?.readingTime ?? 0} min</span>
+              <span style="color:#9a9a9a;font-size:12px;">${minutesLabel(it)}</span>
             </div>`,
           )
           .join("")}
