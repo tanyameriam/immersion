@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { markUserPro } from "@/lib/billing/plan";
 import { verifyWebhookSignature } from "@/lib/billing/razorpay";
+import { notifyPaidUpgrade } from "@/lib/notifications/admin";
 
 export const runtime = "nodejs";
 
@@ -24,10 +25,12 @@ export async function POST(req: Request) {
       const payment = event.payload?.payment?.entity;
       const uid = payment?.notes?.uid;
       if (typeof uid === "string" && uid && typeof payment?.id === "string") {
-        await markUserPro(uid, {
+        const paid = {
           paymentId: payment.id,
           orderId: payment.order_id,
-        });
+        };
+        await markUserPro(uid, paid);
+        await notifyPaidUpgrade(uid, paid);
       } else {
         console.error("payment.captured without notes.uid", payment?.id);
       }

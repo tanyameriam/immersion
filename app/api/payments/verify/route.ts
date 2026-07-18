@@ -2,6 +2,7 @@ import { getAuthedUser, UnauthorizedError } from "@/lib/firebase/verify-auth";
 import { adminDb } from "@/lib/firebase/admin";
 import { markUserPro } from "@/lib/billing/plan";
 import { verifyPaymentSignature } from "@/lib/billing/razorpay";
+import { notifyPaidUpgrade } from "@/lib/notifications/admin";
 import { jsonWithCors, preflight } from "@/lib/http";
 
 export const runtime = "nodejs";
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
     }
 
     await markUserPro(user.uid, { paymentId, orderId });
+    await notifyPaidUpgrade(user.uid, { paymentId, orderId });
     return jsonWithCors(req, { ok: true, plan: "pro" });
   } catch (err) {
     if (err instanceof UnauthorizedError) {

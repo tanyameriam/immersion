@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/components/AuthContext";
 import { authErrorMessage } from "@/lib/auth-errors";
+import { getStoredReferral } from "@/lib/referrals/client";
 
 export function SignInForm() {
   const { mode, setMode, signInWithEmail, signUpWithEmail, signInWithGoogle } =
@@ -17,8 +18,13 @@ export function SignInForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "submitting" | "google">("idle");
+  const [referralCode, setReferralCode] = useState("");
 
   const signingUp = mode === "sign-up";
+
+  useEffect(() => {
+    setReferralCode(getStoredReferral()?.code ?? "");
+  }, [signingUp]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -62,6 +68,16 @@ export function SignInForm() {
             onChange={(e) => setName(e.target.value)}
             placeholder="Your name"
           />
+        </div>
+      )}
+
+      {signingUp && referralCode && (
+        <div className="space-y-2">
+          <Label htmlFor="signin-referral">Referral Code</Label>
+          <Input id="signin-referral" value={referralCode} readOnly />
+          <p className="text-xs text-muted-foreground">
+            This code was added automatically from the referral link.
+          </p>
         </div>
       )}
 

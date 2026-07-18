@@ -10,6 +10,7 @@ import {
 } from "react";
 import {
   createUserWithEmailAndPassword,
+  getAdditionalUserInfo,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -21,6 +22,10 @@ import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db, googleProvider } from "@/lib/firebase/client";
 import { resetAnalytics } from "@/lib/analytics";
 import { AuthModal } from "@/components/AuthModal";
+import {
+  clearStoredReferral,
+  getStoredReferral,
+} from "@/lib/referrals/client";
 
 export type AuthMode = "sign-in" | "sign-up";
 
@@ -112,6 +117,41 @@ async function upsertUserProfile(u: User): Promise<void> {
   );
 }
 
+async function callAuthedEndpoint(u: User, path: string, body?: unknown) {
+  const token = await u.getIdToken(true);
+  const headers = new Headers();
+  headers.set("Authorization", `Bearer ${token}`);
+  if (body) headers.set("Content-Type", "application/json");
+
+  const res = await fetch(path, {
+    method: "POST",
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error(`${path} failed with ${res.status}`);
+}
+
+async function finishNewSignup(u: User): Promise<void> {
+  const referral = getStoredReferral();
+  if (referral) {
+    try {
+      await callAuthedEndpoint(u, "/api/referrals/claim", {
+        code: referral.code,
+      });
+    } catch (err) {
+      console.error("Failed to claim referral", err);
+    } finally {
+      clearStoredReferral();
+    }
+  }
+
+  try {
+    await callAuthedEndpoint(u, "/api/notifications/signup");
+  } catch (err) {
+    console.error("Failed to send signup notification", err);
+  }
+}
+
 export default function AuthProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("sign-in");
@@ -166,7 +206,11 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
         closeAuth: () => setIsOpen(false),
         setMode,
         signInWithGoogle: async () => {
-          await signInWithPopup(auth, googleProvider);
+          const cred = await signInWithPopup(auth, googleProvider);
+          if (getAdditionalUserInfo(cred)?.isNewUser) {
+            await upsertUserProfile(cred.user);
+            await finishNewSignup(cred.user);
+          }
           setIsOpen(false);
         },
         signInWithEmail: async (email, password) => {
@@ -190,6 +234,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
           const cred = await createUserWithEmailAndPassword(auth, email, password);
           if (name) await updateProfile(cred.user, { displayName: name });
           await upsertUserProfile(cred.user);
+          await finishNewSignup(cred.user);
           setIsOpen(false);
         },
         logout: () => {

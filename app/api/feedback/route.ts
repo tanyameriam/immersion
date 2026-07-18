@@ -2,6 +2,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import { adminDb } from "@/lib/firebase/admin";
 import { getAuthedUser, UnauthorizedError } from "@/lib/firebase/verify-auth";
+import { notifyFeedback } from "@/lib/notifications/admin";
 
 export const runtime = "nodejs";
 
@@ -38,6 +39,14 @@ export async function POST(req: Request) {
       userId: authedUser?.uid ?? null,
       authSource: authedUser ? "firebase" : "client",
       createdAt: FieldValue.serverTimestamp(),
+    });
+
+    await notifyFeedback({
+      rating: parsed.data.rating,
+      comment: parsed.data.comment,
+      page: parsed.data.page,
+      email,
+      userId: authedUser?.uid ?? null,
     });
 
     return Response.json({ ok: true }, { status: 201 });
