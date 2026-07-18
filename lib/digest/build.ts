@@ -17,6 +17,8 @@ export interface UserDigest {
   notificationFrequency: string;
   /** ISO timestamp of the last digest actually delivered; "" if never. */
   lastDigestSentAt: string;
+  /** Billing plan ("free" | "pro") - the cron route gates delivery on it. */
+  plan: string;
   byTopic: [string, KnowledgeItem[]][]; // top topics → items saved this week
   unread: KnowledgeItem[]; // completed but not read
   /** Fresh picks (community + web), each carrying its `reason`. Attached by
@@ -138,6 +140,7 @@ export async function buildWeeklyDigests(sinceMs = WEEK_MS): Promise<UserDigest[
       notificationPreference: profile.notificationPreference ?? "email",
       notificationFrequency: profile.notificationFrequency ?? "weekly",
       lastDigestSentAt: profile.lastDigestSentAt ?? "",
+      plan: profile.plan === "pro" ? "pro" : "free",
       byTopic,
       unread,
       savedThisWeek: weekItems.length,

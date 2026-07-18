@@ -1,6 +1,9 @@
 import { adminDb } from "@/lib/firebase/admin";
 import { AI_MODEL, claude } from "@/lib/ai/claude";
+import { limitsFor } from "@/lib/billing/config";
+import { getUserPlan } from "@/lib/billing/plan";
 import {
+  countItems,
   createPendingItem,
   getItem,
   listItems,
@@ -82,6 +85,8 @@ export function extractUrlsAndNote(
   return { urls, note: note || undefined };
 }
 
+const upgradeUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.layrrrd.com"}/dashboard/profile`;
+
 /** Route one chat message from a linked user. */
 export async function handleRudolfMessage(
   userId: string,
@@ -89,8 +94,27 @@ export async function handleRudolfMessage(
   text: string,
   entities: LinkEntity[] = [],
 ): Promise<void> {
+  // Billing gate: with the default config every plan passes, so this is a
+  // no-op until free-tier limits are switched on in lib/billing/config.ts.
+  const limits = limitsFor(await getUserPlan(userId));
+  if (!limits.rudolfChat) {
+    await channel.sendMessages([
+      `Chatting with me is a Layrrrd Pro thing 🐾 Upgrade here and I'm all yours: ${upgradeUrl}`,
+    ]);
+    return;
+  }
+
   const { urls, note } = extractUrlsAndNote(text, entities);
   if (urls.length > 0) {
+    if (
+      limits.maxItems !== null &&
+      (await countItems(userId)) >= limits.maxItems
+    ) {
+      await channel.sendMessages([
+        `Your free shelf is full (${limits.maxItems} saves). Upgrade to keep collecting: ${upgradeUrl}`,
+      ]);
+      return;
+    }
     await ingestLinks(userId, channel, urls, note);
   } else {
     await answerQuestion(userId, channel, text);

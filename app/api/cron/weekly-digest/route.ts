@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
+import { limitsFor } from "@/lib/billing/config";
 import {
   buildWeeklyDigests,
   digestHtml,
@@ -41,6 +42,8 @@ async function run(req: Request) {
     const BIWEEKLY_MIN_MS = 13 * 24 * 60 * 60 * 1000; // 13 days tolerates cron jitter
 
     for (const digest of digests) {
+      // Billing gate: no-op until free-tier limits flip in lib/billing/config.ts.
+      if (!limitsFor(digest.plan).digests) continue;
       // Paused users get nothing, even under force=1, so pause is testable.
       if (digest.notificationFrequency === "off") continue;
       if (!force && digest.notificationDay !== today) continue;

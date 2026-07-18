@@ -47,6 +47,8 @@ export interface Preferences {
   notificationFrequency: NotificationFrequency;
   /** Whether Rudolf may send fresh picks between digests on Telegram. */
   botNudges: "on" | "off";
+  /** Billing plan. Read-only on the client; upgrades happen server-side. */
+  plan: "free" | "pro";
 }
 
 const DEFAULTS: Preferences = {
@@ -63,6 +65,7 @@ const DEFAULTS: Preferences = {
   notificationDay: "Monday",
   notificationFrequency: "weekly",
   botNudges: "on",
+  plan: "free",
 };
 
 type PreferencesValue = {
@@ -121,6 +124,7 @@ function usePreferencesState(): PreferencesValue {
             ? data.notificationFrequency
             : "weekly",
         botNudges: data.botNudges === "off" ? "off" : "on",
+        plan: data.plan === "pro" ? "pro" : "free",
       });
       setOnboarded(Boolean(data.onboardedAt));
     } catch (err) {
@@ -141,6 +145,10 @@ function usePreferencesState(): PreferencesValue {
   const save = useCallback(
     async (partial: Partial<Preferences>) => {
       if (!user) return;
+      // plan is server-managed; Firestore rules reject any client write that
+      // touches it, so strip it before persisting.
+      const { plan: _plan, ...toWrite } = partial;
+      void _plan;
       setPrefs((prev) => ({ ...prev, ...partial }));
       // Every interests change funnels through here (onboarding, profile,
       // like/mute on recommendation cards), so this one event tracks how
@@ -155,7 +163,7 @@ function usePreferencesState(): PreferencesValue {
         await setDoc(
           doc(db, "users", user.uid),
           {
-            ...partial,
+            ...toWrite,
             ...(partial.starterPicks ? { starterPicksAt: serverTimestamp() } : {}),
             updatedAt: serverTimestamp(),
           },

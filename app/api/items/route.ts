@@ -1,6 +1,8 @@
 import { after } from "next/server";
 import { getAuthedUser, UnauthorizedError } from "@/lib/firebase/verify-auth";
-import { createPendingItem, listItems } from "@/lib/firestore/items";
+import { limitsFor } from "@/lib/billing/config";
+import { getUserPlan } from "@/lib/billing/plan";
+import { countItems, createPendingItem, listItems } from "@/lib/firestore/items";
 import { processItem } from "@/lib/items/process-item";
 import { SaveItemInputSchema } from "@/lib/types/knowledge-item";
 import { jsonWithCors, preflight } from "@/lib/http";
@@ -22,17 +24,34 @@ export async function POST(req: Request) {
       return jsonWithCors(req, { error: "Invalid input" }, 400);
     }
 
-    const { item, created } = await createPendingItem({
+    // Free-plan item cap. With the default config maxItems is null, so no
+    // count query runs and this is a no-op until limits are switched on.
+    const { maxItems } = limitsFor(await getUserPlan(user.uid));
+    if (maxItems !== null && (await countItems(user.uid)) >= maxItems) {
+      return jsonWithCors(
+        req,
+        {
+          error: "Free plan save limit reached. Upgrade for unlimited saves.",
+          code: "free_limit_items",
+          maxItems,
+        },
+        402,
+      );
+    }
+
+    const { item, created, reprocess } = await createPendingItem({
       userId: user.uid,
       url: parsed.data.url,
       title: parsed.data.title,
       favicon: parsed.data.favicon,
       note: parsed.data.note,
+      clientContent: parsed.data.content,
     });
 
     // Process in the background after the response is sent (best-effort; the
-    // process-on-open sweep is the guaranteed fallback).
-    if (created) {
+    // process-on-open sweep is the guaranteed fallback). `reprocess` means an
+    // existing unreadable save just received browser-captured content.
+    if (created || reprocess) {
       after(async () => {
         try {
           await processItem(item.id);
@@ -42,7 +61,7 @@ export async function POST(req: Request) {
       });
     }
 
-    return jsonWithCors(req, { item, created }, created ? 201 : 200);
+    return jsonWithCors(req, { item, created, reprocess }, created ? 201 : 200);
   } catch (err) {
     if (err instanceof UnauthorizedError) {
       return jsonWithCors(req, { error: "Unauthorized" }, 401);

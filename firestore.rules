@@ -14,9 +14,20 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == resourceData.userId;
     }
 
-    // A user's own profile.
+    // A user's own profile. Billing fields (plan, payment record) are
+    // server-managed: the payment routes write them via the Admin SDK, and
+    // clients can never set or change them - otherwise any signed-in user
+    // could upgrade themselves for free.
     match /users/{userId} {
-      allow read, write: if signedIn() && request.auth.uid == userId;
+      allow read, delete: if signedIn() && request.auth.uid == userId;
+      allow create: if signedIn() && request.auth.uid == userId
+        && request.resource.data.get('plan', 'free') == 'free'
+        && !request.resource.data.keys().hasAny(
+             ['paidAt', 'razorpayPaymentId', 'razorpayOrderId']);
+      allow update: if signedIn() && request.auth.uid == userId
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['plan', 'paidAt', 'razorpayPaymentId',
+                     'razorpayOrderId']);
     }
 
     // Per-user preferences.
