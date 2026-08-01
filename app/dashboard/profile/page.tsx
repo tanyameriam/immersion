@@ -8,7 +8,6 @@ import Navigation from "@/components/Navigation";
 import { PlanCard } from "@/components/dashboard/PlanCard";
 import { RudolfPlaytimeCard } from "@/components/dashboard/RudolfPlaytimeCard";
 import { RequireAuth } from "@/components/dashboard/RequireAuth";
-import { BookmarkletCard } from "@/components/BookmarkletCard";
 import { ReferralCard } from "@/components/referrals/ReferralCard";
 import { TelegramConnect } from "@/components/TelegramConnect";
 import { WhatsAppConnect } from "@/components/WhatsAppConnect";
@@ -606,7 +605,6 @@ export default function ProfileSettingsPage() {
           <ReferralCard />
           <RecommendationPreferencesCard />
           <NewsletterDeliveryCard />
-          <BookmarkletCard />
           <PlanCard />
           <RudolfPlaytimeCard />
           <AccountCard />
