@@ -189,11 +189,12 @@ async function fetchHtml(
 }
 
 /**
- * Bot-challenge interstitials (Cloudflare and friends) have a title and a bit
- * of text, so without this check they'd flow through the degraded-meta path
- * and we'd store "Just a moment…" as the article and pay to summarize it.
+ * Bot-challenge interstitials (Cloudflare and friends) and login/signup
+ * walls have a title and a bit of text, so without this check they'd flow
+ * through the degraded-meta path and we'd store "Just a moment…" - or a
+ * "Sign up to keep reading" gate - as the article and pay to summarize it.
  */
-function looksLikeBotChallenge(title: string, html: string): boolean {
+function looksLikeBlockedPage(title: string, bodyText: string): boolean {
   const t = title.trim().toLowerCase();
   if (
     /^just a moment/.test(t) ||
@@ -206,8 +207,12 @@ function looksLikeBotChallenge(title: string, html: string): boolean {
   ) {
     return true;
   }
-  // Markers that only appear in Cloudflare challenge pages, never in articles.
-  return /cf_chl_|cf-browser-verification|challenge-error-text/.test(html);
+  // Markers/copy that only appear on interstitials, never in real articles:
+  // Cloudflare's challenge scaffolding, and the common phrasing of login,
+  // signup, and paywall gates that stop content instead of showing it.
+  return /cf_chl_|cf-browser-verification|challenge-error-text|sign up to (continue|keep) reading|subscribe to (continue|keep) reading|create a free account to (continue|keep) reading|register to (continue|keep) reading|log ?in to (continue|keep) reading|please log ?in to (view|read|continue)|you('ve| have) reached your (free )?article limit|this (article|content) is for subscribers only|start your free trial to (continue|keep) reading/i.test(
+    bodyText,
+  );
 }
 
 function readingTimeOf(text: string): { wordCount: number; readingTime: number } {
@@ -230,9 +235,16 @@ export async function extractContent(
   client?: ClientCapture,
 ): Promise<ExtractedContent> {
   // ── Client capture: trust the saver's own browser over our fetch. YouTube
-  // and Spotify still go through oEmbed, where page text is chrome, not content. ──
+  // and Spotify still go through oEmbed, where page text is chrome, not content.
+  // Still guarded against bot-challenge/login-wall pages: a re-save from the
+  // extension can capture the interstitial itself (e.g. the tab was still on
+  // Cloudflare's "Attention Required" page), and that text is substantial
+  // enough to otherwise sail past the length check below as if it were real
+  // content - see looksLikeBlockedPage. ──
   const clientText = client?.text?.replace(/\s+/g, " ").trim() ?? "";
-  if (clientText.length > 400 && !isYouTube(url) && !isSpotify(url)) {
+  const clientTitle = client?.title?.trim() ?? "";
+  const clientBlocked = looksLikeBlockedPage(clientTitle, `${clientTitle} ${clientText}`);
+  if (clientText.length > 400 && !clientBlocked && !isYouTube(url) && !isSpotify(url)) {
     const video = isVideoHost(url);
     const text = clientText.slice(0, MAX_CHARS);
     const { wordCount, readingTime } = readingTimeOf(text);
@@ -388,10 +400,11 @@ export async function extractContent(
     };
   }
 
-  // ── Bot challenge: the "page" is Cloudflare's interstitial, not content.
-  // Return empty fields (blocked) so the caller keeps the save's own title
-  // and skips AI analysis instead of summarizing a loading screen. ──
-  if (challenged || looksLikeBotChallenge(metaTitle, html)) {
+  // ── Blocked: the "page" is a bot-challenge interstitial or a login/signup
+  // wall, not content. Return empty fields (blocked) so the caller keeps the
+  // save's own title and skips AI analysis instead of summarizing a loading
+  // screen or a "sign up to keep reading" gate. ──
+  if (challenged || looksLikeBlockedPage(metaTitle, html)) {
     return {
       title: "",
       description: "",
