@@ -22,7 +22,7 @@ export interface UserDigest {
   plan: string;
   byTopic: [string, KnowledgeItem[]][]; // top topics → items saved this week
   unread: KnowledgeItem[]; // completed but not read
-  /** Fresh picks (community + web), each carrying its `reason`. Attached by
+  /** Fresh external-source picks, each carrying its `reason`. Attached by
    * the cron route only for users actually getting a digest today. */
   recommendations?: Resource[];
   savedThisWeek: number;

@@ -39,10 +39,12 @@ function sortResources(list: Resource[], sort: string) {
 }
 
 /**
- * One feed, not three sections: community matches and web picks alternate,
- * with a discover nudge woven in every few cycles. Deterministic and
- * append-stable, so infinite scroll extends the tail without reshuffling
- * what the user already scrolled past.
+ * One feed, not three sections: `matched`/`discover` are always empty now
+ * (the recommendation engine no longer surfaces one user's saves to another
+ * - see lib/recommendations/generate.ts), so in practice this just orders
+ * `web` picks, but the weave still works correctly if either bucket is ever
+ * populated again. Deterministic and append-stable, so infinite scroll
+ * extends the tail without reshuffling what the user already scrolled past.
  */
 function weaveFeed(
   matched: Resource[],
@@ -92,9 +94,9 @@ export function RecommendedTab({
   onDismiss?: (resource: Resource) => void;
   /** Hide the topic this card was recommended for. */
   onMuteTopic?: (resource: Resource) => void;
-  /** Community recommendations matched to the user's interests. */
+  /** Always empty - see weaveFeed's comment above. */
   items?: Resource[];
-  /** Popular items in topics the user hasn't picked yet — a gentle nudge. */
+  /** Always empty - see weaveFeed's comment above. */
   discover?: Resource[];
   /** Mixed-medium picks from around the web, matched to the user's taste. */
   web?: Resource[];

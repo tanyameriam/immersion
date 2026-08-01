@@ -10,10 +10,11 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 /**
- * Recommendations for the current user. Without params: community matches,
- * discover nudges, and the first page of the web feed. With ?webOffset=N:
- * just the next page of the web feed (infinite scroll) — the community
- * buckets don't need recomputing to scroll deeper.
+ * Recommendations for the current user: the first page of the web feed
+ * (external sources matched to taste - see lib/recommendations/generate.ts;
+ * `recommendations`/`discover` in the response are always empty, kept for
+ * client compatibility). With ?webOffset=N: just the next page (infinite
+ * scroll).
  */
 export async function GET(req: Request) {
   try {

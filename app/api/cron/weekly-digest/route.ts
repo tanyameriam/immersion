@@ -56,16 +56,13 @@ async function run(req: Request) {
       }
       considered++;
 
-      // A "Picked for you" section: same engine as the Recommended tab. Kept
-      // to 3 picks total, the digest leads with them instead of a list dump.
-      // Never let it block the digest itself.
+      // A "Picked for you" section: same engine as the Recommended tab (now
+      // external-source picks only - see lib/recommendations/generate.ts).
+      // Kept to 3 picks total, the digest leads with them instead of a list
+      // dump. Never let it block the digest itself.
       try {
         const recs = await buildRecommendations(digest.userId);
-        digest.recommendations = [
-          ...recs.matched.slice(0, 1),
-          ...recs.discover.slice(0, 1),
-          ...recs.web.slice(0, 1),
-        ];
+        digest.recommendations = recs.web.slice(0, 3);
       } catch (err) {
         console.error("weekly-digest recommendations failed", digest.userId, err);
       }
