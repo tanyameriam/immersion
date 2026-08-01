@@ -16,6 +16,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export function PlanCard() {
   const { prefs, loaded } = usePreferences();
@@ -28,7 +29,10 @@ export function PlanCard() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Plan</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle>Plan</CardTitle>
+            <Badge variant="secondary">Founding Member</Badge>
+          </div>
           <CardDescription>
             {prefs.foundingSpot
               ? `You're Founding Member #${prefs.foundingSpot} of ${FOUNDING_TOTAL_SPOTS}. Unlimited Rudolf play time, lifetime access, all yours. Thanks for building Layrrrd with us!`
