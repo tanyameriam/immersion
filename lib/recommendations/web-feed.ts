@@ -40,7 +40,11 @@ function cachedFetchTopic(source: SourceFetcher) {
   if (!fn) {
     fn = unstable_cache(
       (topic: TopicQuery) => source.fetchTopic(topic),
-      ["recs-source-v1", source.id],
+      // v2: bumped to invalidate candidates cached before Medium's feed
+      // started extracting an image (see lib/recommendations/sources/
+      // medium.ts) - same key forever would keep serving imageless entries
+      // until the 6h window happened to lapse.
+      ["recs-source-v2", source.id],
       { revalidate: REVALIDATE_SECONDS[source.id] },
     );
     cachedFetchers.set(source.id, fn);
