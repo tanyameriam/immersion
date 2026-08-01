@@ -45,8 +45,6 @@ export interface Preferences {
   whatsappWaId: string;
   notificationDay: string; // "Monday" … "Sunday"
   notificationFrequency: NotificationFrequency;
-  /** Whether Rudolf may send fresh picks between digests on Telegram. */
-  botNudges: "on" | "off";
   /** Billing plan. Read-only on the client; upgrades happen server-side. */
   plan: "free" | "pro";
   /** Founding member spot number (1-based); null for free or legacy pro.
@@ -72,7 +70,6 @@ const DEFAULTS: Preferences = {
   whatsappWaId: "",
   notificationDay: "Monday",
   notificationFrequency: "weekly",
-  botNudges: "on",
   plan: "free",
   foundingSpot: null,
   biscuitBalance: 0,
@@ -134,7 +131,6 @@ function usePreferencesState(): PreferencesValue {
           data.notificationFrequency === "off"
             ? data.notificationFrequency
             : "weekly",
-        botNudges: data.botNudges === "off" ? "off" : "on",
         plan: data.plan === "pro" ? "pro" : "free",
         foundingSpot:
           typeof data.foundingSpot === "number" ? data.foundingSpot : null,

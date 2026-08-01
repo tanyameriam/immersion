@@ -174,41 +174,55 @@ function totalUnreadMinutes(d: UserDigest): number {
   return d.unread.reduce((sum, it) => sum + (it.ai?.readingTime ?? 0), 0);
 }
 
-/** Plain-text digest (Telegram). Leads with a few picks, never a long list. */
-export function digestText(d: UserDigest): string {
+/** Short opt-in message sent before the digest content itself - nothing is
+ * delivered until the user replies (see lib/rudolf/chat.ts's consent
+ * handling). Keeps Rudolf from pushing content unprompted. */
+export function digestConsentPrompt(d: UserDigest): string {
   const name = d.name?.split(" ")[0] || "there";
-  const lines = [`<b>Your Layrrrd week, ${name}</b>`, peerLine(d), ""];
+  return (
+    `Woof, your Layrrrd week is ready, ${name} 🐕 Want it now? ` +
+    `Reply yes and I'll send it over in a few short messages. ` +
+    `Reply no and I'll check back next week.`
+  );
+}
+
+/** Plain-text digest (Telegram), as separate short messages instead of one
+ * long one: an intro, a picks section, one message per topic, and a shelf
+ * reminder, each easy to skim on its own. */
+export function digestParts(d: UserDigest): string[] {
+  const name = d.name?.split(" ")[0] || "there";
+  const parts: string[] = [`<b>Your Layrrrd week, ${name}</b>\n${peerLine(d)}`];
 
   const picks = (d.recommendations ?? []).slice(0, 3);
   if (picks.length) {
-    lines.push(`<b>Picked for you</b>`);
+    const lines = [`<b>Picked for you</b>`];
     for (const r of picks) {
       const label = durationLabel(r.contentType, r.readingTime);
       lines.push(`• <a href="${r.url}">${r.title}</a>${label ? ` · ${label}` : ""}`);
       if (r.reason) lines.push(`<i>${r.reason}</i>`);
     }
-    lines.push("");
+    parts.push(lines.join("\n"));
   }
 
   for (const [topic, items] of d.byTopic) {
-    lines.push(`<b>${topic}</b>`);
+    const lines = [`<b>${topic}</b>`];
     for (const it of items)
       lines.push(`• <a href="${it.url}">${it.title}</a>${minutesLabel(it)}`);
-    lines.push("");
+    parts.push(lines.join("\n"));
   }
 
   if (d.unread.length) {
     const total = totalUnreadMinutes(d);
-    lines.push(
+    const lines = [
       `<b>Still on your shelf</b>${total > 0 ? ` · about ${total} min in total, pick what fits` : ""}`,
-    );
+    ];
     for (const it of d.unread)
       lines.push(`• <a href="${it.url}">${it.title}</a>${minutesLabel(it)}`);
-    lines.push("");
+    parts.push(lines.join("\n"));
   }
 
-  lines.push(`Open your dashboard: ${appUrl}/dashboard`);
-  return lines.join("\n");
+  parts.push(`Open your dashboard: ${appUrl}/dashboard`);
+  return parts;
 }
 
 /** HTML digest (email). */

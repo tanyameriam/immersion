@@ -1,3 +1,4 @@
+import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { AI_MODEL, claude } from "@/lib/ai/claude";
 import { limitsFor } from "@/lib/billing/config";
@@ -107,6 +108,63 @@ const SLEEP_MESSAGES = [
     `forever: ${foundingUrl}`,
 ];
 
+/** A digest rendered and ready to go, withheld until the user says yes -
+ * see the cron job in app/api/cron/weekly-digest/route.ts. */
+type PendingDigest = {
+  askedAt: string;
+  parts: string[];
+  recs: { url: string; title: string }[];
+};
+
+const DIGEST_CONSENT_EXPIRY_MS = 48 * 60 * 60 * 1000; // stale "this week" past this
+const DIGEST_YES_RE = /^(y|yes|yeah|yep|yup|sure|ok|okay|please|go ahead|send it)\b/i;
+const DIGEST_NO_RE = /^(n|no|nope|nah|skip|later|not now)\b/i;
+
+/**
+ * If this user has an outstanding "want your digest?" ask and the message
+ * is a clear yes/no, resolve it (send the withheld content, or acknowledge
+ * the decline) and report the message as handled. Anything ambiguous falls
+ * through to normal chat handling instead of blocking on an answer - the
+ * ask just stays open for a later message to resolve.
+ */
+async function tryResolveDigestConsent(
+  userId: string,
+  channel: RudolfChannel,
+  text: string,
+): Promise<boolean> {
+  const ref = adminDb().collection("users").doc(userId);
+  const snap = await ref.get();
+  const pending = snap.data()?.pendingDigest as PendingDigest | undefined;
+  if (!pending) return false;
+
+  const askedAt = Date.parse(pending.askedAt);
+  if (!Number.isFinite(askedAt) || Date.now() - askedAt > DIGEST_CONSENT_EXPIRY_MS) {
+    // Too stale to deliver as "this week" - drop it quietly rather than
+    // answer for the user or surface old content out of context.
+    await ref.update({ pendingDigest: FieldValue.delete() });
+    return false;
+  }
+
+  const trimmed = text.trim();
+  if (DIGEST_YES_RE.test(trimmed)) {
+    await ref.update({
+      pendingDigest: FieldValue.delete(),
+      lastDigestSentAt: new Date().toISOString(),
+    });
+    await channel.sendMessages(pending.parts);
+    if (pending.recs.length) {
+      await rememberMentions(channel.memoryKey, pending.recs);
+    }
+    return true;
+  }
+  if (DIGEST_NO_RE.test(trimmed)) {
+    await ref.update({ pendingDigest: FieldValue.delete() });
+    await channel.sendMessages(["No problem, I'll check back next week 🐕"]);
+    return true;
+  }
+  return false;
+}
+
 /** Route one chat message from a linked user. */
 export async function handleRudolfMessage(
   userId: string,
@@ -114,6 +172,8 @@ export async function handleRudolfMessage(
   text: string,
   entities: LinkEntity[] = [],
 ): Promise<void> {
+  if (await tryResolveDigestConsent(userId, channel, text)) return;
+
   const limits = limitsFor(await getUserPlan(userId));
 
   const { urls, note } = extractUrlsAndNote(text, entities);

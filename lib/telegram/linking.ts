@@ -125,25 +125,6 @@ export async function processTelegramUpdate(
     return false;
   }
 
-  // Nudge controls: pause or resume Rudolf's between-digest picks.
-  if (text.startsWith("/mute") || text.startsWith("/unmute")) {
-    const muting = text.startsWith("/mute");
-    await adminDb().collection("users").doc(userId).set(
-      { botNudges: muting ? "off" : "on", updatedAt: FieldValue.serverTimestamp() },
-      { merge: true },
-    );
-    await sendMessages(
-      chatId,
-      muting
-        ? [
-            "Okay, no more surprise picks from me. Your digest still arrives as usual.",
-            "Send /unmute whenever you want them back.",
-          ]
-        : ["Woof, picks are back on 🐕 I'll fetch you something good between digests."],
-    );
-    return false;
-  }
-
   try {
     await handleChatMessage(userId, chatId, text, entities);
   } catch (err) {
