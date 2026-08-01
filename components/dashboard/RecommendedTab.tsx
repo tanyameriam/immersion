@@ -113,7 +113,7 @@ export function RecommendedTab({
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("Most Relevant");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
-  const [view, setView] = useState<ResourceView>("list");
+  const [view, setView] = useState<ResourceView>("grid");
 
   const feed = useMemo(
     () => weaveFeed(matched, webList, discoverList),
