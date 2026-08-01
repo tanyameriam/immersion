@@ -23,7 +23,6 @@ export const HELP_MESSAGES = [
   "Hey, I'm Rudolf 🐕 Here's what we can do together:",
   "Paste me any link and I'll save it to your library and give you the gist, so you know if it's worth your time. Add a comment with the link and I'll keep it as a note on the bookmark.",
   'Ask me about your saves or your feed, like "what did I save about design?" or "which podcast covered portfolios?"',
-  "I also fetch you a couple of fresh picks between digests. Send /mute to pause those, /unmute to bring them back.",
 ];
 
 /** Telegram message entity — offsets are UTF-16 code units, same as JS strings. */

@@ -295,7 +295,6 @@ function NewsletterDeliveryCard() {
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("email");
   const [day, setDay] = useState("Monday");
   const [frequency, setFrequency] = useState<NotificationFrequency>("weekly");
-  const [nudgesOn, setNudgesOn] = useState(true);
   const { saved, flash } = useSavedFlash();
 
   useEffect(() => {
@@ -303,14 +302,12 @@ function NewsletterDeliveryCard() {
       setDeliveryMethod(prefs.notificationPreference);
       setDay(prefs.notificationDay);
       setFrequency(prefs.notificationFrequency);
-      setNudgesOn(prefs.botNudges !== "off");
     }
   }, [
     loaded,
     prefs.notificationPreference,
     prefs.notificationDay,
     prefs.notificationFrequency,
-    prefs.botNudges,
   ]);
 
   async function handleSave() {
@@ -318,7 +315,6 @@ function NewsletterDeliveryCard() {
       notificationPreference: deliveryMethod,
       notificationDay: day,
       notificationFrequency: frequency,
-      botNudges: nudgesOn ? "on" : "off",
     });
     flash();
   }
@@ -353,21 +349,6 @@ function NewsletterDeliveryCard() {
               refresh={reload}
               onDisconnect={() => void save({ telegramChatId: "" })}
             />
-            <div className="flex items-start gap-2">
-              <Checkbox
-                id="rudolf-nudges"
-                className="mt-0.5"
-                checked={nudgesOn}
-                onCheckedChange={(checked) => setNudgesOn(checked === true)}
-              />
-              <div>
-                <Label htmlFor="rudolf-nudges">Rudolf&apos;s picks</Label>
-                <p className="text-sm text-muted-foreground">
-                  Let Rudolf text you a couple of fresh picks between digests.
-                  You can also send /mute or /unmute in the chat.
-                </p>
-              </div>
-            </div>
           </div>
         )}
 
