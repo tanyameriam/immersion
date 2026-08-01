@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/components/AuthContext";
 import { authErrorMessage } from "@/lib/auth-errors";
+import { GoogleIcon } from "@/components/icons/GoogleIcon";
 
 export function SignUpForm() {
   const { setMode, signUpWithEmail, signInWithGoogle } = useAuth();
@@ -115,10 +116,11 @@ export function SignUpForm() {
       <Button
         type="button"
         variant="outline"
-        className="w-full"
+        className="w-full gap-3 border-[#dadce0] text-[#3c4043] hover:bg-[#f7f8f8]"
         onClick={handleGoogle}
         disabled={status !== "idle"}
       >
+        <GoogleIcon className="h-4 w-4" />
         {status === "google" ? "Opening Google…" : "Continue with Google"}
       </Button>
 
