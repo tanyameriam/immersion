@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -20,20 +21,18 @@ export function SaveLinkBar({
   const [url, setUrl] = useState("");
   const [status, setStatus] = useState<"idle" | "saving">("idle");
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   async function handleSave() {
     const trimmed = url.trim();
     if (!trimmed) return;
     setStatus("saving");
     setError(null);
-    setNotice(null);
     const res = await onSave(trimmed);
     setStatus("idle");
     if (res.ok) {
       setUrl("");
       if (res.created === false) {
-        setNotice("Already in your library, no duplicate created.");
+        toast("Already in your library, no duplicate created.");
       }
     } else {
       setError(res.error ?? "Couldn't save the link.");
@@ -59,7 +58,6 @@ export function SaveLinkBar({
         </Button>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
-      {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
     </div>
   );
 }
