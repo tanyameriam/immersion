@@ -50,10 +50,19 @@ function stripHtml(s: string): string {
     .trim();
 }
 
+/** Medium's feed carries the article's feature image as an inline <img> in
+ * content:encoded/description, not a dedicated field - pull the first one
+ * before the HTML gets stripped down to plain text. */
+function extractImage(html: string): string {
+  const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return m ? decodeEntities(m[1]) : "";
+}
+
 type FeedArticle = {
   title: string;
   url: string;
   description: string;
+  image: string;
   publishedAt: number;
   readingTime: number;
 };
@@ -68,11 +77,14 @@ function parseFeed(xml: string): FeedArticle[] {
       // Medium appends ?source=rss… tracking — strip it so URLs match cleanly
       // against saves and dismissals.
       const url = tagContent(block, "link").split("?")[0];
-      const body = stripHtml(tagContent(block, "content:encoded"));
-      const text = (body || stripHtml(tagContent(block, "description")))
+      const rawContent = tagContent(block, "content:encoded");
+      const rawDescription = tagContent(block, "description");
+      const body = stripHtml(rawContent);
+      const text = (body || stripHtml(rawDescription))
         // Medium's truncated feeds end every teaser with this boilerplate.
         .replace(/Continue reading on .*»\s*$/, "")
         .trim();
+      const image = extractImage(rawContent) || extractImage(rawDescription);
       const published = new Date(tagContent(block, "pubDate"));
       const words = body.split(/\s+/).filter(Boolean).length;
       return {
@@ -80,6 +92,7 @@ function parseFeed(xml: string): FeedArticle[] {
         url,
         description:
           text.length > 200 ? `${text.slice(0, 200).trimEnd()}…` : text,
+        image,
         publishedAt: Number.isNaN(published.getTime())
           ? 0
           : published.getTime(),
@@ -117,6 +130,7 @@ function toCandidate(
       id: `web-${a.url}`,
       title: a.title,
       description: a.description,
+      image: a.image || undefined,
       category: [topic.label],
       contentType: "Article",
       medium: "article",
