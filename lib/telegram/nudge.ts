@@ -36,17 +36,7 @@ function isNudgeDay(notificationDay: string, today: string): boolean {
 }
 
 function pickForNudge(feed: FeedEntry[], skip: Set<string>): FeedEntry[] {
-  const fresh = feed.filter((e) => !skip.has(e.url));
-  // Variety: lead with something from around the web, back it with a
-  // community match when there is one.
-  const web = fresh.find((e) => e.kind === "web");
-  const match = fresh.find((e) => e.kind !== "web" && e.url !== web?.url);
-  const picks = [web, match].filter((e): e is FeedEntry => Boolean(e));
-  for (const e of fresh) {
-    if (picks.length >= PICKS_PER_NUDGE) break;
-    if (!picks.includes(e)) picks.push(e);
-  }
-  return picks.slice(0, PICKS_PER_NUDGE);
+  return feed.filter((e) => !skip.has(e.url)).slice(0, PICKS_PER_NUDGE);
 }
 
 function nudgeMessages(picks: FeedEntry[]): string[] {
