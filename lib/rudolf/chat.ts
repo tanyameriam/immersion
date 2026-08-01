@@ -206,7 +206,7 @@ async function ingestLinks(
       // article - there's nothing honest to summarize yet.
       gists.push(
         `Saved the link, but that site blocked me from reading it 🤖\n${fresh.url}\n\n` +
-          `It's a bot-check or a login/signup wall. Open it in your own browser first, then send it again and I'll usually get through.`,
+          `It's a bot-check or a login/signup wall. Open it in your own browser (already signed in, past the check) and use the Layrrrd bookmarklet or extension to save it from there - ${upgradeUrl} has the one-click bookmarklet if you don't have the extension.`,
       );
     } else if (fresh?.status === "completed" && fresh.ai?.degraded) {
       // Saved, but the site only let us read the basics - be honest about it.
