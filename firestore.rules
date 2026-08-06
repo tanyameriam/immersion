@@ -98,6 +98,25 @@ service cloud.firestore {
     match /analytics/{id} {
       allow read, write: if false;
     }
+    // Rudolf's support receipts. They hold user message content, so no client
+    // ever reads them - support looks them up server-side by reference code.
+    // Retention is enforced by a Firestore TTL policy on `expiresAt`, and they
+    // are deleted with the account (app/api/account/route.ts).
+    match /botEvents/{id} {
+      allow read, write: if false;
+    }
+    // Rudolf's per-chat memory, keyed by chat id rather than uid.
+    match /telegramChats/{id} {
+      allow read, write: if false;
+    }
+    match /feedCache/{id} {
+      allow read, write: if false;
+    }
+    // Dead data from the removed proactive-nudge feature. Nothing writes here
+    // any more; the remaining docs are per-user and are cleared on deletion.
+    match /botNudges/{id} {
+      allow read, write: if false;
+    }
     match /systemJobs/{id} {
       allow read, write: if false;
     }
