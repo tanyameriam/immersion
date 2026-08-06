@@ -48,6 +48,11 @@ export async function meterQuestion(
     // Day rollover (or first ever message): fresh free allowance. Any unused
     // biscuit bonus from yesterday is forfeited - a fresh 120 minutes just
     // arrived, and purchased-but-unconsumed biscuits are untouched.
+    // The once-a-day message markers carry across the rollover, but only when
+    // they exist: Firestore rejects an explicit `undefined`, and a user who has
+    // never been warned or put to sleep has no key to carry. Writing the keys
+    // unconditionally threw on the first question of every new day, which is
+    // most free-plan questions.
     const state: PlaytimeState = sameDay
       ? { ...stored! }
       : {
@@ -55,8 +60,12 @@ export async function meterQuestion(
           playMs: 0,
           bonusMs: 0,
           lastActiveAt: nowMs,
-          warnedOnDayKey: stored?.warnedOnDayKey,
-          sleptOnDayKey: stored?.sleptOnDayKey,
+          ...(stored?.warnedOnDayKey
+            ? { warnedOnDayKey: stored.warnedOnDayKey }
+            : {}),
+          ...(stored?.sleptOnDayKey
+            ? { sleptOnDayKey: stored.sleptOnDayKey }
+            : {}),
         };
 
     // Idle-grace accrual: only gaps within the grace window count as play,
