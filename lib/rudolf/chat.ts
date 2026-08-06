@@ -19,6 +19,7 @@ import {
   rememberMentions,
   type Mention,
 } from "@/lib/rudolf/memory";
+import { degraded, noteFacts, setPath } from "@/lib/rudolf/trace";
 import type { KnowledgeItem } from "@/lib/types/knowledge-item";
 
 /**
@@ -147,6 +148,7 @@ async function tryResolveDigestConsent(
 
   const trimmed = text.trim();
   if (DIGEST_YES_RE.test(trimmed)) {
+    setPath("digest-consent");
     await ref.update({
       pendingDigest: FieldValue.delete(),
       lastDigestSentAt: new Date().toISOString(),
@@ -158,6 +160,7 @@ async function tryResolveDigestConsent(
     return true;
   }
   if (DIGEST_NO_RE.test(trimmed)) {
+    setPath("digest-consent");
     await ref.update({ pendingDigest: FieldValue.delete() });
     await channel.sendMessages(["No problem, I'll check back next week 🐕"]);
     return true;
@@ -184,6 +187,7 @@ export async function handleRudolfMessage(
       limits.maxItems !== null &&
       (await countItems(userId)) >= limits.maxItems
     ) {
+      setPath("shelf-full");
       await channel.sendMessages([
         `Your free shelf is full (${limits.maxItems} saves). Upgrade to keep collecting: ${upgradeUrl}`,
       ]);
@@ -198,6 +202,11 @@ export async function handleRudolfMessage(
   if (limits.rudolfPlaytime === "metered") {
     const meter = await meterQuestion(userId);
     if (!meter.allowed) {
+      // Out of play time reads as "the bot is broken" from the user's side,
+      // especially the silent branch — record it so support can tell the two
+      // apart from a screenshot.
+      setPath("asleep");
+      noteFacts({ sentSleepMessage: meter.shouldSendSleepMessage });
       if (meter.shouldSendSleepMessage) {
         await channel.sendMessages(SLEEP_MESSAGES);
       }
@@ -220,12 +229,19 @@ async function ingestLinks(
   urls: string[],
   note?: string,
 ): Promise<void> {
+  setPath("ingest");
   const take = urls.slice(0, MAX_LINKS_PER_MESSAGE);
   const results = await Promise.all(
     take.map((url) => createPendingItem({ userId, url, note })),
   );
   const created = results.filter((r) => r.created);
   const dupes = results.length - created.length;
+  noteFacts({
+    urls: take,
+    createdCount: created.length,
+    duplicateCount: dupes,
+    hasNote: Boolean(note),
+  });
 
   const intro: string[] = [];
   if (created.length > 0) {
@@ -259,8 +275,18 @@ async function ingestLinks(
   await processItems(created.map((r) => r.item.id), 3);
 
   const gists: string[] = [];
+  const outcomes: string[] = [];
   for (const r of created) {
     const fresh = await getItem(userId, r.item.id);
+    outcomes.push(
+      fresh?.status === "completed"
+        ? fresh.blocked
+          ? "blocked"
+          : fresh.ai?.degraded
+            ? "partial"
+            : "ok"
+        : (fresh?.status ?? "missing"),
+    );
     if (fresh?.status === "completed" && fresh.blocked) {
       // The site served a bot-challenge or login/signup wall instead of the
       // article - there's nothing honest to summarize yet.
@@ -294,6 +320,8 @@ async function ingestLinks(
       );
     }
   }
+  noteFacts({ itemOutcomes: outcomes });
+  if (outcomes.some((o) => o !== "ok")) degraded("item-processing");
   await channel.sendMessages(gists);
 }
 
@@ -384,7 +412,10 @@ async function extractQueryTerms(question: string): Promise<string[]> {
       ? parsed.terms.map((t: unknown) => String(t).toLowerCase().trim()).filter(Boolean)
       : [];
     return terms.length > 0 ? terms.slice(0, 8) : naive();
-  } catch {
+  } catch (err) {
+    // Retrieval quality drops here without anything looking wrong: the reply
+    // still arrives, it just searched on worse terms.
+    degraded("query-terms", err);
     return naive();
   }
 }
@@ -395,6 +426,7 @@ async function answerQuestion(
   channel: RudolfChannel,
   question: string,
 ): Promise<void> {
+  setPath("question");
   const terms = await extractQueryTerms(question);
 
   // Keyword/topic matches first (reaches saves of any age), recency for
@@ -402,11 +434,22 @@ async function answerQuestion(
   // optional — failures fall back to a bookmarks-only answer.
   const [matched, recent, feed, mentions] = await Promise.all([
     terms.length > 0
-      ? searchItems(userId, terms, { limitPerField: 60 }).catch(() => [])
+      ? searchItems(userId, terms, { limitPerField: 60 }).catch((err) => {
+          // Losing keyword search silently reduces the answer to "most recent
+          // saves only" — the classic "Rudolf forgot my library" report.
+          degraded("search", err);
+          return [];
+        })
       : Promise.resolve([]),
     listItems(userId, { limit: RECENCY_ITEMS }),
-    getCachedFeed(userId).catch(() => []),
-    getRecentMentions(channel.memoryKey).catch(() => []),
+    getCachedFeed(userId).catch((err) => {
+      degraded("feed", err);
+      return [];
+    }),
+    getRecentMentions(channel.memoryKey).catch((err) => {
+      degraded("mentions", err);
+      return [];
+    }),
   ]);
 
   const seen = new Set<string>();
@@ -418,7 +461,16 @@ async function answerQuestion(
     if (items.length >= MAX_CONTEXT_ITEMS) break;
   }
 
+  noteFacts({
+    terms,
+    matchedCount: matched.length,
+    contextItems: items.length,
+    feedItems: feed.length,
+    mentionCount: mentions.length,
+  });
+
   if (items.length === 0 && feed.length === 0) {
+    noteFacts({ emptyLibrary: true });
     await channel.sendMessages([
       "Your library is empty so far, let's fix that 🙂",
       "Paste me any link, an article, a video, whatever caught your eye. I'll save it and tell you the gist.",
@@ -505,12 +557,14 @@ async function answerQuestion(
     .trim();
 
   if (!answer) {
+    degraded("empty-model-reply");
     await channel.sendMessages([
       "Hmm, I lost my train of thought there. Mind asking that again?",
     ]);
     return;
   }
   const parts = answer.split(/\n\s*-{3,}\s*\n/);
+  noteFacts({ replyParts: parts.length, replyChars: answer.length });
   await channel.sendMessages(parts);
 
   // Remember which links Rudolf handed over, so "save that one you sent me"

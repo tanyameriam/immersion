@@ -1,5 +1,6 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
+import { degraded } from "@/lib/rudolf/trace";
 
 /**
  * Short-term per-chat memory: the last links Rudolf himself sent (in answers,
@@ -41,6 +42,7 @@ export async function rememberMentions(
     await ref.set({ mentions: merged, updatedAt: Timestamp.now() });
   } catch (err) {
     console.error("rememberMentions failed", chatId, err);
+    degraded("remember-mentions", err);
   }
 }
 
@@ -55,6 +57,7 @@ export async function getRecentMentions(
     return (snap.data()?.mentions ?? []) as Mention[];
   } catch (err) {
     console.error("getRecentMentions failed", chatId, err);
+    degraded("recent-mentions", err);
     return [];
   }
 }

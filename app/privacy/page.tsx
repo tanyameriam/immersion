@@ -33,6 +33,15 @@ export default function PrivacyPage() {
               communicate updates about Layrrrd.
             </p>
             <p>
+              If you chat with Rudolf on WhatsApp or Telegram, we keep a
+              short-lived record of those conversations - the message you
+              sent, and how Rudolf handled it - so that we can investigate
+              faults and fix problems you report to us. Access is limited to
+              resolving those problems. These records are deleted
+              automatically after 30 days, and straight away if you delete
+              your account.
+            </p>
+            <p>
               We do not sell your data to third parties. We may share data
               with service providers who help us operate Layrrrd (such as
               email or hosting providers), under obligations to keep it

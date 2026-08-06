@@ -8,6 +8,7 @@ import {
   userIdForChat,
   type TelegramEntity,
 } from "@/lib/telegram/chat";
+import { traceChat } from "@/lib/rudolf/trace";
 import { sendTelegramMessage } from "@/lib/telegram/send";
 
 /**
@@ -125,13 +126,22 @@ export async function processTelegramUpdate(
     return false;
   }
 
-  try {
-    await handleChatMessage(userId, chatId, text, entities);
-  } catch (err) {
-    console.error("Telegram chat handling failed", err);
+  // The receipt is what makes a screenshot of the failure reply actionable:
+  // the ref below is the id of the botEvents doc holding the whole interaction.
+  const result = await traceChat(
+    {
+      userId,
+      channel: "Telegram",
+      memoryKey: String(chatId),
+      inboundText: text,
+    },
+    () => handleChatMessage(userId, chatId, text, entities),
+  );
+  if (!result.ok) {
     await sendTelegramMessage(
       String(chatId),
-      "Oops, something hiccuped on my side. Give it another go in a moment?",
+      "Oops, something hiccuped on my side. Give it another go in a moment? " +
+        `(ref: ${result.ref})`,
     );
   }
   return false;

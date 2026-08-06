@@ -7,6 +7,7 @@ import {
   sendMessages,
   userIdForWaId,
 } from "@/lib/whatsapp/chat";
+import { traceChat } from "@/lib/rudolf/trace";
 import { markReadWithTyping, sendWhatsAppMessage } from "@/lib/whatsapp/send";
 
 /**
@@ -140,13 +141,22 @@ async function processMessage(
     return false;
   }
 
-  try {
-    await handleChatMessage(userId, waId, text);
-  } catch (err) {
-    console.error("WhatsApp chat handling failed", err);
+  // The receipt is what makes a screenshot of the failure reply actionable:
+  // the ref below is the id of the botEvents doc holding the whole interaction.
+  const result = await traceChat(
+    {
+      userId,
+      channel: "WhatsApp",
+      memoryKey: `wa:${waId}`,
+      inboundText: text,
+    },
+    () => handleChatMessage(userId, waId, text),
+  );
+  if (!result.ok) {
     await sendWhatsAppMessage(
       waId,
-      "Oops, something hiccuped on my side. Give it another go in a moment?",
+      "Oops, something hiccuped on my side. Give it another go in a moment? " +
+        `(ref: ${result.ref})`,
     );
   }
   return false;
