@@ -23,10 +23,11 @@ import { adminDb } from "@/lib/firebase/admin";
  * - Receipts hold user message content, so they carry `expiresAt` and are
  *   deleted with the account (see `app/api/account/route.ts`).
  *
- * RETENTION IS NOT AUTOMATIC UNTIL IT IS SWITCHED ON: enable a Firestore TTL
- * policy on `botEvents.expiresAt` (Firebase console → Firestore → Time-to-live).
- * Without it these docs live forever and RETENTION_DAYS is a promise on paper
- * only — which is exactly the gap a privacy policy shouldn't have.
+ * Retention is enforced by `purgeExpiredTraces()` below, called from the daily
+ * cron. Firestore's own TTL policies would be the natural home for this, but
+ * they require a billed project and this one is on the free Spark plan — so
+ * the 30 days promised in the privacy policy is true only because that job
+ * runs. Treat it as load-bearing, not housekeeping.
  */
 
 const COLLECTION = "botEvents";
@@ -36,6 +37,10 @@ const MAX_TEXT = 500;
 const MAX_ERROR = 2000;
 const MAX_DEGRADE_MESSAGE = 300;
 const MAX_DEGRADATIONS = 10;
+
+/** Deleting is paged so one run can't blow the cron's time budget. */
+const PURGE_PAGE = 300;
+const PURGE_MAX_PAGES = 10;
 
 /** Which branch of the brain handled the message. */
 export type TracePath =
@@ -140,6 +145,42 @@ export async function traceChat(
   }
   await write(state, null);
   return { ok: true };
+}
+
+/**
+ * Delete receipts past their expiry — the code-side stand-in for a Firestore
+ * TTL policy, which needs a billed project. Called from the daily cron.
+ *
+ * `capped` means the per-run limit was reached and more remain: the caller
+ * logs it rather than letting a backlog build up silently, since "we delete
+ * after 30 days" quietly becoming "we delete most of it" is the kind of drift
+ * a privacy policy can't absorb.
+ */
+export async function purgeExpiredTraces(): Promise<{
+  deleted: number;
+  capped: boolean;
+}> {
+  const db = adminDb();
+  const now = Timestamp.now();
+  let deleted = 0;
+
+  for (let page = 0; page < PURGE_MAX_PAGES; page++) {
+    const snap = await db
+      .collection(COLLECTION)
+      .where("expiresAt", "<=", now)
+      .limit(PURGE_PAGE)
+      .get();
+    if (snap.empty) return { deleted, capped: false };
+
+    const batch = db.batch();
+    snap.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+    deleted += snap.size;
+
+    // A short page means the query is drained, not just this batch.
+    if (snap.size < PURGE_PAGE) return { deleted, capped: false };
+  }
+  return { deleted, capped: true };
 }
 
 /** Record which branch handled the message. */
