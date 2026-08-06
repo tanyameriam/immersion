@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { AI_MODEL, claude } from "@/lib/ai/claude";
-import { limitsFor } from "@/lib/billing/config";
+import { BISCUIT, PLAYTIME, limitsFor } from "@/lib/billing/config";
 import { getUserPlan } from "@/lib/billing/plan";
 import { meterQuestion } from "@/lib/billing/playtime";
 import {
@@ -98,6 +98,45 @@ function sleepyWarning(remainingMs: number): string {
     `Quick woof from me: I'm getting a little sleepy, about ${mins} ` +
     `minutes of play left today. A biscuit keeps me going for 15 more ` +
     `minutes if you want to keep chatting: ${upgradeUrl}`
+  );
+}
+
+/**
+ * What Rudolf knows about the user's play-time budget while he answers.
+ *
+ * The metering engine already works this out one step before the answer; it
+ * just never used to reach the model, so Rudolf could deliver the scripted
+ * "getting sleepy" warning but couldn't answer "how much time do I have left?"
+ * — he'd treat it as a question about their saves and say he couldn't find it.
+ */
+type PlaytimeContext =
+  | { metered: false }
+  | { metered: true; remainingMs: number; biscuitBalance: number };
+
+/** The play-time section of the system prompt. */
+function playtimeContext(playtime: PlaytimeContext): string {
+  if (!playtime.metered) {
+    return (
+      `THEIR PLAY TIME:\n` +
+      `Unlimited - they are a founding member. If they ask about play time, ` +
+      `biscuits, or running out, tell them they have unlimited play and never ` +
+      `need biscuits.`
+    );
+  }
+  const mins = Math.max(1, Math.round(playtime.remainingMs / 60000));
+  const jar = playtime.biscuitBalance;
+  return (
+    `THEIR PLAY TIME:\n` +
+    `About ${mins} minute${mins === 1 ? "" : "s"} left today, and ${jar} ` +
+    `biscuit${jar === 1 ? "" : "s"} in their jar. The free allowance is ` +
+    `${PLAYTIME.freeDailyMinutes} minutes of chatting a day and it resets at ` +
+    `midnight India time. One biscuit adds ${BISCUIT.minutes} more minutes and ` +
+    `biscuits never expire. They can get biscuits here: ${upgradeUrl}\n` +
+    `Saving links is always free and never uses play time, so they can keep ` +
+    `sending you links even when you are asleep.\n` +
+    `Answer honestly if they ask how much time is left, when it resets, what a ` +
+    `biscuit does, or why you go quiet. Otherwise never bring it up: don't ` +
+    `mention the countdown, don't nag, and never use it to push them to buy.`
   );
 }
 
@@ -212,14 +251,24 @@ export async function handleRudolfMessage(
       }
       return; // already said goodnight today: stay asleep quietly
     }
-    await answerQuestion(userId, channel, text);
+    // On the receipt too: "was this user nearly out of time?" is the first
+    // thing worth knowing when someone reports Rudolf going quiet on them.
+    noteFacts({
+      playtimeRemainingMins: Math.round(meter.remainingMs / 60000),
+      biscuitBalance: meter.biscuitBalance,
+    });
+    await answerQuestion(userId, channel, text, {
+      metered: true,
+      remainingMs: meter.remainingMs,
+      biscuitBalance: meter.biscuitBalance,
+    });
     if (meter.shouldWarn) {
       await channel.sendMessages([sleepyWarning(meter.remainingMs)]);
     }
     return;
   }
 
-  await answerQuestion(userId, channel, text);
+  await answerQuestion(userId, channel, text, { metered: false });
 }
 
 /** Save pasted links through the normal pipeline, then report the gists. */
@@ -425,6 +474,7 @@ async function answerQuestion(
   userId: string,
   channel: RudolfChannel,
   question: string,
+  playtime: PlaytimeContext,
 ): Promise<void> {
   setPath("question");
   const terms = await extractQueryTerms(question);
@@ -544,6 +594,7 @@ async function answerQuestion(
       `- Topics they chose to hide: ${mutedTopics.join(", ") || "none"}\n` +
       `Lean toward their interests when suggesting what to pick up or building a briefing. ` +
       `Never surface a hidden topic unless they ask for it by name.\n\n` +
+      `${playtimeContext(playtime)}\n\n` +
       `THEIR LIBRARY (things they saved, most relevant to this message first, then newest):\n${context || "nothing saved yet"}\n\n` +
       `THEIR FEED (recommended for them, NOT saved yet):\n${feedContext || "nothing right now"}\n\n` +
       `LINKS YOU (RUDOLF) SENT THEM RECENTLY:\n${mentionsContext || "none"}`,
