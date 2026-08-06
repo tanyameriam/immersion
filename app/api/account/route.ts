@@ -37,9 +37,14 @@ async function deleteDocs(collection: string, ids: string[]): Promise<void> {
 
 /**
  * Permanently delete the signed-in user: all their bookmarks, digest history,
- * pending Telegram/WhatsApp link codes, Rudolf's chat memory and support
- * receipts, their cached feed, their profile doc, and finally the auth user
- * itself. Irreversible — the client gates this behind an explicit confirmation.
+ * pending Telegram/WhatsApp link codes, Rudolf's chat memory, support receipts
+ * and nudge history, their cached feed, their profile doc, and finally the auth
+ * user itself. Irreversible — the client gates this behind an explicit
+ * confirmation.
+ *
+ * Anything holding user data has to be listed here, including collections no
+ * live code writes to any more (`botNudges`) — a grep of the codebase won't
+ * find those, only a look at the database will.
  *
  * Rudolf's per-chat memory is keyed by chat id ("wa:<waId>" or the Telegram
  * chat id), not by uid, so it can't be found by a `userId` query — read the
@@ -64,6 +69,10 @@ export async function DELETE(req: Request) {
     await deleteWhere("telegramLinkCodes", "userId", user.uid);
     await deleteWhere("whatsappLinkCodes", "userId", user.uid);
     await deleteWhere("botEvents", "userId", user.uid);
+    // Left over from the removed proactive-nudge feature: nothing writes here
+    // any more, but the historical records are still per-user and still have
+    // to go with the account.
+    await deleteWhere("botNudges", "userId", user.uid);
     await deleteDocs("telegramChats", chatKeys);
     await deleteDocs("feedCache", [user.uid]);
     await adminDb().collection("users").doc(user.uid).delete();
