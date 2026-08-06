@@ -11,6 +11,7 @@ import {
 import { sendEmail } from "@/lib/email/resend";
 import { sendTelegramMessage } from "@/lib/telegram/send";
 import { buildRecommendations } from "@/lib/recommendations/generate";
+import { purgeExpiredTraces } from "@/lib/rudolf/trace";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -38,6 +39,25 @@ async function run(req: Request) {
 
   const force = new URL(req.url).searchParams.get("force") === "1";
   const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
+
+  // Rudolf's support receipts expire after 30 days, and this is what enforces
+  // it - Firestore's own TTL policies need a billed project. Runs before the
+  // digests and can never block them: retention is a promise in the privacy
+  // policy, so it shouldn't be skipped when digest building has a bad day,
+  // and equally a purge failure shouldn't cost users their digest.
+  try {
+    const purged = await purgeExpiredTraces();
+    if (purged.deleted > 0) {
+      console.info(`botEvents purge deleted ${purged.deleted}`);
+    }
+    if (purged.capped) {
+      console.warn(
+        "botEvents purge hit its per-run cap - expired receipts remain",
+      );
+    }
+  } catch (err) {
+    console.error("botEvents purge failed", err);
+  }
 
   try {
     const digests = await buildWeeklyDigests();
