@@ -150,10 +150,15 @@ incident; corrupted user data is a catastrophe. So:
 
 ### Cadence
 
-- **Merge to production on Tuesdays and Thursdays**, before 3pm. Small,
-  boring, frequent releases beat big scary ones.
-- **NEVER release Friday afternoon, weekends, or the night before a
-  holiday.** Nothing ships when nobody will be awake to notice it broke.
+- **Merge to production on Tuesdays and Thursdays, inside the IST–CET
+  overlap window** (roughly 6:30–10pm IST / 2–5:30pm CET) — so the
+  releasing operator has waking hours left for the 2-hour watch AND at
+  least one teammate in the other timezone is reachable if it goes wrong.
+  Small, boring, frequent releases beat big scary ones.
+- **NEVER release late in your own evening, on weekends, or the night
+  before a holiday** — and never when the only person who can roll back is
+  about to be asleep or offline. Nothing ships when nobody will be awake
+  to notice it broke.
 - Hotfixes (production is broken) are exempt from cadence but not from the
   flow — even a hotfix gets a branch, CI, and a second pair of eyes.
 

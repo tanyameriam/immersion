@@ -1,7 +1,7 @@
 # Layrrrd Operating Plan
 
 **Period:** August 2026 → August 2027
-**Team:** 4 designers (one doubling as marketing), no engineers — code is written by AI tools (Claude Code) operated by the team.
+**Team:** 4 designers (one doubling as marketing), no engineers — code is written by AI tools (Claude Code) operated by the team. **All remote, all part-time; three in IST, one in CET** (3.5–4.5 hours behind IST). The plan is written async-first because of exactly this.
 **Status:** Living document. Review the first Monday of every month; strike things out rather than deleting them so decisions stay visible.
 
 > Written in plain language on purpose — everyone on the team should be able
@@ -90,13 +90,52 @@ runs alongside Phase 0 below and is just as mandatory.
 
 ## 4. Weekly operating rhythm
 
+Remote, part-time, and IST/CET means the rhythm is **async-first with one
+live sync**. The only reliable shared window is roughly **6:30–10pm IST =
+2–5:30pm CET** (shifts ±1h with European daylight saving) — pick one fixed
+slot in it together and protect it.
+
 | When | What | Who |
 | --- | --- | --- |
-| **Monday, 45 min** | Metrics + plan: Weekly Revisit Rate, sign-ups, revenue, AI bill. Each area owner states their one priority for the week. One priority, not three. | All |
-| **Tue–Thu** | Heads-down. Ship small, use previews. | All |
+| **Monday memo, async** | Before the sync, wherever you are: each area owner posts numbers, one priority, and blockers in team chat. The memo is mandatory; attendance isn't. | All |
+| **Weekly sync, 45 min, in the overlap window** | The one live call: decisions the memos surfaced, effort check, anything that needs faces. Recorded/minuted for whoever can't make it. | All who can |
+| **Rest of week** | Heads-down in your own hours. Ship small, use previews. Questions go in chat with no expectation of instant answers — the 48-hour rule covers decisions. | All |
 | **Every week** | **3 user conversations minimum** (rota: everyone does at least 3/month). Ask churned users "what made you stop?" Post one insight each in the team chat. | Rota |
-| **Friday, 30 min** | Ship review: demo what went live, run the QA checklist on production, screenshot wins for build-in-public content. | All |
-| **First Monday monthly** | Review this document. Budget check. Kill or pause one thing that isn't working. | All |
+| **Friday ship review, async** | Post what went live as screenshots/short clips in chat; whoever holds Care runs the QA checklist on production and posts the result. | All |
+| **First sync monthly** | Review this document. Budget check. Kill or pause one thing that isn't working. | All |
+
+**Part-time honesty:** each Monday memo includes the hours you realistically
+have this week. The plan flexes to real capacity — a phase taking longer
+than the target dates is fine and normal for a part-time team; the order of
+work and the quality bars never flex. And one genuine timezone advantage:
+CET daytime covers IST night — spread the Care rota so alerts and support
+have eyes on them for most of the clock.
+
+### The one team channel
+
+Remote + async only works if there is exactly **one** place where work talk
+happens. Not WhatsApp DMs + email + Instagram + calls — one workspace, or
+the memos, decisions, and handovers scatter and the absence protocol dies.
+
+- **Pick one: Slack or Discord.** Both free. Honest trade-off: Slack's free
+  plan hides messages older than 90 days (bad for a team whose memory lives
+  in chat); Discord keeps full history free and has voice rooms that suit
+  the weekly sync and the AI pairing hour. Either works — deciding beats
+  optimizing. Personal chat apps stay for personal chat.
+- **Minimal channels, each matching a habit in this plan:** `#general` ·
+  `#monday-memos` (memos only, no replies-as-chat — thread them) ·
+  `#ship` (Vercel deploys, Sentry alerts, and GitHub PRs pipe in
+  automatically — this is where the release watch and the emergency card
+  live, pinned) · `#care` (support + feedback triage and handovers) ·
+  `#growth` (content drafts, wins, screenshots).
+- **Chat is for talking; documents are for remembering.** Anything decided
+  in chat gets its one line in the decision log the same day, and anything
+  worth keeping (plans, checklists, runbooks) lives in the repo or the
+  shared drive — chat is where links to them get posted, never the only
+  home of anything important.
+- **No expectation of instant replies, ever** — part-time and two timezones
+  make "always on" impossible, so the rule is explicit: urgent = the
+  incident playbook; everything else waits for the person's own hours.
 
 **Decision rules** (to avoid four-designer debate spirals):
 - The area owner decides for their area. When you assign areas, also agree on one tie-breaker for cross-area disagreements — the Business owner is the natural choice.
