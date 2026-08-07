@@ -56,6 +56,10 @@ Our suggestion: these four areas each need exactly one owner. Rename them, merge
 
 When titles do get decided, they'll likely map onto these areas — the Business owner is who a "CEO" title would naturally go to — but nothing in this plan depends on that decision being made.
 
+Each area has its own roadmap, weekly checklist, and decision authority in
+**[PILLARS.md](PILLARS.md)** — plus the fifth rotating duty (Care) and the
+absence protocol that keeps the plan running when any one person is away.
+
 ### How we ship code without engineers
 
 The AI (Claude Code) is our engineering team; the humans are its editors. Three safety rules, never skipped:
@@ -139,7 +143,7 @@ Goal: recurring revenue, in three currencies, legally clean in Europe.
 | 2.3 | **Trim the free plan** | Business | Free Rudolf chat drops 120 → 30 min/day (unlimited saves, summaries, digests stay free — that's the promise on the site). Grandfather existing users for 30 days with a friendly Rudolf message. | New limits live; no support fire |
 | 2.4 | **GDPR pack** | Business + Experience | (a) "Download my data" button (we already have real account deletion — the hard part is done); (b) cookie-consent banner; (c) move analytics to PostHog EU hosting; (d) sign the standard data agreements (DPAs) with Google, Anthropic, Resend, Vercel, PostHog; (e) privacy policy rewritten in plain language. | All five checked; policy links live in footer |
 | 2.5 | **EU soft launch** | Growth | English-first: UK, Netherlands, Nordics (high English fluency, top-of-world willingness to pay). Privacy is a *selling point* in Europe — "no ads, your data is yours, delete everything in one click" goes on the site. No translations yet. | EU sign-ups and first EUR subscriptions flowing |
-| 2.6 | **Company & money hygiene** | Business | Private Limited registered, business bank account, CA engaged for GST + export income, trademark filed for "Layrrrd" (check EU marks before launch), refund policy on the site matches actual practice. | All filed; monthly books exist |
+| 2.6 | **Company & money hygiene** | Business | Private Limited registered, business bank account, CA engaged for GST + export income, trademark filed for "Layrrrd" (check EU marks before launch), refund policy on the site matches actual practice. Full step-by-step, including the equity/vesting conversation that comes first, in **[COMPANY-SETUP.md](COMPANY-SETUP.md)**. | All filed; monthly books exist |
 | 2.7 | **Unit economics check** | Business | Monthly: AI cost per active user vs. revenue per user. If cost/user creeps toward revenue/user, fix before growing. | Number reviewed in first-Monday meeting, every month |
 
 ---
