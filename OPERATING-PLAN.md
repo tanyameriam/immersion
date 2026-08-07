@@ -62,6 +62,11 @@ The AI (Claude Code) is our engineering team; the humans are its editors. Three 
 
 Budget one "technical advisor" favor: find a friendly engineer who'll spend 1 hour/month sanity-checking the repo. Pay them in dinner or equity points.
 
+The full, strict rulebook for building and releasing — environments, testing
+layers, release checklist, rollback, incidents — is
+**[DEVELOPMENT-PLAYBOOK.md](DEVELOPMENT-PLAYBOOK.md)**. Its setup list (§10)
+runs alongside Phase 0 below and is just as mandatory.
+
 ---
 
 ## 4. Weekly operating rhythm
