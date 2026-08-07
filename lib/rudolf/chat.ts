@@ -2,6 +2,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { AI_MODEL, claude } from "@/lib/ai/claude";
 import { BISCUIT, PLAYTIME, limitsFor } from "@/lib/billing/config";
+import { CHROME_EXTENSION_URL } from "@/lib/constants";
 import { getUserPlan } from "@/lib/billing/plan";
 import { meterQuestion } from "@/lib/billing/playtime";
 import {
@@ -341,7 +342,7 @@ async function ingestLinks(
       // article - there's nothing honest to summarize yet.
       gists.push(
         `Saved the link, but that site blocked me from reading it 🤖\n${fresh.url}\n\n` +
-          `It's a bot-check or a login/signup wall. Open it in your own browser (already signed in, past the check) and save it from the Layrrrd extension instead - it reads the page you're already looking at.`,
+          `It's a bot-check or a login/signup wall. Open it in your own browser (already signed in, past the check) and save it from the Layrrrd extension instead - it reads the page you're already looking at.\n${CHROME_EXTENSION_URL}`,
       );
     } else if (fresh?.status === "completed" && fresh.ai?.degraded) {
       // Saved, but the site only let us read the basics - be honest about it.
