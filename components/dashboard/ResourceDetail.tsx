@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { LoadingDog } from "@/components/LoadingDog";
 import { apiFetch } from "@/lib/api-client";
+import { CHROME_EXTENSION_URL } from "@/lib/constants";
 import type { Resource } from "@/lib/dashboard-data";
 import type { AiFields } from "@/lib/types/knowledge-item";
 
@@ -60,8 +61,16 @@ export function ResourceDetail({ resource }: { resource: Resource }) {
     resource.blocked && resource.status === "completed" ? (
       <p className="text-sm text-muted-foreground">
         This site blocks automated readers, so Layrrrd saved the link without
-        a summary. Open the link to read it, then save again from the
-        extension and Layrrrd will read the page your browser sees.
+        a summary. Open the link to read it, then save again from the{" "}
+        <a
+          href={CHROME_EXTENSION_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="underline underline-offset-4 hover:text-foreground"
+        >
+          Chrome extension
+        </a>{" "}
+        and Layrrrd will read the page your browser sees.
       </p>
     ) : resource.degraded && resource.status === "completed" ? (
       <p className="text-sm text-muted-foreground">
