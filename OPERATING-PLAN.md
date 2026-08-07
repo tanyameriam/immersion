@@ -42,14 +42,14 @@
 
 ## 3. Team: hats, not job titles
 
-Four people can't have narrow jobs. Everyone keeps designing; these are *ownership hats* — the person who makes sure the thing happens and is the one who reports on it Monday. Rename the placeholders to real names when you adopt this plan.
+Four people can't have narrow jobs. Everyone keeps designing; these are ownership roles — one CEO, one Marketing, and so on. Whoever holds a role makes sure that area happens and reports on it Monday. **Which person takes which role is not decided yet** — fill in the Person column together when you adopt this plan. One person can hold two roles, but every role needs exactly one name next to it (shared ownership means no ownership).
 
-| Hat | Person | Owns |
+| Role | Person | Owns |
 | --- | --- | --- |
-| **CEO / Product** | Tanya (founder) | Final product decisions, payments & legal, money numbers, investor/advisor relationships, operating the AI developer for critical changes |
-| **Experience Owner** | Designer 2 | Dashboard, onboarding, streaks UX, mobile save flow — everything a user touches in-app; runs the weekly QA pass |
-| **Rudolf & Brand Owner** | Designer 3 | Rudolf's personality, voice and visuals; share cards; delight details; the marketing site; the design system |
-| **Growth Owner** | Designer 4 (currently doing marketing) | Distribution: content, Product Hunt, communities, build-in-public, the Pocket-refugee campaign; owns sign-up numbers |
+| **CEO** | *TBD* | Final product decisions, payments & legal, money numbers, advisor relationships, operating the AI developer for critical changes |
+| **Marketing** | *TBD* | Distribution: content, Product Hunt, communities, build-in-public, the Pocket-refugee campaign; owns sign-up numbers |
+| **Experience Owner** | *TBD* | Dashboard, onboarding, streaks UX, mobile save flow — everything a user touches in-app; runs the weekly QA pass |
+| **Rudolf & Brand Owner** | *TBD* | Rudolf's personality, voice and visuals; share cards; delight details; the marketing site; the design system |
 | **Everyone, on rota** | All 4 | User interviews (see cadence below) and pre-release QA checklist |
 
 ### How we ship code without engineers
@@ -75,8 +75,8 @@ Budget one "technical advisor" favor: find a friendly engineer who'll spend 1 ho
 | **First Monday monthly** | Review this document. Budget check. Kill or pause one thing that isn't working. | All |
 
 **Decision rules** (to avoid four-designer debate spirals):
-- The hat owner decides for their area; CEO breaks ties.
-- Anything reversible: just try it. Anything irreversible (pricing, deleting data, legal): sleep on it one night, then CEO decides.
+- The role owner decides for their area; the CEO breaks ties.
+- Anything reversible: just try it. Anything irreversible (pricing, deleting data, legal): sleep on it one night, then the CEO decides.
 - Default answer to new feature ideas during Phases 0–2 is **"after the habit loop ships."** Focus is the whole game.
 
 ---
@@ -93,10 +93,10 @@ Safety and legal items. Small, boring, non-negotiable. Nothing else ships until 
 | 0.4 | **Cap the AI bill** | CEO (via AI) | Per-user daily rate limits on every AI-calling endpoint (saves, web summaries, Rudolf) + a billing alert on the Anthropic account. | A script hammering the API gets blocked; alert email confirmed |
 | 0.5 | **Rudolf discloses he's an AI** | Rudolf Owner (via AI) | EU law (AI Act, in force since 2 Aug 2026) requires chat AIs to say so up front, in the chat itself. Make it on-brand: "Hi, I'm Rudolf — your AI reindeer 🦌". Label summaries "AI-generated". | First message from Rudolf to any new chat says it |
 | 0.6 | **Error alerts** | Experience Owner (via AI) | Add Sentry (free tier) so crashes email us; add an uptime check on the site and the daily digest job. | We get an email when something breaks, before users tell us |
-| 0.7 | **Measurement dashboard** | CEO + Growth | PostHog dashboards: Weekly Revisit Rate, digest opens, D7/D30 retention, funnel from sign-up → first save → first revisit. Track digest email opens. | Monday meeting runs off this dashboard |
+| 0.7 | **Measurement dashboard** | CEO + Marketing | PostHog dashboards: Weekly Revisit Rate, digest opens, D7/D30 retention, funnel from sign-up → first save → first revisit. Track digest email opens. | Monday meeting runs off this dashboard |
 | 0.8 | **Start the Paddle application** | CEO | Paddle (merchant of record) will handle all European sales tax for us. Approval takes weeks — apply now so Phase 2 isn't blocked. | Application submitted |
 | 0.9 | **Buy the Sardin font license** (or swap the font) | Rudolf Owner | Our logo font is a personal-use demo license and we charge money. Buy the commercial license or pick a licensed face. | License PDF saved in the drive |
-| 0.10 | **Email deliverability check** | Growth (via AI) | Verify SPF/DKIM records on the sending domain (Resend has a checklist). If digests hit spam, our core loop silently dies. | Digest lands in inbox on Gmail/Outlook test accounts |
+| 0.10 | **Email deliverability check** | Marketing (via AI) | Verify SPF/DKIM records on the sending domain (Resend has a checklist). If digests hit spam, our core loop silently dies. | Digest lands in inbox on Gmail/Outlook test accounts |
 
 ---
 
@@ -111,8 +111,8 @@ Goal: someone who saves things gets a reason to come back **every day**. The pla
 | 1.3 | **Save from the phone** | Experience Owner | People scroll on phones; our extension is desktop-only. Add PWA share-target support so "Share → Layrrrd" works from any phone app. This is existential, not nice-to-have. | A link shared from a phone appears in the library, summarized |
 | 1.4 | **Weekly Wrapped card** | Rudolf Owner | End-of-week shareable image: "You read 47 minutes this week. Top topic: Design Systems." Beautiful enough that people post it unprompted — our free billboard. | Card auto-generates in digest + dashboard; share tracked |
 | 1.5 | **Pocket import tool** | Experience Owner | Upload a Pocket CSV export → items flow through the normal save pipeline. The 30M-refugee door-opener. | A real Pocket export file imports cleanly |
-| 1.6 | **Founding-spots countdown campaign** | Growth | Make the 100 spots a public event: live counter on the site, build-in-public posts, "spot #37 just went" energy. Sell out = our first proof + case study content. | 100/100 claimed |
-| 1.7 | **Distribution engine running** | Growth | Pick two channels and go deep: (a) the Pocket-refugee story on Reddit/HN/design Twitter, (b) build-in-public from the founder's account with Rudolf as the recurring character. Prep the Product Hunt launch for when the daily loop is live (launch with streaks + phone save + Pocket import together — that's a story). | 2 posts/week shipping; PH launch executed by week 12 |
+| 1.6 | **Founding-spots countdown campaign** | Marketing | Make the 100 spots a public event: live counter on the site, build-in-public posts, "spot #37 just went" energy. Sell out = our first proof + case study content. | 100/100 claimed |
+| 1.7 | **Distribution engine running** | Marketing | Pick two channels and go deep: (a) the Pocket-refugee story on Reddit/HN/design Twitter, (b) build-in-public from one team member's personal account with Rudolf as the recurring character. Prep the Product Hunt launch for when the daily loop is live (launch with streaks + phone save + Pocket import together — that's a story). | 2 posts/week shipping; PH launch executed by week 12 |
 | 1.8 | **QA + interview rota live** | All | The weekly rhythm from §4 actually happening. | 4 consecutive weeks of Monday metrics + ≥3 interviews/week |
 
 **What we deliberately do NOT do in Phase 1:** new content types, mobile native apps, more chat platforms, redesigns. Ideas go in a parking-lot doc, reviewed monthly.
@@ -129,7 +129,7 @@ Goal: recurring revenue, in three currencies, legally clean in Europe.
 | 2.2 | **Paddle checkout for non-India** | CEO (via AI) | Paddle becomes the seller of record outside India — they handle EU VAT across 27 countries, invoicing, currency. Razorpay stays for India/UPI. Pricing config gains a region dimension. | Test purchases in EUR and USD settle; VAT handled by Paddle |
 | 2.3 | **Trim the free plan** | CEO | Free Rudolf chat drops 120 → 30 min/day (unlimited saves, summaries, digests stay free — that's the promise on the site). Grandfather existing users for 30 days with a friendly Rudolf message. | New limits live; no support fire |
 | 2.4 | **GDPR pack** | CEO + Experience Owner | (a) "Download my data" button (we already have real account deletion — the hard part is done); (b) cookie-consent banner; (c) move analytics to PostHog EU hosting; (d) sign the standard data agreements (DPAs) with Google, Anthropic, Resend, Vercel, PostHog; (e) privacy policy rewritten in plain language. | All five checked; policy links live in footer |
-| 2.5 | **EU soft launch** | Growth | English-first: UK, Netherlands, Nordics (high English fluency, top-of-world willingness to pay). Privacy is a *selling point* in Europe — "no ads, your data is yours, delete everything in one click" goes on the site. No translations yet. | EU sign-ups and first EUR subscriptions flowing |
+| 2.5 | **EU soft launch** | Marketing | English-first: UK, Netherlands, Nordics (high English fluency, top-of-world willingness to pay). Privacy is a *selling point* in Europe — "no ads, your data is yours, delete everything in one click" goes on the site. No translations yet. | EU sign-ups and first EUR subscriptions flowing |
 | 2.6 | **Company & money hygiene** | CEO | Private Limited registered, business bank account, CA engaged for GST + export income, trademark filed for "Layrrrd" (check EU marks before launch), refund policy on the site matches actual practice. | All filed; monthly books exist |
 | 2.7 | **Unit economics check** | CEO | Monthly: AI cost per active user vs. revenue per user. If cost/user creeps toward revenue/user, fix before growing. | Number reviewed in first-Monday meeting, every month |
 
