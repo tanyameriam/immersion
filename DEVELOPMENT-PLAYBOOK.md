@@ -268,6 +268,49 @@ The AI is the engineering team; these rules are its management:
    architecture doc are already good) — an AI is only as good as the
    context it's given, and these docs *are* that context.
 
+### Teaching the other three: the operator ladder
+
+Only one of us can currently do any of this, because the others "don't know
+how to handle it." Here is the honest reframe: **operating the AI is not
+coding.** It is describing one change in plain language, reading the AI's
+summary, and checking a preview link — which is *design direction and
+design review*, skills this team already has. What actually blocks people
+is fear of breaking something. That fear is exactly what the playbook
+removes: with branch protection, previews, a dev environment, and one-click
+rollback, a beginner **cannot** break production. Mistakes on a branch cost
+nothing — that is the whole point of the setup.
+
+So we train by ladder, one rung a week. Nobody needs to reach the top;
+everyone reaches rung 2, and at least one more person reaches rung 5.
+
+| Rung | Skill | How you learn it | Who |
+| --- | --- | --- | --- |
+| 1 | **Read**: open a PR on GitHub, read the AI's summary of a change, open the preview link, click through it | 30 minutes with the current operator, once | All 4, week 1 |
+| 2 | **Rescue**: roll back production in Vercel (clicks, no code) using the pinned emergency card | The practice-rollback drill in §5 — do it together | All 4, week 1–2 |
+| 3 | **Shadow**: sit with the operator for 2–3 real sessions; watch how they phrase requests, reject scope creep, and check results | The weekly **AI pairing hour** (below) | Everyone, rotating |
+| 4 | **Drive with training wheels**: make one real but tiny change solo — copy text, spacing, a color token — on a branch, with the operator reviewing before merge | Own Claude Code seat; pick the change from the friction list | The designated 2nd operator |
+| 5 | **Drive solo**: ship small features end-to-end; operator only double-checks money paths | 4–6 more weeks of rung 4 reps | The 2nd operator |
+
+**The AI pairing hour:** one fixed hour a week where the operator builds
+something real with one teammate watching and asking questions, rotating
+through the team. Not a lecture — actual work, narrated. This single habit
+produces the second operator in about 6–8 weeks, which is how task 0.11's
+"done when" gets met.
+
+**Beginner's prompting rules** (pin these next to the emergency card):
+- Describe the *outcome you want*, not the code: "the save button should
+  show a spinner while saving" — never worry about how.
+- One change per request. If your sentence contains "and," split it.
+- Paste screenshots — the AI reads them, and designers communicate better
+  in pictures anyway.
+- Ask the AI to explain anything you don't understand, in plain language,
+  as many times as you need. It never gets impatient and there are no
+  stupid questions with no colleagues watching.
+- Before merging anything, ask the AI: "what could go wrong with this
+  change?" — then read the answer.
+- When in doubt, stop and leave the branch open. An unfinished branch
+  costs nothing; nothing you do on a branch can hurt production.
+
 ---
 
 ## 9. Definition of done (for anything, ever)

@@ -174,3 +174,12 @@ enthusiastic member. Five rules:
    template; support threads handed over at Friday review. If someone
    vanished for two weeks tomorrow, the other three should lose speed —
    never access, context, or the ability to decide.
+6. **The builder cannot be a single point of failure.** Today one person
+   holds the only Claude Code access and ships everything — the sharpest
+   version of the problem rule 5 exists to prevent. Operating-plan task
+   0.11 fixes it: a second Claude Code seat and a trained second operator,
+   a one-page "operating the AI developer" runbook, and a
+   rollback-production emergency card that all four can follow. Until 0.11
+   is done, treat the current operator's availability as a real dependency
+   in every weekly plan — and never schedule a release when they're about
+   to be away.

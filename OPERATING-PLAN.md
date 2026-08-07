@@ -68,6 +68,17 @@ The AI (Claude Code) is our engineering team; the humans are its editors. Three 
 2. **One change at a time.** Ask the AI for one focused thing per request ("add the streak counter to the dashboard"), not five. Small changes are reviewable; big ones aren't.
 3. **The money paths are sacred.** Any change touching payments, login, or account deletion gets a second person on the preview and runs the manual test script in `TESTING.md` before merge.
 
+**The single-operator risk (our current reality).** Today exactly one person
+has Claude Code access and does all the building and publishing. That means
+one sick week stops every feature, every fix, and every rollback — a worse
+single point of failure than anything in the risk register. Task 0.11 breaks
+it. The target state: the *ability to ship* is a skill at least two people
+have, and the *ability to roll back production* is a skill all four have
+(it's clicks in Vercel, not code). Building with the AI is genuinely
+learnable by any of us — it's describing one change at a time in plain
+language and checking a preview, which is closer to design review than to
+programming.
+
 Budget one "technical advisor" favor: find a friendly engineer who'll spend 1 hour/month sanity-checking the repo. Pay them in dinner or equity points.
 
 The full, strict rulebook for building and releasing — environments, testing
@@ -110,6 +121,7 @@ Safety and legal items. Small, boring, non-negotiable. Nothing else ships until 
 | 0.8 | **Start the Paddle application** | Business | Paddle (merchant of record) will handle all European sales tax for us. Approval takes weeks — apply now so Phase 2 isn't blocked. | Application submitted |
 | 0.9 | **Buy the Sardin font license** (or swap the font) | Brand | Our logo font is a personal-use demo license and we charge money. Buy the commercial license or pick a licensed face. | License PDF saved in the drive |
 | 0.10 | **Email deliverability check** | Growth (via AI) | Verify SPF/DKIM records on the sending domain (Resend has a checklist). If digests hit spam, our core loop silently dies. | Digest lands in inbox on Gmail/Outlook test accounts |
+| 0.11 | **Break the single-operator bottleneck** | Business | One person currently holds the only Claude Code access and does all building/publishing. (a) All four get GitHub accounts on the repo — reviewing a preview link needs no code. (b) A second person gets their own Claude Code access (a cheap subscription; treat it as core infrastructure, like hosting). (c) The current operator writes a one-page "operating the AI developer" runbook: start a session, ask for one change, read the summary, click the preview, merge. (d) An emergency card pinned in team chat: how to roll back production in Vercel — clicks, no code, all four can do it. | A second person has shipped one small change end-to-end without help; all four have done a practice rollback |
 
 ---
 
@@ -186,6 +198,7 @@ Only starts if Phase 1's habit numbers are real (Weekly Revisit ≥ 40%). Retent
 | Firestore + backups | ~$5–25 | Grows with users |
 | Resend (email) | $0–20 | Free to 3k emails/mo |
 | Sentry, PostHog, Telegram | $0 | Free tiers |
+| Claude Code, 2nd seat | ~$20–50 | Bus-factor insurance on our entire engineering capability (task 0.11) |
 | WhatsApp (Meta) | Variable | Least predictable; fine to pause if costly |
 | Paddle | % of non-India sales | No fixed fee |
 | One-offs | Font license, trademark filing, company registration, CA | Budget ~₹1–1.5 lakh total across the quarter |
