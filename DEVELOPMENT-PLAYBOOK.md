@@ -211,8 +211,9 @@ ours. Therefore:
 ## 6. Production access rules
 
 - Production Firebase console, Vercel production settings, Razorpay live
-  dashboard, and the domain registrar are **CEO-access-only** (plus one
-  named backup person — bus factor). Everyone else works in dev.
+  dashboard, and the domain registrar are **held by the Business-area owner
+  only** (plus one named backup person — bus factor; see the responsibility
+  areas in OPERATING-PLAN.md §3). Everyone else works in dev.
 - **Every account with production access has 2-factor authentication on.**
   Google, GitHub, Vercel, Firebase, Razorpay, Resend, domain registrar —
   all of them. One phished password must not be enough to destroy the
