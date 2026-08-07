@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Puzzle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,13 +41,6 @@ export default function ChromeExtension() {
             <p className="mt-3 text-base text-muted-foreground">
               Free on the Chrome Web Store
             </p>
-
-            <Link
-              href="#contact"
-              className="mt-8 inline-block text-sm font-semibold text-foreground underline underline-offset-4 hover:text-muted-foreground"
-            >
-              Using a different browser? Get in touch →
-            </Link>
           </div>
         </FadeUp>
 
