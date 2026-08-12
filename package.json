@@ -11,7 +11,9 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "check": "npm run lint && npm run typecheck && npm run build"
+    "check": "npm run lint && npm run typecheck && npm run build",
+    "emulators": "firebase emulators:start --project demo-layrrrd",
+    "backup": "node --env-file=.env.local scripts/export-backup.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
