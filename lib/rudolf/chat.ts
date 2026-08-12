@@ -51,6 +51,11 @@ export type RudolfChannel = {
   memoryKey: string;
   /** Deliver reply parts with the channel's own rhythm and length caps. */
   sendMessages: (parts: string[]) => Promise<void>;
+  /** Deliver pre-rendered digest parts verbatim: they arrive as
+   * Telegram-HTML (see lib/digest/build.ts) with dynamic text already
+   * escaped, so channels must NOT escape them again. Channels without an
+   * HTML mode convert the markup to their own formatting first. */
+  sendFormattedMessages: (parts: string[]) => Promise<void>;
 };
 
 /** Message link entity (Telegram-style) — offsets are UTF-16 code units,
@@ -164,9 +169,12 @@ const DIGEST_NO_RE = /^(n|no|nope|nah|skip|later|not now)\b/i;
 /**
  * If this user has an outstanding "want your digest?" ask and the message
  * is a clear yes/no, resolve it (send the withheld content, or acknowledge
- * the decline) and report the message as handled. Anything ambiguous falls
- * through to normal chat handling instead of blocking on an answer - the
- * ask just stays open for a later message to resolve.
+ * the decline) and report the message as handled. Anything else falls
+ * through to normal chat handling AND drops the ask: once the conversation
+ * has moved on, a later "yes" is almost always answering one of Rudolf's
+ * own follow-up questions, and delivering the digest there dumps it into an
+ * unrelated exchange (possibly days after the user's chosen delivery day).
+ * They'll simply be asked again next cycle.
  */
 async function tryResolveDigestConsent(
   userId: string,
@@ -193,7 +201,7 @@ async function tryResolveDigestConsent(
       pendingDigest: FieldValue.delete(),
       lastDigestSentAt: new Date().toISOString(),
     });
-    await channel.sendMessages(pending.parts);
+    await channel.sendFormattedMessages(pending.parts);
     if (pending.recs.length) {
       await rememberMentions(channel.memoryKey, pending.recs);
     }
@@ -205,6 +213,9 @@ async function tryResolveDigestConsent(
     await channel.sendMessages(["No problem, I'll check back next week 🐕"]);
     return true;
   }
+  // Not an answer to the ask - the conversation moved on. Drop the pending
+  // digest so tomorrow's "yes" to a normal Rudolf question can't trigger it.
+  await ref.update({ pendingDigest: FieldValue.delete() });
   return false;
 }
 

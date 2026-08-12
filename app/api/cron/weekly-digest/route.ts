@@ -17,10 +17,11 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 /**
- * Weekly digest job (Vercel Cron, daily). Sends each user their digest on the
- * weekday they chose (Profile → Delivery day), via their channel (email or
- * Telegram). Guard with CRON_SECRET. Add ?force=1 to ignore the day gate (for
- * manual testing).
+ * Weekly digest job (Vercel Cron, daily at 03:30 UTC = 9:00 AM IST, see
+ * vercel.json). Sends each user their digest on the weekday they chose
+ * (Profile → Delivery day), via their channel (email or Telegram). Guard
+ * with CRON_SECRET. Add ?force=1 to ignore the day gate (for manual
+ * testing).
  *   curl -H "Authorization: Bearer $CRON_SECRET" ".../api/cron/weekly-digest?force=1"
  *
  * Email gets the full digest immediately - there's no back-and-forth channel
@@ -38,7 +39,14 @@ async function run(req: Request) {
   }
 
   const force = new URL(req.url).searchParams.get("force") === "1";
-  const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
+  // "Their day" is computed in IST: profiles don't store a timezone yet and
+  // the server runs in UTC, so without an explicit timeZone the weekday
+  // would silently be the server's, not the user's. Revisit if/when a
+  // per-user timezone lands on the profile.
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    timeZone: "Asia/Kolkata",
+  });
 
   // Rudolf's support receipts expire after 30 days, and this is what enforces
   // it - Firestore's own TTL policies need a billed project. Runs before the

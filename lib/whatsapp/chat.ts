@@ -45,17 +45,11 @@ async function sendOne(waId: string, text: string): Promise<void> {
   }
 }
 
-/**
- * Send a reply as separate messages with a human texting rhythm: a short
- * pause scaled to message length. (WhatsApp's typing indicator is tied to
- * marking the inbound message read, which the webhook handler does once.)
- */
-export async function sendMessages(
-  waId: string,
-  parts: string[],
-): Promise<void> {
-  const toSend = parts.map((p) => p.trim()).filter(Boolean).slice(0, MAX_REPLY_PARTS);
-  for (const [i, part] of toSend.entries()) {
+/** Deliver parts with a human texting rhythm: a short pause scaled to
+ * message length. (WhatsApp's typing indicator is tied to marking the
+ * inbound message read, which the webhook handler does once.) */
+async function deliver(waId: string, parts: string[]): Promise<void> {
+  for (const [i, part] of parts.entries()) {
     if (i > 0) {
       await new Promise((r) =>
         setTimeout(r, Math.min(500 + part.length * 8, 2000)),
@@ -63,6 +57,43 @@ export async function sendMessages(
     }
     await sendOne(waId, part);
   }
+}
+
+/** Send a reply as separate messages. */
+export async function sendMessages(
+  waId: string,
+  parts: string[],
+): Promise<void> {
+  const toSend = parts.map((p) => p.trim()).filter(Boolean).slice(0, MAX_REPLY_PARTS);
+  await deliver(waId, toSend);
+}
+
+/** Digest parts arrive as Telegram-style HTML (see lib/digest/build.ts).
+ * WhatsApp has no HTML mode, so convert: links become "title" then the url
+ * on its own line, bold/italic become WhatsApp's own markers, and the
+ * build-time entity escaping is undone last. */
+function htmlToWhatsAppText(text: string): string {
+  return text
+    .replace(/<a href="([^"]*)">([\s\S]*?)<\/a>/g, "$2\n$1")
+    .replace(/<b>([\s\S]*?)<\/b>/g, "*$1*")
+    .replace(/<i>([\s\S]*?)<\/i>/g, "_$1_")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
+/** Send pre-rendered digest parts, converted to WhatsApp formatting. No
+ * reply-part cap - the digest's section count is fixed at build time. */
+export async function sendFormattedMessages(
+  waId: string,
+  parts: string[],
+): Promise<void> {
+  const toSend = parts
+    .map((p) => htmlToWhatsAppText(p).trim())
+    .filter(Boolean);
+  await deliver(waId, toSend);
 }
 
 /** Route one chat message from a linked user through the shared brain. */
@@ -75,6 +106,7 @@ export async function handleChatMessage(
     platform: "WhatsApp",
     memoryKey: `wa:${waId}`,
     sendMessages: (parts) => sendMessages(waId, parts),
+    sendFormattedMessages: (parts) => sendFormattedMessages(waId, parts),
   };
   await handleRudolfMessage(userId, channel, text);
 }
