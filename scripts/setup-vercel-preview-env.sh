@@ -50,9 +50,11 @@ done
 
 echo "── Adding Preview-scoped layrrrd-test values…"
 for name in "${!ADD[@]}"; do
-  # --value keeps this fully non-interactive; piping the value via stdin makes
-  # the CLI's "which Git branch?" prompt hit EOF and silently create nothing.
-  vercel env add "$name" preview --value "${ADD[$name]}" --yes >/dev/null \
+  # --value= (equals form) so values starting with "-" (the private key's
+  # "-----BEGIN") aren't parsed as options; piping via stdin makes the CLI's
+  # "which Git branch?" prompt hit EOF and silently create nothing.
+  # --force overwrites vars a previous partial run already added.
+  vercel env add "$name" preview --value="${ADD[$name]}" --yes --force >/dev/null \
     && echo "   added: $name" || { echo "   FAILED: $name"; exit 1; }
 done
 
