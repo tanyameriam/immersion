@@ -50,8 +50,10 @@ done
 
 echo "── Adding Preview-scoped layrrrd-test values…"
 for name in "${!ADD[@]}"; do
-  printf '%s' "${ADD[$name]}" | vercel env add "$name" preview >/dev/null \
-    && echo "   added: $name"
+  # --value keeps this fully non-interactive; piping the value via stdin makes
+  # the CLI's "which Git branch?" prompt hit EOF and silently create nothing.
+  vercel env add "$name" preview --value "${ADD[$name]}" --yes >/dev/null \
+    && echo "   added: $name" || { echo "   FAILED: $name"; exit 1; }
 done
 
 echo
