@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "prod": "layrrrd-18b1e",
+    "test": "layrrrd-test"
+  }
+}

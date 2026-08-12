@@ -72,4 +72,11 @@ dog-loader-preview.html
 
 # Loading dog GIF source (WebP is committed instead)
 same_dog_and_look_feel_illu.gif
+
+# Local Firestore backups (scripts/export-backup.mjs) & emulator state
+backups/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.firebase/
 .vercel
