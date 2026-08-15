@@ -43,6 +43,48 @@ marketing site. Full reference: [design-system/README.md](design-system/README.m
   publicly deployed page without confirming a commercial license has been
   purchased (see `design-system/brand-source/Sardin/Readme (DEMO).txt`).
 
+## Environment workflow - MANDATORY, no exceptions
+
+Layrrrd runs three isolated environments. Every change flows through them in
+this order, and an AI agent must never skip a stage, however small the
+change. Full reference: [docs/environments.md](docs/environments.md).
+
+| Stage | Where | Branch | Firebase project | Data |
+| --- | --- | --- | --- | --- |
+| 1. Develop | `localhost:3000` | feature branch off `main` | Emulators or `layrrrd-test` | fake |
+| 2. QA | test.layrrrd.com (Vercel Preview) | `test` | `layrrrd-test` | fake, seeded |
+| 3. Live | layrrrd.com (Vercel Production) | `main` | `layrrrd-18b1e` | REAL USERS |
+
+The pipeline for any change:
+
+1. **Develop:** branch off `main` (`feat/<name>`), build and verify locally
+   (`npm run dev`, `npm run check`).
+2. **QA:** merge the feature branch into `test` and push. This auto-deploys
+   to test.layrrrd.com against fake data, where the user (and anyone they
+   share the link with) tests. Bugs found here are fixed on the feature
+   branch and re-merged into `test`.
+3. **Publish:** only after the user confirms QA passed, open a PR from the
+   feature branch to `main`. Merging `main` deploys to layrrrd.com. After a
+   merge to `main`, sync QA with `git push origin main:test`.
+
+Hard rules for agents:
+
+- **Never merge or commit to `main` directly.** `main` only receives
+  feature branches that already passed QA on test.layrrrd.com.
+- **Never put production (`layrrrd-18b1e`) credentials** in `.env.local`,
+  `.env.test`, or Vercel Preview scope. Test credentials live in the
+  gitignored `.env.test`. The single exception is running an admin script
+  against prod at the user's explicit request - and run `npm run backup`
+  first.
+- **QA data is synthetic and disposable.** Seed/reset with
+  `node --env-file=.env.test scripts/seed-items.mjs|seed-starter-lists.mjs|reset-data.mjs`.
+  Never copy production data into the test project.
+- **Firestore rules/indexes deploy to test first**, then prod:
+  `npx firebase-tools deploy --only firestore --project test|prod`.
+- **End every task by telling the user the next step in this pipeline**
+  (e.g. "this is on the feature branch - next step is merging it into
+  `test` and QA-ing at test.layrrrd.com").
+
 ## Working conventions
 
 - **Before starting non-trivial work**, create a git branch rather than
@@ -79,6 +121,7 @@ passing build does not confirm the feature looks or behaves correctly.
 | --- | --- |
 | `AGENTS.md` | This file - canonical guidelines for any AI coding tool. |
 | `CLAUDE.md` | Claude Code entry point; points back here. |
+| `docs/environments.md` | Dev → test → prod environment flow + per-service notes. |
 | `design-system/README.md` | Full design-system + brand-kit reference. |
 | `design-system/fonts.ts` | Brand font loading (`next/font/local`). |
 | `design-system/fonts/` | Brand font binaries (Satoshi, Sardin). |

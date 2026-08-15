@@ -4,24 +4,32 @@ import { adminDb } from "@/lib/firebase/admin";
 import { limitsFor } from "@/lib/billing/config";
 import {
   buildWeeklyDigests,
+  digestConsentPrompt,
   digestHtml,
-  digestText,
+  digestParts,
 } from "@/lib/digest/build";
 import { sendEmail } from "@/lib/email/resend";
 import { sendTelegramMessage } from "@/lib/telegram/send";
-import { sendDueNudges } from "@/lib/telegram/nudge";
-import { rememberMentions } from "@/lib/rudolf/memory";
 import { buildRecommendations } from "@/lib/recommendations/generate";
+import { purgeExpiredTraces } from "@/lib/rudolf/trace";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 /**
- * Weekly digest job (Vercel Cron, daily). Sends each user their digest on the
- * weekday they chose (Profile → Delivery day), via their channel (email or
- * Telegram). Guard with CRON_SECRET. Add ?force=1 to ignore the day gate (for
- * manual testing).
+ * Weekly digest job (Vercel Cron, daily at 03:30 UTC = 9:00 AM IST, see
+ * vercel.json). Sends each user their digest on the weekday they chose
+ * (Profile → Delivery day), via their channel (email or Telegram). Guard
+ * with CRON_SECRET. Add ?force=1 to ignore the day gate (for manual
+ * testing).
  *   curl -H "Authorization: Bearer $CRON_SECRET" ".../api/cron/weekly-digest?force=1"
+ *
+ * Email gets the full digest immediately - there's no back-and-forth channel
+ * to ask first. Telegram is opt-in per delivery: this only sends a short
+ * "want your digest?" prompt and stashes the rendered content on
+ * users/{uid}.pendingDigest; the actual content only goes out once the user
+ * replies yes, handled by the consent check in lib/rudolf/chat.ts. Rudolf
+ * never pushes content the user didn't ask for.
  */
 async function run(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -31,7 +39,33 @@ async function run(req: Request) {
   }
 
   const force = new URL(req.url).searchParams.get("force") === "1";
-  const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
+  // "Their day" is computed in IST: profiles don't store a timezone yet and
+  // the server runs in UTC, so without an explicit timeZone the weekday
+  // would silently be the server's, not the user's. Revisit if/when a
+  // per-user timezone lands on the profile.
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    timeZone: "Asia/Kolkata",
+  });
+
+  // Rudolf's support receipts expire after 30 days, and this is what enforces
+  // it - Firestore's own TTL policies need a billed project. Runs before the
+  // digests and can never block them: retention is a promise in the privacy
+  // policy, so it shouldn't be skipped when digest building has a bad day,
+  // and equally a purge failure shouldn't cost users their digest.
+  try {
+    const purged = await purgeExpiredTraces();
+    if (purged.deleted > 0) {
+      console.info(`botEvents purge deleted ${purged.deleted}`);
+    }
+    if (purged.capped) {
+      console.warn(
+        "botEvents purge hit its per-run cap - expired receipts remain",
+      );
+    }
+  } catch (err) {
+    console.error("botEvents purge failed", err);
+  }
 
   try {
     const digests = await buildWeeklyDigests();
@@ -56,16 +90,13 @@ async function run(req: Request) {
       }
       considered++;
 
-      // A "Picked for you" section: same engine as the Recommended tab. Kept
-      // to 3 picks total, the digest leads with them instead of a list dump.
-      // Never let it block the digest itself.
+      // A "Picked for you" section: same engine as the Recommended tab (now
+      // external-source picks only - see lib/recommendations/generate.ts).
+      // Kept to 3 picks total, the digest leads with them instead of a list
+      // dump. Never let it block the digest itself.
       try {
         const recs = await buildRecommendations(digest.userId);
-        digest.recommendations = [
-          ...recs.matched.slice(0, 1),
-          ...recs.discover.slice(0, 1),
-          ...recs.web.slice(0, 1),
-        ];
+        digest.recommendations = recs.web.slice(0, 3);
       } catch (err) {
         console.error("weekly-digest recommendations failed", digest.userId, err);
       }
@@ -74,20 +105,37 @@ async function run(req: Request) {
         digest.notificationPreference === "telegram" && !!digest.telegramChatId;
 
       let emailOk = false;
-      let tgOk = false;
+      let askOk = false;
       if (wantTelegram) {
-        tgOk = await sendTelegramMessage(digest.telegramChatId!, digestText(digest));
-        // Remember the digest's picks so "that podcast from the digest" is
-        // answerable in chat later.
-        if (tgOk && digest.recommendations?.length) {
-          await rememberMentions(
-            digest.telegramChatId!,
-            digest.recommendations.map((r) => ({ url: r.url, title: r.title })),
-          );
+        askOk = await sendTelegramMessage(
+          digest.telegramChatId!,
+          digestConsentPrompt(digest),
+        );
+        if (askOk) {
+          // Content is ready but withheld until they say yes - see the
+          // consent check in lib/rudolf/chat.ts, which sends `parts` and
+          // records `recs` via rememberMentions once confirmed.
+          await adminDb()
+            .collection("users")
+            .doc(digest.userId)
+            .set(
+              {
+                pendingDigest: {
+                  askedAt: new Date().toISOString(),
+                  parts: digestParts(digest),
+                  recs: (digest.recommendations ?? []).map((r) => ({
+                    url: r.url,
+                    title: r.title,
+                  })),
+                },
+              },
+              { merge: true },
+            );
         }
       }
-      // Email if they chose it, or as a fallback when Telegram wasn't sent.
-      if ((!wantTelegram || !tgOk) && digest.email) {
+      // Email if they chose it, or as a fallback when the Telegram ask
+      // failed to send - email has no consent step, it just arrives.
+      if ((!wantTelegram || !askOk) && digest.email) {
         emailOk = await sendEmail({
           to: digest.email,
           subject: "Your Layrrrd week",
@@ -96,10 +144,14 @@ async function run(req: Request) {
       }
 
       if (emailOk) emailed++;
-      if (tgOk) messaged++;
+      if (askOk) messaged++;
 
-      // Delivery timestamp drives the biweekly gate; harmless for weekly.
-      if (emailOk || tgOk) {
+      // Delivery timestamp drives the biweekly gate. Email is immediate
+      // delivery, so it counts now; a Telegram ask only counts once the user
+      // actually confirms (lib/rudolf/chat.ts) - an unanswered or declined
+      // ask means they haven't received anything yet, so they should be
+      // asked again next cycle rather than have their slot silently used up.
+      if (emailOk) {
         await adminDb()
           .collection("users")
           .doc(digest.userId)
@@ -112,23 +164,11 @@ async function run(req: Request) {
         savedThisWeek: digest.savedThisWeek,
         readThisWeek: digest.readThisWeek,
         emailSent: emailOk,
-        telegramSent: tgOk,
+        telegramAsked: askOk,
       });
     }
 
-    // Rudolf's between-digest picks ride the same daily cron (the Hobby plan
-    // has no spare cron slot). Never let nudges fail the digest response.
-    // ?forceNudge=1 ignores the day gate for manual testing.
-    const forceNudge =
-      new URL(req.url).searchParams.get("forceNudge") === "1";
-    let nudges = { considered: 0, sent: 0 };
-    try {
-      nudges = await sendDueNudges(today, { force: forceNudge });
-    } catch (err) {
-      console.error("nudges failed", err);
-    }
-
-    return NextResponse.json({ day: today, considered, emailed, messaged, nudges });
+    return NextResponse.json({ day: today, considered, emailed, messaged });
   } catch (err) {
     console.error("weekly-digest failed", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

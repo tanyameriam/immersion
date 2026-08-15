@@ -3,7 +3,17 @@
 **Product name:** Layrrrd ("Layrrrd.")
 **Repo / internal name:** `immersion`
 **Tagline:** "Save once. Revisit intentionally." / "Save now. Catch up later."
-**Doc status:** Reverse-engineered from the current codebase (2026-07-08). This is a descriptive PRD of what exists today, not a forward-looking spec — gaps between UI promises and actual implementation are called out explicitly in [§11](#11-known-gaps--discrepancies) so they can be triaged.
+**Doc status:** Reverse-engineered from the codebase on 2026-07-08, spot-corrected 2026-08-07. This is a descriptive PRD of what exists today, not a forward-looking spec — gaps between UI promises and actual implementation are called out explicitly in [§11](#11-known-gaps--discrepancies) so they can be triaged.
+
+> **Read this first.** The product has moved since the original pass, and this
+> document has only been corrected where it was factually wrong (business
+> model, the removed waitlist, and the gap list in §11). Sections describing
+> UI detail and feature scope have *not* been re-verified line by line and may
+> still lag the code.
+>
+> **[docs/architecture.md](docs/architecture.md) is the authoritative technical
+> reference** and is kept current. Where the two disagree, that file wins — and
+> where either disagrees with the code, the code wins.
 
 ---
 
@@ -27,10 +37,22 @@ Layrrrd's bet is that the fix isn't a better bookmarking UI — it's removing th
 3. **It comes back to you** — a personalized weekly digest (email or Telegram), grouped by topic, on a day of the week the user picked.
 4. **It gets smarter / more social over time** — a "Recommended" tab surfaces content saved by other users with overlapping interests ("saved by N people").
 
-## 4. Business model (as reflected in the marketing site)
+## 4. Business model
 
-- Single paid tier, **"Founding Member," ₹99/month**, everything included: unlimited saves, weekly curated reading list, source/context retained per save, delivery on the user's schedule.
-- Currently gated behind a **waitlist** (email capture → forwarded to a Google Apps Script webhook) — see [§11](#11-known-gaps--discrepancies) for the discrepancy between waitlist framing and the fully working product behind it.
+Authoritative source: `lib/billing/config.ts`. Prices live there and nowhere
+else, so read that file before quoting a number from this one.
+
+- **Founding Membership** — a one-time payment for lifetime access, not a
+  subscription. ₹799 for the first 20 spots, ₹1,199 thereafter, hard-capped at
+  100 spots and never offered again once they are gone. Paid via Razorpay.
+- **Biscuits** — ₹50 for 15 extra minutes of Rudolf chat, for people on the
+  free plan. Bought in packs, never expire, consumed only after the daily free
+  allowance is spent.
+- **The free plan is generous by design.** Unlimited saves, AI summaries and
+  weekly digests are all free. The only metered thing is time spent chatting
+  with Rudolf: 120 minutes a day, resetting at midnight India time.
+- **No waitlist.** Sign-up is open; the waitlist and its Apps Script webhook
+  were removed.
 
 ---
 
@@ -39,8 +61,8 @@ Layrrrd's bet is that the fix isn't a better bookmarking UI — it's removing th
 ### 5.1 Marketing site (`/`, unauthenticated)
 Single scrolling page composed of: sticky nav (auth-aware), hero with animated mascot, "why" pitch, 4-feature "what's inside" breakdown, "how it works" (4 steps: sign up → save while scrolling → receive digest → gets smarter), pricing, FAQ accordion, contact, footer with legal links (Privacy, Terms, Refund — static pages).
 
-### 5.2 Waitlist
-Modal email capture → `POST /api/waitlist` → forwards to a Google Apps Script webhook (`GOOGLE_SCRIPT_URL`). Fails loudly (500) if not configured, by design.
+### 5.2 Waitlist — *removed*
+The waitlist modal, the `/api/waitlist` route and the `GOOGLE_SCRIPT_URL` Apps Script webhook no longer exist. Sign-up is open to anyone.
 
 ### 5.3 Authentication
 - Firebase Auth: **Google OAuth popup** and **email/password**, with friendly error mapping for common failure codes (wrong password, email in use, weak password, popup closed, rate-limited, etc.).
@@ -138,7 +160,6 @@ Document ID is `sha256(userId + "::" + url).slice(0,24)` — saving the same URL
 | Variable | Purpose |
 |---|---|
 | `NEXT_PUBLIC_APP_URL` | Canonical app URL |
-| `GOOGLE_SCRIPT_URL` | Waitlist-form webhook |
 | `NEXT_PUBLIC_FIREBASE_*` (6 vars) | Firebase Web SDK config (public) |
 | `FIREBASE_PROJECT_ID` / `FIREBASE_CLIENT_EMAIL` / `FIREBASE_PRIVATE_KEY` | Firebase Admin SDK service account (secret) |
 | `ANTHROPIC_API_KEY` | Claude API access |
@@ -170,26 +191,36 @@ No analytics/telemetry code was found in the repo (the `analytics` Firestore col
 
 ## 11. Known gaps / discrepancies
 
-These are real mismatches between what the UI promises and what the code currently does — flagged so they can be prioritized rather than discovered later:
+Mismatches between what the UI promises and what the code does. Reviewed
+2026-08-07 — items resolved since the original pass are struck through and kept
+for the record rather than deleted, so a reader can tell "already fixed" from
+"never was a problem."
 
-1. **Waitlist vs. working product:** the marketing site gates everything behind a waitlist, yet a fully functional sign-up/dashboard/AI pipeline already exists and is reachable directly. Decide whether the waitlist is intentional gating (e.g., managed rollout) or stale marketing copy.
-2. **Recommendation preferences are captured but unused:** Profile Settings lets users check topics of interest, but `lib/recommendations/generate.ts` only scores against the user's own saved-item topics, ignoring `preferredTopics` entirely.
-3. **"Delete Account" doesn't delete the account:** it signs the user out and redirects home; actual data/account deletion only exists as a developer script (`scripts/reset-data.mjs`).
-4. **"Change Password" button is not wired to any handler.**
-5. **Weekly Issues tab is built but not rendered** anywhere in the dashboard — fully mock-data-backed and dormant.
-6. **`@react-email/components` is an installed dependency but never used** — digest emails are hand-built HTML strings in `lib/digest/build.ts` instead.
-7. **Telegram delivery requires a numeric chat ID**, but the profile field accepts free-text (commonly an `@username`), so most users who fill it in naturally will not actually receive digests without an extra step (starting a chat with the bot first).
-8. **Several Firestore collections/indexes are provisioned but unused in code** (`preferences`, `notifications`, materialized `recommendations`, keyword/topic-filtered indexes) — forward-looking scaffolding, not active bugs, but worth confirming against actual roadmap.
-9. **Node version mismatch:** `.nvmrc` pins `22`, `package.json engines.node` says `24.x`; CI uses `.nvmrc`.
-10. **Brand display font license:** bundled font file is explicitly marked personal-use-only demo; currently used live on the wordmark.
-11. **No automated test suite** — all QA is manual per `TESTING.md`; regressions in the save/AI pipeline would only be caught by a human running the documented script.
+### Still open
+
+1. **Weekly Issues tab is built but not rendered** anywhere in the dashboard — `WeeklyIssuesTab.tsx` and `IssueCard.tsx` are mock-data-backed and dormant. Finish or delete.
+2. **Community recommendations are promised but always empty:** `matched` and `discover` are retained in the return shape of `generate.ts` and hard-coded to `[]`. The feed is entirely external sources today, while the marketing framing implies a social layer.
+3. **Library search only matches whole phrases:** stored keywords are multi-word (`"mountaineering records"`), extracted query terms are usually single words, and Firestore `array-contains-any` demands an exact element match. Harmless below ~100 saves because recency fills the context anyway; degrades quietly above that.
+4. **Brand display font license:** `Sardin-DEMO.otf` is explicitly personal-use-only and is live on the wordmark of a site that takes payment. Needs a commercial license or a replacement face.
+5. **No automated test suite** — `npm run check` covers lint, types and build only. Nothing verifies behaviour, so a change to Rudolf's system prompt can silently undo an earlier fix.
+6. **The daily digest job scans the whole database:** `buildWeeklyDigests()` reads every user and every completed item with no date or ownership filter, every day. Fine now, but it is the first hard scaling ceiling — see the scaling notes in `docs/architecture.md`.
+
+### Resolved since the original pass
+
+7. ~~**Waitlist vs. working product**~~ — waitlist removed entirely; sign-up is open.
+8. ~~**Recommendation preferences captured but unused**~~ — `preferredTopics` and `mutedTopics` now shape both the feed and Rudolf's suggestions.
+9. ~~**"Delete Account" doesn't delete the account**~~ — `DELETE /api/account` now erases items, digests, link codes, bot memory, support receipts, cached feed, the profile doc and the Firebase Auth user.
+10. ~~**"Change Password" button is not wired**~~ — sends a Firebase password-reset email, and is correctly hidden for Google-only accounts.
+11. ~~**Telegram needs a numeric chat ID typed by the user**~~ — replaced by a one-time code and deep link; the chat ID is captured automatically.
+12. ~~**`@react-email/components` installed but never used**~~ — dependency removed.
+13. ~~**Node version mismatch**~~ — `.nvmrc` now matches `engines.node`, so CI tests the runtime production actually uses.
+14. ~~**Firestore rules name collections that hold no data**~~ — stale `preferences`, `notifications`, `recommendations`, `analytics` and `systemJobs` blocks removed; unlisted collections are denied by default.
 
 ---
 
 ## 12. Open questions for stakeholders
 
-- Is the waitlist meant to stay, or should the dashboard be opened up directly?
-- Should recommendation scoring incorporate stated topic preferences, or is behavior-based scoring the intended design?
 - Is "Weekly Issues" still planned, deprioritized, or should the components be removed?
-- What's the intended fix for Telegram chat-ID collection (bot deep-link / `/start` flow to capture the numeric ID automatically)?
 - Is there a commercial license path for the brand display font, or should the wordmark move to a cleared font before wider launch?
+- Are community recommendations ("saved by N people") still intended? They are in the pitch and hard-coded empty in the code — either build them or stop implying them.
+- Google Custom Search is documented as discontinued for existing customers on 2027-01-01. What replaces the article half of the feed?

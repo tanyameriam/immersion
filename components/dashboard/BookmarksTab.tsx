@@ -95,7 +95,7 @@ export function BookmarksTab({
   const [sort, setSort] = useState("Recently Saved");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [view, setView] = useState<ResourceView>("list");
+  const [view, setView] = useState<ResourceView>("grid");
   // Server-side keyword search over the WHOLE library (the search box itself
   // only filters what's loaded). Keyed by the query it was run for, so stale
   // results never leak into a different search.

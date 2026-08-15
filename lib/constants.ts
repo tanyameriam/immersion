@@ -1,3 +1,8 @@
+/** The published Chrome Web Store listing. Referenced from the marketing
+ * section and the dashboard hints, so the URL lives here once. */
+export const CHROME_EXTENSION_URL =
+  "https://chromewebstore.google.com/detail/layrrrd-save-to-your-know/hkjiljlcddlegknkcgkgghepjmolnica";
+
 export const DESIGN_ROLES = [
   "Product Designer",
   "UX Designer",

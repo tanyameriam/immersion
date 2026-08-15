@@ -22,7 +22,7 @@ export interface UserDigest {
   plan: string;
   byTopic: [string, KnowledgeItem[]][]; // top topics → items saved this week
   unread: KnowledgeItem[]; // completed but not read
-  /** Fresh picks (community + web), each carrying its `reason`. Attached by
+  /** Fresh external-source picks, each carrying its `reason`. Attached by
    * the cron route only for users actually getting a digest today. */
   recommendations?: Resource[];
   savedThisWeek: number;
@@ -153,6 +153,17 @@ export async function buildWeeklyDigests(sinceMs = WEEK_MS): Promise<UserDigest[
   return digests;
 }
 
+/** Escape text interpolated into digest markup (Telegram parse_mode=HTML and
+ * the email template): names, titles and reasons come from users and external
+ * pages, and a stray `<` or `&` would otherwise break the whole message. */
+function esc(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function peerLine(d: UserDigest): string {
   const avg = Math.round(d.communityAvgRead * 10) / 10;
   const diff = Math.round((d.readThisWeek - d.communityAvgRead) * 10) / 10;
@@ -174,58 +185,72 @@ function totalUnreadMinutes(d: UserDigest): number {
   return d.unread.reduce((sum, it) => sum + (it.ai?.readingTime ?? 0), 0);
 }
 
-/** Plain-text digest (Telegram). Leads with a few picks, never a long list. */
-export function digestText(d: UserDigest): string {
-  const name = d.name?.split(" ")[0] || "there";
-  const lines = [`<b>Your Layrrrd week, ${name}</b>`, peerLine(d), ""];
+/** Short opt-in message sent before the digest content itself - nothing is
+ * delivered until the user replies (see lib/rudolf/chat.ts's consent
+ * handling). Keeps Rudolf from pushing content unprompted. */
+export function digestConsentPrompt(d: UserDigest): string {
+  const name = esc(d.name?.split(" ")[0] || "there");
+  return (
+    `Woof, your Layrrrd week is ready, ${name} 🐕 Want it now? ` +
+    `Reply yes and I'll send it over in a few short messages. ` +
+    `Reply no and I'll check back next week.`
+  );
+}
+
+/** Plain-text digest (Telegram), as separate short messages instead of one
+ * long one: an intro, a picks section, one message per topic, and a shelf
+ * reminder, each easy to skim on its own. */
+export function digestParts(d: UserDigest): string[] {
+  const name = esc(d.name?.split(" ")[0] || "there");
+  const parts: string[] = [`<b>Your Layrrrd week, ${name}</b>\n${peerLine(d)}`];
 
   const picks = (d.recommendations ?? []).slice(0, 3);
   if (picks.length) {
-    lines.push(`<b>Picked for you</b>`);
+    const lines = [`<b>Picked for you</b>`];
     for (const r of picks) {
       const label = durationLabel(r.contentType, r.readingTime);
-      lines.push(`• <a href="${r.url}">${r.title}</a>${label ? ` · ${label}` : ""}`);
-      if (r.reason) lines.push(`<i>${r.reason}</i>`);
+      lines.push(`• <a href="${esc(r.url)}">${esc(r.title)}</a>${label ? ` · ${label}` : ""}`);
+      if (r.reason) lines.push(`<i>${esc(r.reason)}</i>`);
     }
-    lines.push("");
+    parts.push(lines.join("\n"));
   }
 
   for (const [topic, items] of d.byTopic) {
-    lines.push(`<b>${topic}</b>`);
+    const lines = [`<b>${esc(topic)}</b>`];
     for (const it of items)
-      lines.push(`• <a href="${it.url}">${it.title}</a>${minutesLabel(it)}`);
-    lines.push("");
+      lines.push(`• <a href="${esc(it.url)}">${esc(it.title)}</a>${minutesLabel(it)}`);
+    parts.push(lines.join("\n"));
   }
 
   if (d.unread.length) {
     const total = totalUnreadMinutes(d);
-    lines.push(
+    const lines = [
       `<b>Still on your shelf</b>${total > 0 ? ` · about ${total} min in total, pick what fits` : ""}`,
-    );
+    ];
     for (const it of d.unread)
-      lines.push(`• <a href="${it.url}">${it.title}</a>${minutesLabel(it)}`);
-    lines.push("");
+      lines.push(`• <a href="${esc(it.url)}">${esc(it.title)}</a>${minutesLabel(it)}`);
+    parts.push(lines.join("\n"));
   }
 
-  lines.push(`Open your dashboard: ${appUrl}/dashboard`);
-  return lines.join("\n");
+  parts.push(`Open your dashboard: ${appUrl}/dashboard`);
+  return parts;
 }
 
 /** HTML digest (email). */
 export function digestHtml(d: UserDigest): string {
-  const name = d.name?.split(" ")[0] || "there";
+  const name = esc(d.name?.split(" ")[0] || "there");
 
   const topicBlocks = d.byTopic
     .map(
       ([topic, items]) => `
       <div style="margin-top:24px;">
-        <p style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#9a9a9a;margin:0 0 8px;">${topic}</p>
+        <p style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#9a9a9a;margin:0 0 8px;">${esc(topic)}</p>
         ${items
           .map(
             (it) => `<div style="padding:10px 0;border-bottom:1px solid #eee;">
-              <a href="${it.url}" style="color:#1a1a1a;font-weight:600;text-decoration:none;">${it.title}</a>
+              <a href="${esc(it.url)}" style="color:#1a1a1a;font-weight:600;text-decoration:none;">${esc(it.title)}</a>
               <span style="color:#9a9a9a;font-size:12px;">${minutesLabel(it)}</span>
-              <div style="color:#6b6b6b;font-size:13px;">${it.ai?.tldr ?? ""}</div>
+              <div style="color:#6b6b6b;font-size:13px;">${esc(it.ai?.tldr ?? "")}</div>
             </div>`,
           )
           .join("")}
@@ -241,9 +266,9 @@ export function digestHtml(d: UserDigest): string {
           .map((r) => {
             const label = durationLabel(r.contentType, r.readingTime);
             return `<div style="padding:8px 0;border-bottom:1px solid #eee;">
-              <a href="${r.url}" style="color:#1a1a1a;text-decoration:none;">${r.title}</a>
+              <a href="${esc(r.url)}" style="color:#1a1a1a;text-decoration:none;">${esc(r.title)}</a>
               ${label ? `<span style="color:#9a9a9a;font-size:12px;"> · ${label}</span>` : ""}
-              ${r.reason ? `<div style="color:#6b6b6b;font-size:13px;font-style:italic;">${r.reason}</div>` : ""}
+              ${r.reason ? `<div style="color:#6b6b6b;font-size:13px;font-style:italic;">${esc(r.reason)}</div>` : ""}
             </div>`;
           })
           .join("")}
@@ -256,7 +281,7 @@ export function digestHtml(d: UserDigest): string {
         ${d.unread
           .map(
             (it) => `<div style="padding:8px 0;border-bottom:1px solid #eee;">
-              <a href="${it.url}" style="color:#1a1a1a;text-decoration:none;">${it.title}</a>
+              <a href="${esc(it.url)}" style="color:#1a1a1a;text-decoration:none;">${esc(it.title)}</a>
               <span style="color:#9a9a9a;font-size:12px;">${minutesLabel(it)}</span>
             </div>`,
           )

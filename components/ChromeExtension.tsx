@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { Puzzle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FadeUp } from "@/components/FadeUp";
+import { CHROME_EXTENSION_URL } from "@/lib/constants";
 
 export default function ChromeExtension() {
   return (
@@ -22,22 +22,25 @@ export default function ChromeExtension() {
             </p>
 
             <div className="mt-8">
-              <Button size="lg" variant="outline" disabled>
+              <Button
+                size="lg"
+                variant="outline"
+                render={
+                  <a
+                    href={CHROME_EXTENSION_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                  />
+                }
+              >
                 <Puzzle data-icon="inline-start" />
-                Chrome extension
+                Add to Chrome
               </Button>
             </div>
 
             <p className="mt-3 text-base text-muted-foreground">
-              Coming soon
+              Free on the Chrome Web Store
             </p>
-
-            <Link
-              href="#contact"
-              className="mt-8 inline-block text-sm font-semibold text-foreground underline underline-offset-4 hover:text-muted-foreground"
-            >
-              Want early access? Get in touch →
-            </Link>
           </div>
         </FadeUp>
 

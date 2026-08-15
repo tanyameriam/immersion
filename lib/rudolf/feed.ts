@@ -1,5 +1,6 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
+import { degraded } from "@/lib/rudolf/trace";
 import { buildRecommendations } from "@/lib/recommendations/generate";
 import type { Resource } from "@/lib/dashboard-data";
 
@@ -59,6 +60,7 @@ export async function getCachedFeed(
     }
   } catch (err) {
     console.error("feedCache read failed", userId, err);
+    degraded("feed-cache-read", err);
   }
 
   try {
@@ -73,7 +75,10 @@ export async function getCachedFeed(
     await ref.set({ builtAt: Timestamp.now(), entries });
     return entries;
   } catch (err) {
+    // The answer still goes out, just without fresh picks — invisible to the
+    // user and to the logs unless it is recorded on the receipt.
     console.error("feedCache refresh failed", userId, err);
+    degraded("feed-refresh", err);
     return stale;
   }
 }

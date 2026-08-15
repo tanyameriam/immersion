@@ -1,6 +1,8 @@
+import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { AI_MODEL, claude } from "@/lib/ai/claude";
-import { limitsFor } from "@/lib/billing/config";
+import { BISCUIT, PLAYTIME, limitsFor } from "@/lib/billing/config";
+import { CHROME_EXTENSION_URL } from "@/lib/constants";
 import { getUserPlan } from "@/lib/billing/plan";
 import { meterQuestion } from "@/lib/billing/playtime";
 import {
@@ -18,6 +20,7 @@ import {
   rememberMentions,
   type Mention,
 } from "@/lib/rudolf/memory";
+import { degraded, noteFacts, setPath } from "@/lib/rudolf/trace";
 import type { KnowledgeItem } from "@/lib/types/knowledge-item";
 
 /**
@@ -48,6 +51,11 @@ export type RudolfChannel = {
   memoryKey: string;
   /** Deliver reply parts with the channel's own rhythm and length caps. */
   sendMessages: (parts: string[]) => Promise<void>;
+  /** Deliver pre-rendered digest parts verbatim: they arrive as
+   * Telegram-HTML (see lib/digest/build.ts) with dynamic text already
+   * escaped, so channels must NOT escape them again. Channels without an
+   * HTML mode convert the markup to their own formatting first. */
+  sendFormattedMessages: (parts: string[]) => Promise<void>;
 };
 
 /** Message link entity (Telegram-style) — offsets are UTF-16 code units,
@@ -99,6 +107,45 @@ function sleepyWarning(remainingMs: number): string {
   );
 }
 
+/**
+ * What Rudolf knows about the user's play-time budget while he answers.
+ *
+ * The metering engine already works this out one step before the answer; it
+ * just never used to reach the model, so Rudolf could deliver the scripted
+ * "getting sleepy" warning but couldn't answer "how much time do I have left?"
+ * — he'd treat it as a question about their saves and say he couldn't find it.
+ */
+type PlaytimeContext =
+  | { metered: false }
+  | { metered: true; remainingMs: number; biscuitBalance: number };
+
+/** The play-time section of the system prompt. */
+function playtimeContext(playtime: PlaytimeContext): string {
+  if (!playtime.metered) {
+    return (
+      `THEIR PLAY TIME:\n` +
+      `Unlimited - they are a founding member. If they ask about play time, ` +
+      `biscuits, or running out, tell them they have unlimited play and never ` +
+      `need biscuits.`
+    );
+  }
+  const mins = Math.max(1, Math.round(playtime.remainingMs / 60000));
+  const jar = playtime.biscuitBalance;
+  return (
+    `THEIR PLAY TIME:\n` +
+    `About ${mins} minute${mins === 1 ? "" : "s"} left today, and ${jar} ` +
+    `biscuit${jar === 1 ? "" : "s"} in their jar. The free allowance is ` +
+    `${PLAYTIME.freeDailyMinutes} minutes of chatting a day and it resets at ` +
+    `midnight India time. One biscuit adds ${BISCUIT.minutes} more minutes and ` +
+    `biscuits never expire. They can get biscuits here: ${upgradeUrl}\n` +
+    `Saving links is always free and never uses play time, so they can keep ` +
+    `sending you links even when you are asleep.\n` +
+    `Answer honestly if they ask how much time is left, when it resets, what a ` +
+    `biscuit does, or why you go quiet. Otherwise never bring it up: don't ` +
+    `mention the countdown, don't nag, and never use it to push them to buy.`
+  );
+}
+
 const SLEEP_MESSAGES = [
   "I'm all played out for today, so I'm curling up for a nap 😴",
   `Your saves are safe and you can keep sending me links, I'll tuck them ` +
@@ -107,6 +154,71 @@ const SLEEP_MESSAGES = [
     `forever: ${foundingUrl}`,
 ];
 
+/** A digest rendered and ready to go, withheld until the user says yes -
+ * see the cron job in app/api/cron/weekly-digest/route.ts. */
+type PendingDigest = {
+  askedAt: string;
+  parts: string[];
+  recs: { url: string; title: string }[];
+};
+
+const DIGEST_CONSENT_EXPIRY_MS = 48 * 60 * 60 * 1000; // stale "this week" past this
+const DIGEST_YES_RE = /^(y|yes|yeah|yep|yup|sure|ok|okay|please|go ahead|send it)\b/i;
+const DIGEST_NO_RE = /^(n|no|nope|nah|skip|later|not now)\b/i;
+
+/**
+ * If this user has an outstanding "want your digest?" ask and the message
+ * is a clear yes/no, resolve it (send the withheld content, or acknowledge
+ * the decline) and report the message as handled. Anything else falls
+ * through to normal chat handling AND drops the ask: once the conversation
+ * has moved on, a later "yes" is almost always answering one of Rudolf's
+ * own follow-up questions, and delivering the digest there dumps it into an
+ * unrelated exchange (possibly days after the user's chosen delivery day).
+ * They'll simply be asked again next cycle.
+ */
+async function tryResolveDigestConsent(
+  userId: string,
+  channel: RudolfChannel,
+  text: string,
+): Promise<boolean> {
+  const ref = adminDb().collection("users").doc(userId);
+  const snap = await ref.get();
+  const pending = snap.data()?.pendingDigest as PendingDigest | undefined;
+  if (!pending) return false;
+
+  const askedAt = Date.parse(pending.askedAt);
+  if (!Number.isFinite(askedAt) || Date.now() - askedAt > DIGEST_CONSENT_EXPIRY_MS) {
+    // Too stale to deliver as "this week" - drop it quietly rather than
+    // answer for the user or surface old content out of context.
+    await ref.update({ pendingDigest: FieldValue.delete() });
+    return false;
+  }
+
+  const trimmed = text.trim();
+  if (DIGEST_YES_RE.test(trimmed)) {
+    setPath("digest-consent");
+    await ref.update({
+      pendingDigest: FieldValue.delete(),
+      lastDigestSentAt: new Date().toISOString(),
+    });
+    await channel.sendFormattedMessages(pending.parts);
+    if (pending.recs.length) {
+      await rememberMentions(channel.memoryKey, pending.recs);
+    }
+    return true;
+  }
+  if (DIGEST_NO_RE.test(trimmed)) {
+    setPath("digest-consent");
+    await ref.update({ pendingDigest: FieldValue.delete() });
+    await channel.sendMessages(["No problem, I'll check back next week 🐕"]);
+    return true;
+  }
+  // Not an answer to the ask - the conversation moved on. Drop the pending
+  // digest so tomorrow's "yes" to a normal Rudolf question can't trigger it.
+  await ref.update({ pendingDigest: FieldValue.delete() });
+  return false;
+}
+
 /** Route one chat message from a linked user. */
 export async function handleRudolfMessage(
   userId: string,
@@ -114,6 +226,8 @@ export async function handleRudolfMessage(
   text: string,
   entities: LinkEntity[] = [],
 ): Promise<void> {
+  if (await tryResolveDigestConsent(userId, channel, text)) return;
+
   const limits = limitsFor(await getUserPlan(userId));
 
   const { urls, note } = extractUrlsAndNote(text, entities);
@@ -124,6 +238,7 @@ export async function handleRudolfMessage(
       limits.maxItems !== null &&
       (await countItems(userId)) >= limits.maxItems
     ) {
+      setPath("shelf-full");
       await channel.sendMessages([
         `Your free shelf is full (${limits.maxItems} saves). Upgrade to keep collecting: ${upgradeUrl}`,
       ]);
@@ -138,19 +253,34 @@ export async function handleRudolfMessage(
   if (limits.rudolfPlaytime === "metered") {
     const meter = await meterQuestion(userId);
     if (!meter.allowed) {
+      // Out of play time reads as "the bot is broken" from the user's side,
+      // especially the silent branch — record it so support can tell the two
+      // apart from a screenshot.
+      setPath("asleep");
+      noteFacts({ sentSleepMessage: meter.shouldSendSleepMessage });
       if (meter.shouldSendSleepMessage) {
         await channel.sendMessages(SLEEP_MESSAGES);
       }
       return; // already said goodnight today: stay asleep quietly
     }
-    await answerQuestion(userId, channel, text);
+    // On the receipt too: "was this user nearly out of time?" is the first
+    // thing worth knowing when someone reports Rudolf going quiet on them.
+    noteFacts({
+      playtimeRemainingMins: Math.round(meter.remainingMs / 60000),
+      biscuitBalance: meter.biscuitBalance,
+    });
+    await answerQuestion(userId, channel, text, {
+      metered: true,
+      remainingMs: meter.remainingMs,
+      biscuitBalance: meter.biscuitBalance,
+    });
     if (meter.shouldWarn) {
       await channel.sendMessages([sleepyWarning(meter.remainingMs)]);
     }
     return;
   }
 
-  await answerQuestion(userId, channel, text);
+  await answerQuestion(userId, channel, text, { metered: false });
 }
 
 /** Save pasted links through the normal pipeline, then report the gists. */
@@ -160,12 +290,19 @@ async function ingestLinks(
   urls: string[],
   note?: string,
 ): Promise<void> {
+  setPath("ingest");
   const take = urls.slice(0, MAX_LINKS_PER_MESSAGE);
   const results = await Promise.all(
     take.map((url) => createPendingItem({ userId, url, note })),
   );
   const created = results.filter((r) => r.created);
   const dupes = results.length - created.length;
+  noteFacts({
+    urls: take,
+    createdCount: created.length,
+    duplicateCount: dupes,
+    hasNote: Boolean(note),
+  });
 
   const intro: string[] = [];
   if (created.length > 0) {
@@ -199,9 +336,26 @@ async function ingestLinks(
   await processItems(created.map((r) => r.item.id), 3);
 
   const gists: string[] = [];
+  const outcomes: string[] = [];
   for (const r of created) {
     const fresh = await getItem(userId, r.item.id);
-    if (fresh?.status === "completed" && fresh.ai?.degraded) {
+    outcomes.push(
+      fresh?.status === "completed"
+        ? fresh.blocked
+          ? "blocked"
+          : fresh.ai?.degraded
+            ? "partial"
+            : "ok"
+        : (fresh?.status ?? "missing"),
+    );
+    if (fresh?.status === "completed" && fresh.blocked) {
+      // The site served a bot-challenge or login/signup wall instead of the
+      // article - there's nothing honest to summarize yet.
+      gists.push(
+        `Saved the link, but that site blocked me from reading it 🤖\n${fresh.url}\n\n` +
+          `It's a bot-check or a login/signup wall. Open it in your own browser (already signed in, past the check) and save it from the Layrrrd extension instead - it reads the page you're already looking at.\n${CHROME_EXTENSION_URL}`,
+      );
+    } else if (fresh?.status === "completed" && fresh.ai?.degraded) {
       // Saved, but the site only let us read the basics - be honest about it.
       gists.push(
         `Saved it 📚\n${fresh.url}\n\n` +
@@ -227,6 +381,8 @@ async function ingestLinks(
       );
     }
   }
+  noteFacts({ itemOutcomes: outcomes });
+  if (outcomes.some((o) => o !== "ok")) degraded("item-processing");
   await channel.sendMessages(gists);
 }
 
@@ -317,7 +473,10 @@ async function extractQueryTerms(question: string): Promise<string[]> {
       ? parsed.terms.map((t: unknown) => String(t).toLowerCase().trim()).filter(Boolean)
       : [];
     return terms.length > 0 ? terms.slice(0, 8) : naive();
-  } catch {
+  } catch (err) {
+    // Retrieval quality drops here without anything looking wrong: the reply
+    // still arrives, it just searched on worse terms.
+    degraded("query-terms", err);
     return naive();
   }
 }
@@ -327,7 +486,9 @@ async function answerQuestion(
   userId: string,
   channel: RudolfChannel,
   question: string,
+  playtime: PlaytimeContext,
 ): Promise<void> {
+  setPath("question");
   const terms = await extractQueryTerms(question);
 
   // Keyword/topic matches first (reaches saves of any age), recency for
@@ -335,11 +496,22 @@ async function answerQuestion(
   // optional — failures fall back to a bookmarks-only answer.
   const [matched, recent, feed, mentions] = await Promise.all([
     terms.length > 0
-      ? searchItems(userId, terms, { limitPerField: 60 }).catch(() => [])
+      ? searchItems(userId, terms, { limitPerField: 60 }).catch((err) => {
+          // Losing keyword search silently reduces the answer to "most recent
+          // saves only" — the classic "Rudolf forgot my library" report.
+          degraded("search", err);
+          return [];
+        })
       : Promise.resolve([]),
     listItems(userId, { limit: RECENCY_ITEMS }),
-    getCachedFeed(userId).catch(() => []),
-    getRecentMentions(channel.memoryKey).catch(() => []),
+    getCachedFeed(userId).catch((err) => {
+      degraded("feed", err);
+      return [];
+    }),
+    getRecentMentions(channel.memoryKey).catch((err) => {
+      degraded("mentions", err);
+      return [];
+    }),
   ]);
 
   const seen = new Set<string>();
@@ -351,7 +523,16 @@ async function answerQuestion(
     if (items.length >= MAX_CONTEXT_ITEMS) break;
   }
 
+  noteFacts({
+    terms,
+    matchedCount: matched.length,
+    contextItems: items.length,
+    feedItems: feed.length,
+    mentionCount: mentions.length,
+  });
+
   if (items.length === 0 && feed.length === 0) {
+    noteFacts({ emptyLibrary: true });
     await channel.sendMessages([
       "Your library is empty so far, let's fix that 🙂",
       "Paste me any link, an article, a video, whatever caught your eye. I'll save it and tell you the gist.",
@@ -425,6 +606,7 @@ async function answerQuestion(
       `- Topics they chose to hide: ${mutedTopics.join(", ") || "none"}\n` +
       `Lean toward their interests when suggesting what to pick up or building a briefing. ` +
       `Never surface a hidden topic unless they ask for it by name.\n\n` +
+      `${playtimeContext(playtime)}\n\n` +
       `THEIR LIBRARY (things they saved, most relevant to this message first, then newest):\n${context || "nothing saved yet"}\n\n` +
       `THEIR FEED (recommended for them, NOT saved yet):\n${feedContext || "nothing right now"}\n\n` +
       `LINKS YOU (RUDOLF) SENT THEM RECENTLY:\n${mentionsContext || "none"}`,
@@ -438,12 +620,14 @@ async function answerQuestion(
     .trim();
 
   if (!answer) {
+    degraded("empty-model-reply");
     await channel.sendMessages([
       "Hmm, I lost my train of thought there. Mind asking that again?",
     ]);
     return;
   }
   const parts = answer.split(/\n\s*-{3,}\s*\n/);
+  noteFacts({ replyParts: parts.length, replyChars: answer.length });
   await channel.sendMessages(parts);
 
   // Remember which links Rudolf handed over, so "save that one you sent me"

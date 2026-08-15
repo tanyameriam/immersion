@@ -50,7 +50,8 @@ export default function RootLayout({
             <ReferralCapture />
             {children}
             <FeedbackWidget />
-            <Toaster position="bottom-right" />
+            {/* top offset clears the fixed 72px nav bar (Navigation.tsx) */}
+            <Toaster position="top-center" offset={{ top: "88px" }} />
             <TestingBanner />
           </PreferencesProvider>
         </AuthProvider>

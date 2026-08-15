@@ -4,6 +4,11 @@ rules_version = '2';
 // Principle: users read/write ONLY their own data. AI-derived fields and
 // backend-only collections are never writable from the client — those writes
 // go through the Admin SDK, which bypasses these rules.
+//
+// Firestore denies anything not matched below, so a collection with no block
+// here is already locked. Only list a collection when it exists and the rule
+// says something the default doesn't — a block for a collection that holds no
+// data reads as though more of the system is built than actually is.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -41,11 +46,6 @@ service cloud.firestore {
                      'paidAdminNotifiedAt']);
     }
 
-    // Per-user preferences.
-    match /preferences/{userId} {
-      allow read, write: if signedIn() && request.auth.uid == userId;
-    }
-
     // Knowledge items. Clients may create/read/delete their own and toggle
     // user-facing flags, but may NOT write AI/status/ownership fields —
     // only the Admin SDK does.
@@ -61,15 +61,7 @@ service cloud.firestore {
     }
 
     // Backend-generated; clients may read their own but never write.
-    match /recommendations/{id} {
-      allow read: if owns(resource.data);
-      allow write: if false;
-    }
     match /weeklyDigests/{id} {
-      allow read: if owns(resource.data);
-      allow write: if false;
-    }
-    match /notifications/{id} {
       allow read: if owns(resource.data);
       allow write: if false;
     }
@@ -95,10 +87,23 @@ service cloud.firestore {
     }
 
     // Backend-only, no client access at all.
-    match /analytics/{id} {
+    // Rudolf's support receipts. They hold user message content, so no client
+    // ever reads them - support looks them up server-side by reference code.
+    // Retention is enforced by a Firestore TTL policy on `expiresAt`, and they
+    // are deleted with the account (app/api/account/route.ts).
+    match /botEvents/{id} {
       allow read, write: if false;
     }
-    match /systemJobs/{id} {
+    // Rudolf's per-chat memory, keyed by chat id rather than uid.
+    match /telegramChats/{id} {
+      allow read, write: if false;
+    }
+    match /feedCache/{id} {
+      allow read, write: if false;
+    }
+    // Dead data from the removed proactive-nudge feature. Nothing writes here
+    // any more; the remaining docs are per-user and are cleared on deletion.
+    match /botNudges/{id} {
       allow read, write: if false;
     }
   }

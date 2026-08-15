@@ -8,6 +8,7 @@ import {
   userIdForChat,
   type TelegramEntity,
 } from "@/lib/telegram/chat";
+import { traceChat } from "@/lib/rudolf/trace";
 import { sendTelegramMessage } from "@/lib/telegram/send";
 
 /**
@@ -125,32 +126,22 @@ export async function processTelegramUpdate(
     return false;
   }
 
-  // Nudge controls: pause or resume Rudolf's between-digest picks.
-  if (text.startsWith("/mute") || text.startsWith("/unmute")) {
-    const muting = text.startsWith("/mute");
-    await adminDb().collection("users").doc(userId).set(
-      { botNudges: muting ? "off" : "on", updatedAt: FieldValue.serverTimestamp() },
-      { merge: true },
-    );
-    await sendMessages(
-      chatId,
-      muting
-        ? [
-            "Okay, no more surprise picks from me. Your digest still arrives as usual.",
-            "Send /unmute whenever you want them back.",
-          ]
-        : ["Woof, picks are back on 🐕 I'll fetch you something good between digests."],
-    );
-    return false;
-  }
-
-  try {
-    await handleChatMessage(userId, chatId, text, entities);
-  } catch (err) {
-    console.error("Telegram chat handling failed", err);
+  // The receipt is what makes a screenshot of the failure reply actionable:
+  // the ref below is the id of the botEvents doc holding the whole interaction.
+  const result = await traceChat(
+    {
+      userId,
+      channel: "Telegram",
+      memoryKey: String(chatId),
+      inboundText: text,
+    },
+    () => handleChatMessage(userId, chatId, text, entities),
+  );
+  if (!result.ok) {
     await sendTelegramMessage(
       String(chatId),
-      "Oops, something hiccuped on my side. Give it another go in a moment?",
+      "Oops, something hiccuped on my side. Give it another go in a moment? " +
+        `(ref: ${result.ref})`,
     );
   }
   return false;
