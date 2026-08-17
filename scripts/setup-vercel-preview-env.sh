@@ -37,6 +37,24 @@ declare -A ADD=(
   [CRON_SECRET]="$CRON"
 )
 
+# A single Vercel env var record can target several environments at once, and
+# `vercel env rm <name> preview` deletes the WHOLE record - taking the
+# Production value with it. That is exactly how production lost every
+# FIREBASE_* var (and CRON_SECRET) on 2026-08-12 and ran for five days with
+# placeholder config: login 401'd for real users and the Telegram bot went
+# silent. So: back production up first, then put back anything the removals
+# took with them.
+PROD_BACKUP="$(mktemp -t vercel-prod-env.XXXXXX)"
+trap 'rm -f "$PROD_BACKUP"' EXIT
+
+echo "── Backing up the Production environment first…"
+vercel env pull "$PROD_BACKUP" --environment=production --yes >/dev/null
+echo "   saved $(grep -c '^[A-Z]' "$PROD_BACKUP") Production vars"
+
+prod_value() { # prod_value NAME -> value as it existed in Production, or ""
+  sed -n "s/^$1=//p" "$PROD_BACKUP" | head -1 | sed -e 's/^"//' -e 's/"$//'
+}
+
 echo "── Removing Preview scope from existing (production) values…"
 for name in "${!ADD[@]}"; do
   vercel env rm "$name" preview -y >/dev/null 2>&1 \
@@ -58,8 +76,28 @@ for name in "${!ADD[@]}"; do
     && echo "   added: $name" || { echo "   FAILED: $name"; exit 1; }
 done
 
+echo "── Verifying Production survived, restoring anything the removals took…"
+PROD_NOW="$(vercel env ls production 2>/dev/null | awk '{print $1}')"
+restored=0
+for name in "${!ADD[@]}"; do
+  grep -qx "$name" <<<"$PROD_NOW" && continue
+  value="$(prod_value "$name")"
+  if [ -z "$value" ]; then
+    echo "   ⚠️  $name is missing from Production and was not in the backup - set it by hand!"
+    continue
+  fi
+  vercel env add "$name" production --value="$value" --yes --force >/dev/null \
+    && { echo "   restored to Production: $name"; restored=$((restored + 1)); } \
+    || { echo "   FAILED to restore Production: $name"; exit 1; }
+done
+[ "$restored" -eq 0 ] && echo "   Production untouched, nothing to restore"
+
 echo
 echo "✅ Preview env now points at layrrrd-test. Your Preview CRON_SECRET: $CRON"
+if [ "$restored" -gt 0 ]; then
+  echo "⚠️  Restored $restored Production var(s). Redeploy production so the"
+  echo "    running build picks them up: vercel redeploy <current-prod-url>"
+fi
 echo
 echo "Still manual (dashboards, ~10 min total):"
 echo "  • Vercel → immersion → Settings → Domains → Add test.layrrrd.com,"
