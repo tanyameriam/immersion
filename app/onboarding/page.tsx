@@ -25,7 +25,7 @@ import { DESIGN_ROLES } from "@/lib/constants";
  */
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user, hydrated } = useAuth();
+  const { user, hydrated, needsVerification } = useAuth();
   const { prefs, loaded, onboarded, save, markOnboarded } = usePreferences();
 
   const [name, setName] = useState("");
@@ -39,6 +39,11 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (hydrated && !user) router.replace("/");
   }, [hydrated, user, router]);
+  // Onboarding writes to Firestore, which the rules now refuse for an
+  // unconfirmed address. /dashboard owns the code step, so bounce there.
+  useEffect(() => {
+    if (needsVerification) router.replace("/dashboard");
+  }, [needsVerification, router]);
   useEffect(() => {
     if (loaded && onboarded) router.replace("/dashboard");
   }, [loaded, onboarded, router]);

@@ -34,6 +34,9 @@ export type AuthUser = {
   name: string;
   email: string;
   photoURL: string | null;
+  /** Password signups start false and must enter the emailed code. Google
+   * accounts arrive true - Google has already proven the address. */
+  emailVerified: boolean;
 };
 
 type AuthContextValue = {
@@ -46,12 +49,22 @@ type AuthContextValue = {
   closeAuth: () => void;
   setMode: (mode: AuthMode) => void;
   signInWithGoogle: () => Promise<void>;
-  signInWithEmail: (email: string, password: string) => Promise<void>;
+  /** Resolves `{ verified: false }` when the account still owes us a code. */
+  signInWithEmail: (
+    email: string,
+    password: string,
+  ) => Promise<{ verified: boolean }>;
   signUpWithEmail: (
     name: string,
     email: string,
     password: string,
-  ) => Promise<void>;
+  ) => Promise<{ verified: boolean }>;
+  /** Signed in, but the address still needs confirming. Drives the gate. */
+  needsVerification: boolean;
+  /** (Re)send a code to the signed-in user's address. */
+  sendVerificationCode: () => Promise<void>;
+  /** Redeem a code; resolves once the refreshed token says verified. */
+  verifyEmailCode: (code: string) => Promise<void>;
   logout: () => void;
 };
 
@@ -71,6 +84,7 @@ const TEST_USER: AuthUser = {
   name: "Tanya",
   email: TEST_EMAIL,
   photoURL: null,
+  emailVerified: true, // client-only bypass, never hits the gate
 };
 
 export function useAuth() {
@@ -87,6 +101,7 @@ function toAuthUser(u: User): AuthUser {
     name: u.displayName ?? u.email ?? "there",
     email: u.email ?? "",
     photoURL: u.photoURL,
+    emailVerified: u.emailVerified,
   };
 }
 
@@ -129,6 +144,27 @@ async function callAuthedEndpoint(u: User, path: string, body?: unknown) {
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) throw new Error(`${path} failed with ${res.status}`);
+}
+
+/** POST to an endpoint that tolerates an unverified session, returning the
+ * parsed body so callers can act on the specific failure reason. */
+async function callVerificationEndpoint(
+  u: User,
+  path: string,
+  body?: unknown,
+): Promise<{ ok: boolean; status: number; data: Record<string, unknown> }> {
+  const token = await u.getIdToken();
+  const headers = new Headers();
+  headers.set("Authorization", `Bearer ${token}`);
+  if (body) headers.set("Content-Type", "application/json");
+
+  const res = await fetch(path, {
+    method: "POST",
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  return { ok: res.ok, status: res.status, data };
 }
 
 async function finishNewSignup(u: User): Promise<void> {
@@ -199,6 +235,9 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
         mode,
         user,
         hydrated,
+        // Google accounts and the test session both carry emailVerified: true,
+        // so only unconfirmed password signups trip the gate.
+        needsVerification: Boolean(user && !user.emailVerified),
         openAuth: (nextMode) => {
           if (nextMode) setMode(nextMode);
           setIsOpen(true);
@@ -225,16 +264,71 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
             setUser(TEST_USER);
             setHydrated(true);
             setIsOpen(false);
-            return;
+            return { verified: true };
           }
-          await signInWithEmailAndPassword(auth, email, password);
+          const cred = await signInWithEmailAndPassword(auth, email, password);
+          setUser(toAuthUser(cred.user));
+          if (!cred.user.emailVerified) {
+            // Signed up but never confirmed: send a fresh code and let the
+            // modal drop them on the verification step.
+            await callVerificationEndpoint(
+              cred.user,
+              "/api/auth/send-verification",
+            );
+            return { verified: false };
+          }
           setIsOpen(false);
+          return { verified: true };
         },
         signUpWithEmail: async (name, email, password) => {
           const cred = await createUserWithEmailAndPassword(auth, email, password);
           if (name) await updateProfile(cred.user, { displayName: name });
           await upsertUserProfile(cred.user);
-          await finishNewSignup(cred.user);
+          // Referral claim and the admin ping deliberately wait for
+          // verification - an address that never confirms shouldn't burn a
+          // referral or announce a signup that isn't real yet. They run in
+          // verifyEmailCode instead.
+          setUser(toAuthUser(cred.user));
+          const sent = await callVerificationEndpoint(
+            cred.user,
+            "/api/auth/send-verification",
+          );
+          if (!sent.ok && sent.status !== 429) {
+            console.error("Failed to send verification code", sent.data);
+          }
+          return { verified: false };
+        },
+        sendVerificationCode: async () => {
+          const u = auth.currentUser;
+          if (!u) throw new Error("Not signed in");
+          const res = await callVerificationEndpoint(
+            u,
+            "/api/auth/send-verification",
+          );
+          if (!res.ok) {
+            throw new Error(String(res.data.error ?? "send_failed"));
+          }
+        },
+        verifyEmailCode: async (code) => {
+          const u = auth.currentUser;
+          if (!u) throw new Error("Not signed in");
+
+          const res = await callVerificationEndpoint(
+            u,
+            "/api/auth/verify-email",
+            { code },
+          );
+          if (!res.ok) {
+            throw new Error(String(res.data.error ?? "invalid"));
+          }
+
+          // The server flipped emailVerified; pull a fresh token so the new
+          // claim reaches both this client and the Firestore rules.
+          await u.reload();
+          await u.getIdToken(true);
+          setUser(toAuthUser(u));
+
+          await finishNewSignup(u);
           setIsOpen(false);
         },
         logout: () => {

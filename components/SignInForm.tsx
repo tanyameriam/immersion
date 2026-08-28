@@ -32,10 +32,14 @@ export function SignInForm() {
     setStatus("submitting");
     setError(null);
     try {
-      if (signingUp) {
-        await signUpWithEmail(name.trim(), email.trim(), password);
-      } else {
-        await signInWithEmail(email.trim(), password);
+      const result = signingUp
+        ? await signUpWithEmail(name.trim(), email.trim(), password)
+        : await signInWithEmail(email.trim(), password);
+      // Unverified accounts stay put: the modal swaps to the code step rather
+      // than dropping them on a dashboard they can't use yet.
+      if (!result.verified) {
+        setStatus("idle");
+        return;
       }
       router.push("/dashboard");
     } catch (err) {

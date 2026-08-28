@@ -15,6 +15,13 @@ service cloud.firestore {
     function signedIn() {
       return request.auth != null;
     }
+    // Password signups must confirm their address before they can put content
+    // in. Google accounts arrive with this claim already true. Existing
+    // accounts were backfilled to true (scripts/backfill-email-verified.mjs),
+    // so nobody who signed up before the check got locked out.
+    function verified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
     function owns(resourceData) {
       return signedIn() && request.auth.uid == resourceData.userId;
     }
@@ -51,7 +58,7 @@ service cloud.firestore {
     // only the Admin SDK does.
     match /knowledgeItems/{itemId} {
       allow read, delete: if owns(resource.data);
-      allow create: if signedIn()
+      allow create: if verified()
         && request.auth.uid == request.resource.data.userId;
       allow update: if owns(resource.data)
         && !request.resource.data.diff(resource.data).affectedKeys()
@@ -83,6 +90,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /paymentOrders/{id} {
+      allow read, write: if false;
+    }
+
+    // Pending email-verification codes (hashed, with attempt counters). No
+    // client ever touches these - only the Admin SDK in
+    // lib/auth/email-verification.ts.
+    match /emailVerifications/{id} {
       allow read, write: if false;
     }
 
