@@ -12,6 +12,10 @@ export interface UserDigest {
   email: string;
   name: string;
   telegramChatId: string | null;
+  whatsappWaId: string | null;
+  /** ISO timestamp of the user's last WhatsApp message to Rudolf; "" if
+   * never. Decides whether the digest ask fits the free 24-hour window. */
+  whatsappLastInboundAt: string;
   notificationDay: string;
   notificationPreference: string;
   /** "weekly" | "biweekly" | "off"; docs without the field mean weekly. */
@@ -137,6 +141,8 @@ export async function buildWeeklyDigests(sinceMs = WEEK_MS): Promise<UserDigest[
       email: profile.email || authEmails.get(uid) || "",
       name: profile.name ?? "",
       telegramChatId: profile.telegramChatId ?? null,
+      whatsappWaId: profile.whatsappWaId || null,
+      whatsappLastInboundAt: profile.whatsappLastInboundAt ?? "",
       notificationDay: profile.notificationDay ?? "Monday",
       notificationPreference: profile.notificationPreference ?? "email",
       notificationFrequency: profile.notificationFrequency ?? "weekly",

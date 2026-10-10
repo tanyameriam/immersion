@@ -72,7 +72,7 @@ export async function sendMessages(
  * WhatsApp has no HTML mode, so convert: links become "title" then the url
  * on its own line, bold/italic become WhatsApp's own markers, and the
  * build-time entity escaping is undone last. */
-function htmlToWhatsAppText(text: string): string {
+export function htmlToWhatsAppText(text: string): string {
   return text
     .replace(/<a href="([^"]*)">([\s\S]*?)<\/a>/g, "$2\n$1")
     .replace(/<b>([\s\S]*?)<\/b>/g, "*$1*")

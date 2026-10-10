@@ -85,8 +85,10 @@ npm run backup   # exports all collections + auth users to backups/ (gitignored)
 - **Telegram:** one bot = one webhook URL, so test uses a separate bot
   (create via @BotFather) whose webhook points at
   `test.layrrrd.com/api/telegram/webhook`.
-- **WhatsApp:** use Meta's free test number, webhook pointed at
-  `test.layrrrd.com/api/whatsapp/webhook`.
+- **WhatsApp:** a separate Meta app using Meta's free test number, webhook
+  pointed at `test.layrrrd.com/api/whatsapp/webhook`. Only the (max 5)
+  recipient numbers verified in that app can talk to it. Step-by-step:
+  [rudolf-whatsapp-integration.md](rudolf-whatsapp-integration.md#setup-walkthrough).
 - **Razorpay:** test-mode keys + a test-mode webhook registered to
   `test.layrrrd.com/api/payments/webhook`. Pay with Razorpay test cards.
 - **Resend:** leave the key unset in Preview (digest emails skip) or use a

@@ -21,7 +21,7 @@ import { track } from "@/lib/analytics";
 import { useAuth } from "@/components/AuthContext";
 import type { StarterPick } from "@/lib/types/starter-list";
 
-export type NotificationPreference = "email" | "telegram";
+export type NotificationPreference = "email" | "telegram" | "whatsapp";
 
 /** How often the digest goes out. Weekly is the maximum; there is
  * deliberately no daily option (testers were clear: low volume or uninstall). */

@@ -23,12 +23,16 @@ const CODES_COLLECTION = "whatsappLinkCodes";
 const CODE_TTL_MS = 15 * 60 * 1000;
 const CONNECT_RE = /^\s*connect\s+([0-9a-f]{16})\b/i;
 
-/** Minimal shape of the Cloud API webhook payload pieces we care about. */
+/** Minimal shape of the Cloud API webhook payload pieces we care about.
+ * A tap on a template's quick-reply button (the digest ask) arrives as
+ * type "button"; a tap on an interactive reply button as "interactive". */
 type WhatsAppMessage = {
   id?: string;
   from?: string;
   type?: string;
   text?: { body?: string };
+  button?: { text?: string; payload?: string };
+  interactive?: { button_reply?: { title?: string } };
 };
 export type WhatsAppWebhookPayload = {
   entry?: {
@@ -82,6 +86,7 @@ async function redeemLinkCode(
       {
         whatsappWaId: waId,
         ...(name ? { whatsappName: name } : {}),
+        whatsappLastInboundAt: new Date().toISOString(),
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true },
@@ -93,6 +98,33 @@ async function redeemLinkCode(
     "Just talk to me. Paste any link to save it, or ask me about your saves. Send \"help\" anytime for ideas.",
   ]);
   return true;
+}
+
+/** Meta's standard opt-out words. Exact match only, so a chat message like
+ * "stop saving podcasts" still reaches Rudolf. */
+const STOP_RE = /^\s*(stop|unsubscribe)\s*[.!]?\s*$/i;
+
+/** Honor an opt-out: stop WhatsApp digest asks (switching the digest back
+ * to email) and drop any ask still waiting for an answer. Chat keeps
+ * working - the user can still message Rudolf whenever they like. */
+async function optOut(userId: string, waId: string): Promise<void> {
+  const ref = adminDb().collection("users").doc(userId);
+  const wasWhatsApp =
+    (await ref.get()).data()?.notificationPreference === "whatsapp";
+  await ref.set(
+    {
+      ...(wasWhatsApp ? { notificationPreference: "email" } : {}),
+      pendingDigest: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+  await sendMessages(waId, [
+    wasWhatsApp
+      ? "Done, no more digest messages here. Your weekly digest goes to your email instead."
+      : "Got it, I won't send you anything here unless you message me first.",
+    "You can still chat with me anytime, and switch back under Profile → Newsletter Delivery.",
+  ]);
 }
 
 const CONNECT_MESSAGES = [
@@ -111,8 +143,25 @@ async function processMessage(
   // Mark it read and show typing while we work — cosmetic, never blocking.
   if (message.id) await markReadWithTyping(message.id);
 
-  const text = message.type === "text" ? message.text?.body?.trim() : undefined;
+  const text = (
+    message.type === "text"
+      ? message.text?.body
+      : message.type === "button"
+        ? message.button?.text
+        : message.type === "interactive"
+          ? message.interactive?.button_reply?.title
+          : undefined
+  )?.trim();
   const userId = await userIdForWaId(waId);
+
+  // Any inbound message opens (or extends) Meta's free 24-hour window; the
+  // digest cron reads this to skip the paid template when it can.
+  if (userId) {
+    await adminDb()
+      .collection("users")
+      .doc(userId)
+      .set({ whatsappLastInboundAt: new Date().toISOString() }, { merge: true });
+  }
 
   if (!text) {
     // Phase 1 is text-only: no images, voice notes, or documents yet.
@@ -138,6 +187,11 @@ async function processMessage(
 
   if (!userId) {
     await sendMessages(waId, CONNECT_MESSAGES);
+    return false;
+  }
+
+  if (STOP_RE.test(text)) {
+    await optOut(userId, waId);
     return false;
   }
 

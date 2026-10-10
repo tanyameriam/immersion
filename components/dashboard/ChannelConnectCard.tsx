@@ -3,44 +3,54 @@
 import { useEffect, useRef, useState } from "react";
 import { Blocks, Mail, MessageCircle, Send, Users } from "lucide-react";
 import { TelegramConnect } from "@/components/TelegramConnect";
+import { WhatsAppConnect } from "@/components/WhatsAppConnect";
 import { Button } from "@/components/ui/button";
 import { usePreferences } from "@/hooks/use-preferences";
 
 const CHANNELS = [
   { key: "telegram", label: "Telegram", icon: Send, enabled: true },
-  { key: "whatsapp", label: "WhatsApp", icon: MessageCircle, enabled: false },
+  { key: "whatsapp", label: "WhatsApp", icon: MessageCircle, enabled: true },
   { key: "email", label: "Email", icon: Mail, enabled: false },
   { key: "teams", label: "Teams", icon: Users, enabled: false },
   { key: "slack", label: "Slack", icon: Blocks, enabled: false },
 ] as const;
 
+type ChatChannel = "telegram" | "whatsapp";
+
 /**
  * Dashboard prompt to hook up a chat channel (the core save-from-anywhere
- * loop). Stays visible until Telegram is linked. When a link completes here,
- * Telegram also becomes the digest channel, since that was the user's
- * evident intent.
+ * loop). Stays visible until Telegram or WhatsApp is linked. When a link
+ * completes here, that channel also becomes the digest channel, since that
+ * was the user's evident intent.
  */
 export function ChannelConnectCard() {
   const { prefs, loaded, save, reload } = usePreferences();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<ChatChannel | null>(null);
   const wasUnlinked = useRef(false);
 
-  const connected = Boolean(prefs.telegramChatId);
+  const linkedChannel: ChatChannel | null = prefs.telegramChatId
+    ? "telegram"
+    : prefs.whatsappWaId
+      ? "whatsapp"
+      : null;
 
   useEffect(() => {
     if (!loaded) return;
-    if (!connected) {
+    if (!linkedChannel) {
       wasUnlinked.current = true;
       return;
     }
-    // Linked while this card was showing: make Telegram the digest channel.
-    if (wasUnlinked.current && prefs.notificationPreference !== "telegram") {
+    // Linked while this card was showing: make that channel the digest one.
+    if (
+      wasUnlinked.current &&
+      prefs.notificationPreference !== linkedChannel
+    ) {
       wasUnlinked.current = false;
-      void save({ notificationPreference: "telegram" });
+      void save({ notificationPreference: linkedChannel });
     }
-  }, [loaded, connected, prefs.notificationPreference, save]);
+  }, [loaded, linkedChannel, prefs.notificationPreference, save]);
 
-  if (!loaded || connected) return null;
+  if (!loaded || linkedChannel) return null;
 
   return (
     <div className="border border-border bg-card px-5 py-4">
@@ -71,8 +81,8 @@ export function ChannelConnectCard() {
             <Button
               key={key}
               size="sm"
-              variant={open ? "default" : "outline"}
-              onClick={() => setOpen((v) => !v)}
+              variant={open === key ? "default" : "outline"}
+              onClick={() => setOpen((v) => (v === key ? null : key))}
             >
               <Icon className="size-4" />
               {label}
@@ -81,12 +91,21 @@ export function ChannelConnectCard() {
         })}
       </div>
 
-      {open && (
+      {open === "telegram" && (
         <div className="mt-4">
           <TelegramConnect
             chatId={prefs.telegramChatId}
             refresh={reload}
             onDisconnect={() => void save({ telegramChatId: "" })}
+          />
+        </div>
+      )}
+      {open === "whatsapp" && (
+        <div className="mt-4">
+          <WhatsAppConnect
+            waId={prefs.whatsappWaId}
+            refresh={reload}
+            onDisconnect={() => void save({ whatsappWaId: "" })}
           />
         </div>
       )}

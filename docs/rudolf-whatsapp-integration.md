@@ -2,13 +2,23 @@
 
 ## Status
 
-Phase 1 (chat only) is implemented in code: `lib/whatsapp/` (send, chat,
-linking), `app/api/whatsapp/webhook` + `app/api/whatsapp/link`, the
-`WhatsAppConnect` UI on the profile page, and the shared Rudolf chat brain in
-`lib/rudolf/chat.ts` (used by both Telegram and WhatsApp). What remains is the
-Meta side: setup steps 1-6 and 9-10 below, plus filling the `WHATSAPP_*`
-environment variables (see `.env.example`). Phase 2 (proactive digests and
-nudges over templates) is not built.
+Both phases are implemented in code:
+
+- **Phase 1 (chat):** `lib/whatsapp/` (send, chat, linking),
+  `app/api/whatsapp/webhook` + `app/api/whatsapp/link`, the shared Rudolf
+  brain in `lib/rudolf/chat.ts`. Users connect from the dashboard's
+  "Where should Rudolf reach you?" card or Profile → Newsletter Delivery.
+- **Phase 2 (weekly digest on WhatsApp):** WhatsApp is a third digest
+  channel next to email and Telegram. The cron asks first, exactly like
+  Telegram, and only sends the digest after a yes. The ask is a free normal
+  message when the user messaged Rudolf in the last 23h, otherwise the
+  approved `WHATSAPP_DIGEST_TEMPLATE` (paid), capped per month by
+  `WHATSAPP_TEMPLATE_MONTHLY_CAP` with email as the fallback. See
+  `lib/whatsapp/digest.ts`. Replying STOP switches the digest back to email.
+  Proactive nudges are not built: Rudolf no longer sends those on any
+  channel.
+
+What remains is the Meta side - follow the walkthrough below, test first.
 
 ## Summary
 
@@ -89,60 +99,88 @@ Use a WhatsApp link and QR code, similar to the current Telegram connect flow.
 
 The user does not need to manually type their phone number in the app. They reveal their WhatsApp identity by messaging Rudolf.
 
-## Setup Steps
+## Setup Walkthrough
 
-1. Create or verify a Meta Business Account.
-2. Create a Meta Developer app.
-3. Add the WhatsApp product to the app.
-4. Create or connect a WhatsApp Business Account.
-5. Add a dedicated phone number for Rudolf.
-6. Generate a production access token.
-7. Add environment variables:
+One Meta app has exactly one webhook callback URL, so QA and production
+need **separate Meta apps** (same as the separate Telegram bots). Do the
+whole thing for test first, QA it, then repeat for production.
 
-   ```env
-   WHATSAPP_ACCESS_TOKEN=
-   WHATSAPP_PHONE_NUMBER_ID=
-   WHATSAPP_BUSINESS_ACCOUNT_ID=
-   WHATSAPP_VERIFY_TOKEN=
-   WHATSAPP_APP_SECRET=
-   WHATSAPP_BUSINESS_NUMBER=
-   ```
+### A. Test (test.layrrrd.com, Meta's free test number)
 
-8. Add a webhook route:
+1. **Create the app.** developers.facebook.com → My Apps → Create app →
+   use case "Connect with customers through WhatsApp". Link (or create) the
+   Meta Business portfolio when asked. Name it e.g. "Rudolf (test)".
+2. **Grab the ids.** WhatsApp → API Setup shows a free test number. Note
+   its **Phone number ID** (→ `WHATSAPP_PHONE_NUMBER_ID`) and the number
+   itself, digits only with country code (→ `WHATSAPP_BUSINESS_NUMBER`).
+3. **Allow your testers.** The test number can only talk to up to 5
+   verified recipients: under "To", add and verify each QA tester's
+   WhatsApp number. Anyone not on this list gets nothing back.
+4. **Permanent token.** The token on API Setup expires in 24h. Instead:
+   business.facebook.com → Settings → Users → System users → Add (Admin) →
+   Assign assets: the app and the WhatsApp account (full control) →
+   Generate token, expiry "Never", permissions
+   `whatsapp_business_messaging` and `whatsapp_business_management`
+   (→ `WHATSAPP_ACCESS_TOKEN`).
+5. **App secret.** App settings → Basic → App secret
+   (→ `WHATSAPP_APP_SECRET`).
+6. **Verify token.** Any random string, e.g. `openssl rand -hex 32`
+   (→ `WHATSAPP_VERIFY_TOKEN`).
+7. **Set the env vars** in Vercel, **Preview** scope (branch `test`) only,
+   plus `.env.test` locally. Then redeploy `test` so the webhook can answer
+   Meta's verification call.
+8. **Point the webhook.** WhatsApp → Configuration → Webhook → Edit:
+   callback `https://test.layrrrd.com/api/whatsapp/webhook`, verify token
+   from step 6 → Verify and save. Then under Webhook fields, **subscribe
+   to `messages`**. (If Vercel Deployment Protection is on for Preview and
+   verification fails with 401, append
+   `?x-vercel-protection-bypass=<Protection Bypass for Automation secret>`
+   to the callback URL.)
+9. **Digest template.** business.facebook.com → WhatsApp Manager →
+   Message templates → Create:
+   - Category **Utility**, name `digest_ready`, language English (`en`)
+   - Body: `Woof, your Layrrrd week is ready, {{1}} 🐕 Want it now? I'll
+     send it over in a few short messages.` (sample value for {{1}}: `Sam`)
+   - Buttons → Quick reply: `Yes please` and `No thanks` (these exact
+     words are what Rudolf's yes/no check matches)
 
-   ```text
-   /api/whatsapp/webhook
-   ```
+   Set `WHATSAPP_DIGEST_TEMPLATE=digest_ready`,
+   `WHATSAPP_DIGEST_TEMPLATE_LANG=en`. Meta may re-categorize it as
+   Marketing, which is pricier - check the category after approval.
+10. **Deploy the Firestore rules** (they now stop clients from setting a
+    chat id themselves): `npx firebase-tools deploy --only firestore --project test`.
 
-9. Configure the webhook in Meta with the production callback URL.
-10. Subscribe the webhook to WhatsApp message events.
-11. Build WhatsApp send helpers, similar to Telegram:
+**QA checklist on test.layrrrd.com:**
 
-   ```text
-   lib/whatsapp/send.ts
-   lib/whatsapp/linking.ts
-   lib/whatsapp/chat.ts
-   ```
+- Dashboard card → WhatsApp → scan QR / open link → send → "You're in!"
+  arrives, the card disappears, Profile shows WhatsApp as the digest channel.
+- Paste a link in WhatsApp → saved to the library with a summary.
+- Ask "what did I save about X?" → sensible answer.
+- Digest, window open: message Rudolf, then run
+  `curl -H "Authorization: Bearer $CRON_SECRET" "https://test.layrrrd.com/api/cron/weekly-digest?force=1"`
+  → a free-form ask arrives; reply yes → digest arrives.
+- Digest, window closed: in the Firestore console set the tester's
+  `whatsappLastInboundAt` to two days ago, run the cron again → the
+  template with buttons arrives; tap Yes please → digest arrives.
+- Send STOP → confirmation; Profile now shows Email.
+- Disconnect in Profile → messages get the "connect first" reply.
 
-12. Add WhatsApp fields to user profiles:
+### B. Production (after QA passes)
 
-   ```ts
-   whatsappWaId: string
-   whatsappPhone: string
-   whatsappName?: string
-   notificationPreference: "email" | "telegram" | "whatsapp"
-   ```
-
-13. Add a `Connect WhatsApp` UI with QR code, open button, connected state, and disconnect action.
-14. Reuse Rudolf's existing Telegram chat logic where possible:
-
-   ```text
-   lib/telegram/chat.ts
-   lib/telegram/linking.ts
-   lib/telegram/send.ts
-   ```
-
-15. Submit message templates for weekly digests and nudges before enabling proactive WhatsApp delivery.
+1. A second Meta app ("Rudolf"), same steps 1, 4-6, 9 as above.
+2. **Real number:** WhatsApp → API Setup → Add phone number. It must not be
+   registered on any WhatsApp app; verify by SMS/call, set a display name
+   (Meta reviews it) and a two-step PIN.
+3. **Billing:** WhatsApp Manager → add a payment method - paid templates
+   fail without one.
+4. **Business verification** (Business Settings → Security Centre) lifts
+   the low new-account messaging limits.
+5. Env vars in Vercel **Production** scope only; set
+   `WHATSAPP_TEMPLATE_MONTHLY_CAP` to what you're willing to spend.
+6. Webhook callback on the production domain
+   (`https://<prod domain>/api/whatsapp/webhook`), subscribe to `messages`.
+7. `npm run backup`, then
+   `npx firebase-tools deploy --only firestore --project prod`.
 
 ## Recommended Rollout
 
@@ -154,11 +192,11 @@ Phase 1 should be WhatsApp chat only:
 - Send recommendations when the user asks
 - Keep weekly digest and proactive nudges on Telegram/email for now
 
-Phase 2 can add proactive WhatsApp delivery:
+Phase 2 (built) adds the weekly digest on WhatsApp:
 
-- Approved templates
-- Cost tracking by country/category
-- User opt-in and unsubscribe controls
-- Budget guardrails for digests and nudges
+- One approved template (the digest ask), used only outside the 24h window
+- Monthly template count in Firestore `whatsappUsage/{YYYY-MM}`
+- Opt-in by choosing WhatsApp as the digest channel; STOP to opt out
+- Monthly template cap with email fallback (nudges are not built)
 
 This keeps the first WhatsApp launch close to the current Telegram Rudolf experience while avoiding surprise template costs.

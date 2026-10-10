@@ -15,6 +15,7 @@ import { useAuth } from "@/components/AuthContext";
 import {
   usePreferences,
   type NotificationFrequency,
+  type NotificationPreference,
 } from "@/hooks/use-preferences";
 import { apiFetch } from "@/lib/api-client";
 import { auth } from "@/lib/firebase/client";
@@ -50,7 +51,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DESIGN_ROLES, INTEREST_GROUPS, isTopicAvailable } from "@/lib/constants";
 import { fileToAvatarDataUrl } from "@/lib/avatar";
 
-type DeliveryMethod = "email" | "telegram";
+type DeliveryMethod = NotificationPreference;
 
 function useSavedFlash() {
   const [saved, setSaved] = useState(false);
@@ -338,17 +339,36 @@ function NewsletterDeliveryCard() {
             <RadioGroupItem value="telegram" id="profile-delivery-telegram" />
             <Label htmlFor="profile-delivery-telegram">Telegram</Label>
           </div>
+          <div className="flex items-center gap-2">
+            <RadioGroupItem value="whatsapp" id="profile-delivery-whatsapp" />
+            <Label htmlFor="profile-delivery-whatsapp">WhatsApp</Label>
+          </div>
         </RadioGroup>
 
-        {deliveryMethod === "email" ? (
+        {deliveryMethod === "email" && (
           <p className="text-sm text-muted-foreground">{user?.email}</p>
-        ) : (
+        )}
+        {deliveryMethod === "telegram" && (
           <div className="space-y-4">
             <TelegramConnect
               chatId={prefs.telegramChatId}
               refresh={reload}
               onDisconnect={() => void save({ telegramChatId: "" })}
             />
+          </div>
+        )}
+        {deliveryMethod === "whatsapp" && (
+          <div className="space-y-2">
+            <WhatsAppConnect
+              waId={prefs.whatsappWaId}
+              refresh={reload}
+              onDisconnect={() => void save({ whatsappWaId: "" })}
+            />
+            <p className="text-sm text-muted-foreground">
+              Rudolf asks before sending your digest, and it only comes once
+              you reply yes. Reply STOP in the chat anytime to switch back to
+              email.
+            </p>
           </div>
         )}
 
@@ -393,21 +413,23 @@ function NewsletterDeliveryCard() {
           </p>
         </div>
 
-        <div className="space-y-3 border-t border-border pt-4">
-          <p className="text-[13px] uppercase tracking-[0.1em] text-muted-foreground">
-            Rudolf on WhatsApp
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Chat with Rudolf on WhatsApp too: paste links to save them and ask
-            about your library, just like on Telegram. Your weekly digest
-            keeps arriving by email or Telegram for now.
-          </p>
-          <WhatsAppConnect
-            waId={prefs.whatsappWaId}
-            refresh={reload}
-            onDisconnect={() => void save({ whatsappWaId: "" })}
-          />
-        </div>
+        {deliveryMethod !== "whatsapp" && (
+          <div className="space-y-3 border-t border-border pt-4">
+            <p className="text-[13px] uppercase tracking-[0.1em] text-muted-foreground">
+              Rudolf on WhatsApp
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Chat with Rudolf on WhatsApp too: paste links to save them and
+              ask about your library, just like on Telegram. Pick WhatsApp
+              above to get your digest there as well.
+            </p>
+            <WhatsAppConnect
+              waId={prefs.whatsappWaId}
+              refresh={reload}
+              onDisconnect={() => void save({ whatsappWaId: "" })}
+            />
+          </div>
+        )}
 
         <div className="border-t border-border pt-4">
           <p className="text-[13px] uppercase tracking-[0.1em] text-muted-foreground">

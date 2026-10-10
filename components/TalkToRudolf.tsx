@@ -36,7 +36,13 @@ export default function TalkToRudolf() {
                 <Send data-icon="inline-start" />
                 Telegram
               </Button>
-              <Button size="lg" variant="outline" disabled>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() =>
+                  user ? router.push("/dashboard") : openAuth("sign-up")
+                }
+              >
                 <MessageCircle data-icon="inline-start" />
                 WhatsApp
               </Button>
@@ -47,7 +53,7 @@ export default function TalkToRudolf() {
             </div>
 
             <p className="mt-3 text-base text-muted-foreground">
-              WhatsApp and Email, coming soon.
+              Email, coming soon.
             </p>
 
             <a
