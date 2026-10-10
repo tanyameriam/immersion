@@ -21,7 +21,7 @@ import { DESIGN_ROLES } from "@/lib/constants";
 /**
  * One-screen onboarding: name and role, then straight to the dashboard. The
  * dashboard takes over from there: the Recommended tab opens with the inline
- * interests picker, and the channel connect card offers Telegram.
+ * interests picker, and the channel connect card offers Telegram and WhatsApp.
  */
 export default function OnboardingPage() {
   const router = useRouter();

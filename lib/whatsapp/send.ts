@@ -1,7 +1,8 @@
 /**
  * WhatsApp Cloud API senders. Replies to a user-initiated conversation are
- * free inside Meta's 24-hour customer-service window, which covers all of
- * Rudolf's Phase 1 behavior (the bot only ever answers inbound messages).
+ * free inside Meta's 24-hour customer-service window, which covers chat.
+ * Outside that window only pre-approved templates can be sent, and Meta
+ * charges per delivered template (see sendWhatsAppTemplate).
  * No-ops gracefully if config is missing so nothing hard-fails on env.
  */
 
@@ -54,6 +55,45 @@ export async function sendWhatsAppMessage(
     }
   }
   return false;
+}
+
+/**
+ * Send a pre-approved message template - the only thing WhatsApp allows
+ * outside the 24-hour window, and billed per delivery. `bodyParams` fill
+ * the template body's {{1}}, {{2}}, … in order; Meta rejects empty ones.
+ * No retry: a duplicate here is a second paid message.
+ */
+export async function sendWhatsAppTemplate(
+  to: string,
+  name: string,
+  language: string,
+  bodyParams: string[] = [],
+): Promise<boolean> {
+  if (!to || !name) return false;
+  try {
+    return await graphPost({
+      messaging_product: "whatsapp",
+      to,
+      type: "template",
+      template: {
+        name,
+        language: { code: language },
+        ...(bodyParams.length
+          ? {
+              components: [
+                {
+                  type: "body",
+                  parameters: bodyParams.map((text) => ({ type: "text", text })),
+                },
+              ],
+            }
+          : {}),
+      },
+    });
+  } catch (err) {
+    console.error("WhatsApp template send failed", err);
+    return false;
+  }
 }
 
 /**

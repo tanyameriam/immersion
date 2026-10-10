@@ -10,6 +10,10 @@ import {
 } from "@/lib/digest/build";
 import { sendEmail } from "@/lib/email/resend";
 import { sendTelegramMessage } from "@/lib/telegram/send";
+import {
+  askForDigestOnWhatsApp,
+  type WhatsAppDigestAsk,
+} from "@/lib/whatsapp/digest";
 import { buildRecommendations } from "@/lib/recommendations/generate";
 import { purgeExpiredTraces } from "@/lib/rudolf/trace";
 
@@ -19,17 +23,19 @@ export const maxDuration = 60;
 /**
  * Weekly digest job (Vercel Cron, daily at 03:30 UTC = 9:00 AM IST, see
  * vercel.json). Sends each user their digest on the weekday they chose
- * (Profile → Delivery day), via their channel (email or Telegram). Guard
+ * (Profile → Delivery day), via their channel (email, Telegram or
+ * WhatsApp). Guard
  * with CRON_SECRET. Add ?force=1 to ignore the day gate (for manual
  * testing).
  *   curl -H "Authorization: Bearer $CRON_SECRET" ".../api/cron/weekly-digest?force=1"
  *
  * Email gets the full digest immediately - there's no back-and-forth channel
- * to ask first. Telegram is opt-in per delivery: this only sends a short
- * "want your digest?" prompt and stashes the rendered content on
- * users/{uid}.pendingDigest; the actual content only goes out once the user
- * replies yes, handled by the consent check in lib/rudolf/chat.ts. Rudolf
- * never pushes content the user didn't ask for.
+ * to ask first. Telegram and WhatsApp are opt-in per delivery: this only
+ * sends a short "want your digest?" prompt and stashes the rendered content
+ * on users/{uid}.pendingDigest; the actual content only goes out once the
+ * user replies yes, handled by the consent check in lib/rudolf/chat.ts.
+ * Rudolf never pushes content the user didn't ask for. On WhatsApp the ask
+ * may be a paid template - see lib/whatsapp/digest.ts.
  */
 async function run(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -103,39 +109,46 @@ async function run(req: Request) {
 
       const wantTelegram =
         digest.notificationPreference === "telegram" && !!digest.telegramChatId;
+      const wantWhatsApp =
+        digest.notificationPreference === "whatsapp" && !!digest.whatsappWaId;
 
       let emailOk = false;
       let askOk = false;
+      let whatsappAsk: WhatsAppDigestAsk | null = null;
       if (wantTelegram) {
         askOk = await sendTelegramMessage(
           digest.telegramChatId!,
           digestConsentPrompt(digest),
         );
-        if (askOk) {
-          // Content is ready but withheld until they say yes - see the
-          // consent check in lib/rudolf/chat.ts, which sends `parts` and
-          // records `recs` via rememberMentions once confirmed.
-          await adminDb()
-            .collection("users")
-            .doc(digest.userId)
-            .set(
-              {
-                pendingDigest: {
-                  askedAt: new Date().toISOString(),
-                  parts: digestParts(digest),
-                  recs: (digest.recommendations ?? []).map((r) => ({
-                    url: r.url,
-                    title: r.title,
-                  })),
-                },
-              },
-              { merge: true },
-            );
-        }
+      } else if (wantWhatsApp) {
+        whatsappAsk = await askForDigestOnWhatsApp(digest);
+        askOk = whatsappAsk !== null;
       }
-      // Email if they chose it, or as a fallback when the Telegram ask
-      // failed to send - email has no consent step, it just arrives.
-      if ((!wantTelegram || !askOk) && digest.email) {
+      if (askOk) {
+        // Content is ready but withheld until they say yes - see the
+        // consent check in lib/rudolf/chat.ts, which sends `parts` and
+        // records `recs` via rememberMentions once confirmed.
+        await adminDb()
+          .collection("users")
+          .doc(digest.userId)
+          .set(
+            {
+              pendingDigest: {
+                askedAt: new Date().toISOString(),
+                parts: digestParts(digest),
+                recs: (digest.recommendations ?? []).map((r) => ({
+                  url: r.url,
+                  title: r.title,
+                })),
+              },
+            },
+            { merge: true },
+          );
+      }
+      // Email if they chose it, or as a fallback when the chat ask failed
+      // to send (or hit the WhatsApp template cap) - email has no consent
+      // step, it just arrives.
+      if ((!(wantTelegram || wantWhatsApp) || !askOk) && digest.email) {
         emailOk = await sendEmail({
           to: digest.email,
           subject: "Your Layrrrd week",
@@ -147,7 +160,7 @@ async function run(req: Request) {
       if (askOk) messaged++;
 
       // Delivery timestamp drives the biweekly gate. Email is immediate
-      // delivery, so it counts now; a Telegram ask only counts once the user
+      // delivery, so it counts now; a chat ask only counts once the user
       // actually confirms (lib/rudolf/chat.ts) - an unanswered or declined
       // ask means they haven't received anything yet, so they should be
       // asked again next cycle rather than have their slot silently used up.
@@ -164,7 +177,9 @@ async function run(req: Request) {
         savedThisWeek: digest.savedThisWeek,
         readThisWeek: digest.readThisWeek,
         emailSent: emailOk,
-        telegramAsked: askOk,
+        telegramAsked: wantTelegram && askOk,
+        // "free" (inside the 24h window), "template" (paid), or null.
+        whatsappAsk,
       });
     }
 

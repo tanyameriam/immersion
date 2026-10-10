@@ -23,18 +23,38 @@ service cloud.firestore {
     // server-managed: the payment routes write them via the Admin SDK, and
     // clients can never set or change them - otherwise any signed-in user
     // could upgrade themselves for free.
+    //
+    // Chat channel ids (telegramChatId, whatsappWaId) are set only by the
+    // linking webhooks, which prove the user controls that chat. Clients may
+    // clear them (Disconnect) but never set one - otherwise a user could
+    // point their account at someone else's number, read that person's
+    // messages to Rudolf, and aim (paid) WhatsApp digest prompts at them.
+    function channelIdsCleared(data) {
+      return data.get('telegramChatId', '') == ''
+        && data.get('whatsappWaId', '') == '';
+    }
+    // On update, judge each id on its own: disconnecting one channel must
+    // still work while the other stays linked.
+    function onlyClearsChannelId(key) {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny([key])
+        || request.resource.data.get(key, '') == '';
+    }
     match /users/{userId} {
       allow read, delete: if signedIn() && request.auth.uid == userId;
       allow create: if signedIn() && request.auth.uid == userId
         && request.resource.data.get('plan', 'free') == 'free'
+        && channelIdsCleared(request.resource.data)
         && !request.resource.data.keys().hasAny(
              ['paidAt', 'razorpayPaymentId', 'razorpayOrderId',
               'foundingMember', 'foundingSpot', 'biscuits', 'rudolf',
               'referralCode', 'referralCodeCreatedAt', 'referredByUid',
               'referredByCode', 'referredAt', 'signupAdminNotifiedAt',
               'referralAdminNotifiedAt', 'referrerSignupThankYouSentAt',
-              'paidAdminNotifiedAt']);
+              'paidAdminNotifiedAt', 'whatsappLastInboundAt']);
       allow update: if signedIn() && request.auth.uid == userId
+        && onlyClearsChannelId('telegramChatId')
+        && onlyClearsChannelId('whatsappWaId')
         && !request.resource.data.diff(resource.data).affectedKeys()
             .hasAny(['plan', 'paidAt', 'razorpayPaymentId',
                      'razorpayOrderId', 'foundingMember', 'foundingSpot',
@@ -43,7 +63,7 @@ service cloud.firestore {
                      'referredByCode', 'referredAt',
                      'signupAdminNotifiedAt', 'referralAdminNotifiedAt',
                      'referrerSignupThankYouSentAt',
-                     'paidAdminNotifiedAt']);
+                     'paidAdminNotifiedAt', 'whatsappLastInboundAt']);
     }
 
     // Knowledge items. Clients may create/read/delete their own and toggle
