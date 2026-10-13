@@ -8,19 +8,22 @@ description: How to build, run, and drive Layrrrd locally to verify changes end-
 ## Build / launch
 
 - `npm run check` = lint + typecheck + build (CI parity, not verification).
-- `npm run dev` starts the app on http://localhost:3000 using `.env.local`
-  (real Firebase project `layrrrd-18b1e` - writes are LIVE data).
+- `npm run emulators` (needs Java 21+) then `npm run dev` starts the app on
+  http://localhost:3000 against the Firebase Emulator Suite via `.env.local`
+  (project `demo-layrrrd`, fake data, wiped on stop). Emulator UI:
+  http://localhost:4000. Production credentials live only in the gitignored
+  `.env.prod.local` - never point `.env.local` at `layrrrd-18b1e`.
 
 ## Getting an authenticated handle (headless)
 
 Google popup sign-in doesn't work headless. Instead:
 
-1. Create/reset a disposable password user:
-   `node --env-file=.env.local scripts/set-test-password.mjs <email> <password>`
-2. Mint a Firebase ID token via REST (keep it in a shell variable, do NOT
-   write it to a file - the permission classifier blocks persisting tokens):
-   `curl -s "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$NEXT_PUBLIC_FIREBASE_API_KEY" -d '{"email":...,"password":...,"returnSecureToken":true}'`
-3. Call API routes with `Authorization: Bearer $TOKEN`. Doc ids are
+1. Sign up a disposable user on the Auth emulator and mint an ID token in
+   one call (keep it in a shell variable, do NOT write it to a file - the
+   permission classifier blocks persisting tokens):
+   `curl -s "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-api-key" -H 'Content-Type: application/json' -d '{"email":...,"password":...,"returnSecureToken":true}'`
+   (use `accounts:signInWithPassword` for an existing emulator user).
+2. Call API routes with `Authorization: Bearer $TOKEN`. Doc ids are
    deterministic: `sha256("<uid>::<canonicalUrl>").slice(0,24)`, so
    `/api/items/<id>` is reachable without list queries.
 
@@ -37,13 +40,14 @@ Google popup sign-in doesn't work headless. Instead:
 
 ## Gotchas
 
-- `listItems`/`searchItems`/dashboard onSnapshot need the composite indexes
+- On test/prod (not the emulator, which skips index checks),
+  `listItems`/`searchItems`/dashboard onSnapshot need the composite indexes
   from `firestore.indexes.json` DEPLOYED, or every call 500s with
   FAILED_PRECONDITION. The dev log prints index-creation URLs.
 - Creating indexes or deploying rules programmatically is blocked by the
   permission classifier - the user must run
-  `npx firebase-tools deploy --only firestore:indexes,firestore:rules`
-  (needs `firebase login`).
+  `npx firebase-tools deploy --only firestore --project test|prod`
+  (needs `firebase login`; test first).
 - Clean up disposable users afterwards:
   `node --env-file=.env.local scripts/reset-data.mjs --user <email> --confirm`
 - Scripts follow a dry-run-by-default convention: `--confirm` to write.
