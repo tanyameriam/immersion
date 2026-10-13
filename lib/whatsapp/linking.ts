@@ -34,12 +34,22 @@ type WhatsAppMessage = {
   button?: { text?: string; payload?: string };
   interactive?: { button_reply?: { title?: string } };
 };
+/** Delivery receipt for a message Rudolf sent. A send can be accepted by
+ * the API and still fail later (e.g. outside the 24h window), and this is
+ * the only place that failure shows up. */
+type WhatsAppStatus = {
+  id?: string;
+  status?: string;
+  recipient_id?: string;
+  errors?: { code?: number; title?: string; message?: string }[];
+};
 export type WhatsAppWebhookPayload = {
   entry?: {
     changes?: {
       value?: {
         contacts?: { wa_id?: string; profile?: { name?: string } }[];
         messages?: WhatsAppMessage[];
+        statuses?: WhatsAppStatus[];
       };
     }[];
   }[];
@@ -219,8 +229,8 @@ async function processMessage(
 /**
  * Process one webhook delivery from the Cloud API: every inbound message in
  * every entry/change. Status updates (sent/delivered/read receipts) carry no
- * `messages` array and fall through untouched. Returns how many account
- * links it completed.
+ * `messages` array; only failed deliveries are logged, with Meta's reason.
+ * Returns how many account links it completed.
  */
 export async function processWhatsAppWebhook(
   payload: WhatsAppWebhookPayload,
@@ -229,6 +239,15 @@ export async function processWhatsAppWebhook(
   for (const entry of payload.entry ?? []) {
     for (const change of entry.changes ?? []) {
       const value = change.value;
+      for (const status of value?.statuses ?? []) {
+        if (status.status === "failed") {
+          console.error(
+            "WhatsApp delivery failed",
+            status.recipient_id,
+            JSON.stringify(status.errors ?? []),
+          );
+        }
+      }
       for (const message of value?.messages ?? []) {
         const name = value?.contacts?.find(
           (c) => c.wa_id === message.from,
