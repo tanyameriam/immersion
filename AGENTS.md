@@ -65,7 +65,9 @@ The pipeline for any change:
    branch and re-merged into `test`.
 3. **Publish:** only after the user confirms QA passed, open a PR from the
    feature branch to `main`. Merging `main` deploys to layrrrd.com. After a
-   merge to `main`, sync QA with `git push origin main:test`.
+   merge to `main`, sync QA by merging `main` into `test` and pushing
+   (`git push origin main:test` is rejected while `test` holds other
+   unreleased work).
 
 Hard rules for agents:
 
