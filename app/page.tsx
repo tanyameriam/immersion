@@ -5,7 +5,7 @@ import ContentTypes from "@/components/ContentTypes";
 import ChromeExtension from "@/components/ChromeExtension";
 import AskRudolf from "@/components/AskRudolf";
 import HowItWorks from "@/components/HowItWorks";
-import Pricing from "@/components/Pricing";
+// import Pricing from "@/components/Pricing"; // hidden for now
 import FAQ from "@/components/FAQ";
 import Footer from "@/components/Footer";
 
@@ -20,7 +20,7 @@ export default function Home() {
         <ChromeExtension />
         <HowItWorks />
         <AskRudolf />
-        <Pricing />
+        {/* <Pricing /> hidden for now */}
         <FAQ />
       </main>
       <Footer />
