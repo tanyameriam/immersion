@@ -4,7 +4,7 @@ import {
   MAX_REPLY_PARTS,
   type RudolfChannel,
 } from "@/lib/rudolf/chat";
-import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
+import { maxTextLength, sendWhatsAppMessage } from "@/lib/whatsapp/send";
 
 /**
  * WhatsApp adapter for Rudolf's chat brain (lib/rudolf/chat.ts): delivery
@@ -13,7 +13,6 @@ import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
  * shared with Telegram.
  */
 
-const WHATSAPP_CHUNK = 4000; // WhatsApp text body cap is 4096 chars
 
 export const HELP_MESSAGES = [
   "Hey, I'm Rudolf 🐕 Here's what we can do together:",
@@ -31,15 +30,16 @@ export async function userIdForWaId(waId: string): Promise<string | null> {
   return snap.empty ? null : snap.docs[0].id;
 }
 
-/** Send one (possibly long) message, split under WhatsApp's cap. */
+/** Send one (possibly long) message, split under the provider's cap. */
 async function sendOne(waId: string, text: string): Promise<void> {
+  const chunk = maxTextLength();
   let rest = text;
   while (rest.length > 0) {
     let cut =
-      rest.length <= WHATSAPP_CHUNK
+      rest.length <= chunk
         ? rest.length
-        : rest.lastIndexOf("\n", WHATSAPP_CHUNK);
-    if (cut < WHATSAPP_CHUNK / 4) cut = WHATSAPP_CHUNK; // no good break point
+        : rest.lastIndexOf("\n", chunk);
+    if (cut < chunk / 4) cut = chunk; // no good break point
     await sendWhatsAppMessage(waId, rest.slice(0, cut));
     rest = rest.slice(cut);
   }
