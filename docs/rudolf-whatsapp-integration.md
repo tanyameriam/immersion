@@ -18,7 +18,33 @@ Both phases are implemented in code:
   Proactive nudges are not built: Rudolf no longer sends those on any
   channel.
 
-What remains is the Meta side - follow the walkthrough below, test first.
+**Two providers.** WhatsApp can run through Meta's Cloud API directly
+(`/api/whatsapp/webhook`) or through **Twilio** (`/api/whatsapp/twilio`):
+setting `TWILIO_ACCOUNT_SID` switches sending to Twilio, everything else is
+shared. Twilio's free Sandbox needs no Meta business, so it's the way to
+test; see "Testing with the Twilio Sandbox" below. Custom templates are
+Meta-only for now, so on Twilio the digest ask outside the 24h window falls
+back to email.
+
+What remains is the provider side - test first.
+
+## Testing with the Twilio Sandbox
+
+1. Sign up at twilio.com (free trial credit, no card). Console →
+   Messaging → Try it out → **Send a WhatsApp message**: note the sandbox
+   number (e.g. +1 415 523 8886) and your **join code**.
+2. From each tester's phone, send `join <two-words>` to that number once
+   (re-send after ~3 days of inactivity).
+3. **Sandbox settings** → "When a message comes in":
+   `https://test.layrrrd.com/api/whatsapp/twilio`, method POST → Save.
+4. Vercel **Preview** env: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`
+   (Console home → Account info), `TWILIO_WHATSAPP_FROM=whatsapp:+14155238886`,
+   `WHATSAPP_BUSINESS_NUMBER=14155238886`. Redeploy `test`.
+5. QA as in the checklist below (connect, save a link, ask, STOP).
+
+Meta's own business still has to be set up for production: a Twilio
+WhatsApp sender for your own number is registered against a Meta business
+portfolio.
 
 ## Summary
 
