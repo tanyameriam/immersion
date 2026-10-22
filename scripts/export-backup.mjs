@@ -6,8 +6,9 @@
  * scheduled backups (which need Blaze).
  *
  * Reads credentials from the env file you pass, so the SAME script backs up
- * whichever project those credentials belong to:
- *   node --env-file=.env.local scripts/export-backup.mjs
+ * whichever project those credentials belong to (`npm run backup` uses the
+ * gitignored .env.prod.local, which holds the production admin credentials):
+ *   node --env-file=.env.prod.local scripts/export-backup.mjs
  *
  * Output: backups/<project-id>-<timestamp>/<collection-path>.json (gitignored).
  * Timestamps serialize as {_seconds,_nanoseconds}; auth users are exported to
@@ -27,7 +28,7 @@ function initAdmin() {
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
   if (!projectId || !clientEmail || !privateKey) {
     console.error(
-      "Missing Firebase Admin env vars. Run with: node --env-file=.env.local scripts/export-backup.mjs",
+      "Missing Firebase Admin env vars. Run with: node --env-file=.env.prod.local scripts/export-backup.mjs",
     );
     process.exit(1);
   }

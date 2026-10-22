@@ -29,7 +29,7 @@ const navLinks = [
   { label: "Save", href: "/#content-types" },
   { label: "Capture", href: "/#chrome-extension" },
   { label: "Retrieve", href: "/#ask-rudolf" },
-  { label: "Join", href: "/#pricing" },
+  // { label: "Join", href: "/#pricing" }, // Pricing section hidden on home page
   { label: "FAQ", href: "/#faq" },
 ];
 
