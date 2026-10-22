@@ -65,8 +65,15 @@ function toMetaPayload(params: URLSearchParams): WhatsAppWebhookPayload | null {
                   profile: { name: params.get("ProfileName") ?? undefined },
                 },
               ],
-              // No id: read receipts/typing are Meta-only (markReadWithTyping).
-              messages: [{ from: waId, ...message }],
+              // The MessageSid drives Twilio's typing indicator
+              // (markReadWithTyping).
+              messages: [
+                {
+                  id: params.get("MessageSid") ?? undefined,
+                  from: waId,
+                  ...message,
+                },
+              ],
             },
           },
         ],
@@ -91,8 +98,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Delivery receipts, if a status callback is ever configured: only
-  // failures are worth logging, with Twilio's reason.
+  // Delivery receipts for Rudolf's own sends (twilioSend sets this route as
+  // the StatusCallback): only failures are worth logging, with Twilio's
+  // reason (e.g. 63016 = outside the 24h window).
   const status = params.get("MessageStatus");
   if (status && !params.get("Body") && !params.get("ButtonText")) {
     if (status === "failed" || status === "undelivered") {

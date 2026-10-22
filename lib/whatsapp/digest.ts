@@ -5,6 +5,7 @@ import { htmlToWhatsAppText } from "@/lib/whatsapp/chat";
 import {
   sendWhatsAppMessage,
   sendWhatsAppTemplate,
+  usingTwilio,
 } from "@/lib/whatsapp/send";
 
 /**
@@ -19,7 +20,7 @@ import {
  *   which reopens the window, so the digest that follows is free again.
  *
  * Templates are capped per calendar month (WHATSAPP_TEMPLATE_MONTHLY_CAP) so
- * a growing user base can't quietly run up the Meta bill; over the cap, or
+ * a growing user base can't quietly run up the WhatsApp bill; over the cap, or
  * with no template configured, the ask fails and the cron falls back to
  * email.
  */
@@ -59,7 +60,10 @@ export async function askForDigestOnWhatsApp(
     return ok ? "free" : null;
   }
 
-  const template = process.env.WHATSAPP_DIGEST_TEMPLATE;
+  // Meta: the template's name. Twilio: the approved Content template's SID.
+  const template = usingTwilio()
+    ? process.env.TWILIO_DIGEST_CONTENT_SID
+    : process.env.WHATSAPP_DIGEST_TEMPLATE;
   if (!template) return null;
 
   // The cron sends sequentially, so a read-then-increment is race-free here.

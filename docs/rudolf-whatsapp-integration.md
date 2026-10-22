@@ -22,9 +22,12 @@ Both phases are implemented in code:
 (`/api/whatsapp/webhook`) or through **Twilio** (`/api/whatsapp/twilio`):
 setting `TWILIO_ACCOUNT_SID` switches sending to Twilio, everything else is
 shared. Twilio's free Sandbox needs no Meta business, so it's the way to
-test; see "Testing with the Twilio Sandbox" below. Custom templates are
-Meta-only for now, so on Twilio the digest ask outside the 24h window falls
-back to email.
+test; see "Testing with the Twilio Sandbox" below. Everything Rudolf does
+on Telegram works on both: chat, link saving, questions, the digest ask
+(outside the 24h window via `TWILIO_DIGEST_CONTENT_SID`, an approved Twilio
+Content template, else email), STOP, typing indicator, and failed-delivery
+logging (Twilio status callbacks to the same route, needs
+`NEXT_PUBLIC_APP_URL`).
 
 What remains is the provider side - test first.
 
@@ -41,6 +44,11 @@ What remains is the provider side - test first.
    (Console home → Account info), `TWILIO_WHATSAPP_FROM=whatsapp:+14155238886`,
    `WHATSAPP_BUSINESS_NUMBER=14155238886`. Redeploy `test`.
 5. QA as in the checklist below (connect, save a link, ask, STOP).
+
+To test the digest ask outside the 24h window, create a Content template
+in Twilio (Messaging → Content Template Builder, type "Quick reply", body
+with `{{1}}` = first name, buttons "Yes please" / "No thanks"), submit it
+for WhatsApp approval and set its SID as `TWILIO_DIGEST_CONTENT_SID`.
 
 Meta's own business still has to be set up for production: a Twilio
 WhatsApp sender for your own number is registered against a Meta business
